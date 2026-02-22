@@ -2,28 +2,22 @@
 
 This document outlines the planned features, improvements, and bug fixes for the tournament tracker.
 
-**Current Version:** v0.27.0
+**Current Version:** v0.28.0
 **Target:** v1.0 Public Launch
 **Cadence:** ~1 milestone per week
 
 ---
 
-## v0.28 - Content & Launch Prep
+## v0.29 - Website & SEO
 
 | ID | Type | Description |
 |----|------|-------------|
 | WS1 | FEATURE | Static website at digilab.cards (GitHub Pages) — landing page, About, FAQ, For Organizers |
 | WS2 | FEATURE | Shiny app footer links redirect to static site pages (parent frame navigation) |
-| CP1 | CONTENT | Write/update FAQ with all features through v0.27 |
-| CP2 | CONTENT | Write/update About page with current project state |
-| CP3 | CONTENT | Write/update For Organizers with Limitless integration, community links, etc. |
-| CP4 | CONTENT | External presence: create Discord server, update Ko-fi page, create Google form, contact info |
 | UX10 | UX | Custom GA4 events (track tab visits, filter usage, modal opens) |
 | SEO1 | SEO | Crawlable static pages (replaces iframe-trapped content) |
 | SEO2 | SEO | Structured data (JSON-LD) on static site |
 | SEO3 | SEO | Search Console integration |
-| ERR1 | RESILIENCE | Error tracking (Sentry R SDK or similar) |
-| REV1 | REVIEW | Review admin pages and tournament info submission flow — audit UX, copy, and completeness |
 | REV2 | REVIEW | Review OCR setup and screenshot parsing pipeline — audit accuracy, error handling, and UX |
 
 **Website Architecture:**
@@ -166,6 +160,22 @@ The React PoC on `explore/react-rewrite` branch serves as a reference for future
 ---
 
 ## Completed
+
+### v0.28.0 - Content Updates, Error Tracking & Admin UX
+- FAQ page rewrite: 5 categories, 22 questions covering all features through v0.27
+- About page rewrite: multi-region language, Active Scenes stat, Discord link
+- For Organizers page rewrite: Limitless Integration section, Community Links section, scene request flow
+- Centralized external URLs into `LINKS` constant (Discord, Ko-fi, GitHub, contact form)
+- Sentry error tracking integration (`sentryR`) with `safe_query()`/`safe_execute()` capture and global error handler
+- Cross-page navigation sidebar sync fix (all 11 handlers)
+- REV1 Admin UX audit — design doc + full implementation:
+  - Expanded TX-only state dropdown to all 50 US states + DC
+  - Replaced technical OCR error messages with user-friendly text
+  - Added record format help text, release event callout, player matching explanation
+  - Standardized info hint boxes across all 6 admin pages
+  - Removed debug `message()` calls from production code
+  - Added multi-color checkbox and geocoding help text
+- UX polish round 2: skeleton loaders, filter-aware empty states, `notify()` smart durations, inline form validation, debounced search, value box count-up animation, modal system consolidation
 
 ### v0.27.0 - Onboarding & Help
 - Revamped onboarding modal — 3-step carousel: Welcome (Agumon hero + feature list), Scene Selection (map + geolocation), Community Links (Discord, Ko-fi, For Organizers)

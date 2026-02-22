@@ -373,6 +373,6 @@ See `ARCHITECTURE.md` > CSS Architecture for full documentation.
 
 ## Current Version
 
-**v0.25.0** - Stores & Filtering Enhancements (Online world map, cards view, community links, admin scene filtering)
+**v0.28.0** - Content Updates, Error Tracking & Admin UX (FAQ/About/For Organizers rewrites, Sentry integration, full admin UX audit)
 
 See `CHANGELOG.md` for full version history and `ROADMAP.md` for upcoming features.

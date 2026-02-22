@@ -25,7 +25,7 @@ library(highcharter)
 # - httr: Lazy-loaded via namespacing in R/digimoncard_api.R (rarely used, cards cached)
 
 # App version (update with each release)
-APP_VERSION <- "0.27.0"
+APP_VERSION <- "0.28.0"
 
 # Load modules
 source("R/db_connection.R")

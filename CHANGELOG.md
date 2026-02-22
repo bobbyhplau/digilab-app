@@ -5,9 +5,19 @@ All notable changes to DigiLab will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased] - UX Polish
+## [0.28.0] - 2026-02-22 - Content Updates, Error Tracking & Admin UX
 
 ### Added
+- **LINKS Constant**: Centralized all external URLs (Discord, Ko-fi, GitHub, contact form) into a `LINKS` list in `app.R` — all views reference `LINKS$discord`, `LINKS$kofi`, etc.
+- **FAQ Page Rewrite**: 5 categories (Getting Started, Ratings & Scores, Scenes & Regions, Data & Coverage, General), 22 questions covering all features through v0.27
+- **About Page Rewrite**: Removed DFW-specific language, added "Active Scenes" stat with globe icon, Discord as primary contact link, multi-region audience types (Online Competitors, Community Builders)
+- **For Organizers Page Rewrite**: New Limitless Integration section (3 panels), Community Links section (3 panels), split store submission into Physical/Online/Requirements, replaced GitHub with Discord for scene requests
+- **Sentry Error Tracking**: `sentryR` integration with `SENTRY_DSN` env var — captures exceptions in `safe_query()`/`safe_execute()` and global Shiny error handler, with graceful no-op when not configured
+- **Admin Info Hint Boxes**: Added to Enter Results, Edit Tournaments, and Edit Players (all 6 admin pages now have consistent help text)
+- **Record Format Help Text**: Inline explanation below radio buttons ("Points: Total match points... W-L-T: Individual wins, losses, and ties")
+- **Release Event Callout**: Info alert in results wizard Step 2 when event type is Release Event ("deck archetypes are set to Unknown automatically")
+- **Player Matching Explanation**: Text above match summary badges in Upload Results Step 2 explaining matching by member number then username
+- **Multi-Color Checkbox Help**: Inline explanation ("Check for decks with 3+ colors. For dual-color decks, use Primary and Secondary color instead")
 - **Skeleton Loaders**: Digital-themed skeleton loaders on all public tables and dashboard charts with shimmer animation, auto-hidden when data renders
 - **`skeleton_table()` / `skeleton_chart()` Helpers**: Reusable skeleton loader generators for table and chart card bodies
 - **`admin_empty_state()` Helper**: Lightweight empty state variant for admin tables with consistent digital styling
@@ -22,14 +32,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Value Box Count-Up Animation**: Numeric value boxes (Tournaments, Players) animate from old to new value with cubic ease-out; deck boxes fade in on update
 
 ### Changed
+- **US States Dropdown**: Edit Stores state selection expanded from TX-only to all 50 US states + DC with `selectize = FALSE`
+- **OCR Error Messages**: Replaced technical messages ("Check that GOOGLE_CLOUD_VISION_API_KEY is set") with user-friendly text in both standings and match history OCR flows
+- **Geocoding Help Text**: Changed "Location will be automatically geocoded from address" to "Map coordinates will be set automatically from the address"
+- **Cross-Page Navigation**: All 11 sidebar navigation handlers now update sidebar selection via `sendCustomMessage("updateSidebarNav", ...)`
 - **Modal System Consolidated**: All 8 static Bootstrap modals (`tags$div(class="modal fade")` + jQuery triggers) migrated to Shiny's `showModal(modalDialog())` / `removeModal()` pattern — single modal system throughout the app
 - **Tournament Results Editor**: Nested edit/delete modals now use re-show pattern (Shiny only supports one modal at a time)
 - **Error Notifications Persistent**: Error toasts no longer auto-dismiss — user must click X to close
 - **Admin Empty States Styled**: Admin formats and players tables now use `admin_empty_state()` instead of plain text reactable rows
 
 ### Removed
+- Debug `message()` calls from `admin-decks-server.R` (UPDATE/DELETE archetype logging) and verbose file processing logs from `public-submit-server.R`
+- Orphaned `about_result_count` server output and `faq_to_about` navigation handler
 - ~270 lines of static Bootstrap modal HTML from 6 admin view files
 - All jQuery `modal('show'/'hide')` calls from server files
+
+### Documentation
+- **Admin UX Audit Design Doc**: `docs/plans/2026-02-22-admin-ux-audit-design.md` — prioritized findings from REV1 audit (2 blockers, 3 high, 3 medium, 3 low)
 
 ## [0.27.0] - 2026-02-20 - Onboarding & Help
 
