@@ -186,9 +186,9 @@ observeEvent(input$submit_process_ocr, {
     if (!is.null(ocr_text) && ocr_text != "") {
       ocr_texts <- c(ocr_texts, ocr_text)
 
-      # Parse results
+      # Parse results (layout-first with text fallback)
       parsed <- tryCatch({
-        parse_tournament_standings(ocr_text, total_rounds, verbose = TRUE)
+        parse_standings(ocr_result, total_rounds, verbose = TRUE)
       }, error = function(e) {
         ocr_errors <<- c(ocr_errors, paste("Parse error:", e$message))
         message("[SUBMIT] Parse error: ", e$message)

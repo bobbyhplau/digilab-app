@@ -754,6 +754,63 @@ parse_standings_layout <- function(annotations, image_width, image_height,
   result_df
 }
 
+#' Parse tournament standings with layout-first fallback strategy
+#'
+#' Tries the layout-aware parser first (uses bounding boxes for accuracy).
+#' Falls back to the text-based parser if layout parsing fails.
+#'
+#' @param ocr_result Result from gcv_detect_text() — either a list or plain text
+#' @param total_rounds Total rounds in tournament
+#' @param verbose Print debug messages
+#' @return Data frame with columns: placement, username, member_number, points, wins, losses, ties
+parse_standings <- function(ocr_result, total_rounds = 4, verbose = TRUE) {
+  # Handle both new list format and legacy plain text
+  if (is.list(ocr_result)) {
+    text <- ocr_result$text
+    annotations <- ocr_result$annotations
+    image_width <- ocr_result$image_width
+    image_height <- ocr_result$image_height
+  } else {
+    text <- ocr_result
+    annotations <- NULL
+    image_width <- 0
+    image_height <- 0
+  }
+
+  # Try layout-aware parser first
+  if (!is.null(annotations) && nrow(annotations) > 0 && image_width > 0 && image_height > 0) {
+    if (verbose) message("[OCR] Trying layout-aware parser...")
+
+    layout_result <- tryCatch({
+      parse_standings_layout(annotations, image_width, image_height,
+                              total_rounds = total_rounds, verbose = verbose)
+    }, error = function(e) {
+      if (verbose) message("[OCR] Layout parser error: ", e$message)
+      data.frame()
+    })
+
+    # Validate: need at least 1 player with ranking, username, and member number
+    if (nrow(layout_result) > 0) {
+      has_ranking <- any(!is.na(layout_result$placement) & layout_result$placement > 0)
+      has_username <- any(!is.na(layout_result$username) & layout_result$username != "")
+      has_member <- any(!is.na(layout_result$member_number) & layout_result$member_number != "")
+
+      if (has_ranking && has_username && has_member) {
+        if (verbose) message("[OCR] Using layout parser (", nrow(layout_result), " players found)")
+        return(layout_result)
+      } else {
+        if (verbose) message("[OCR] Layout parser returned incomplete data, falling back to text parser")
+      }
+    } else {
+      if (verbose) message("[OCR] Layout parser returned 0 players, falling back to text parser")
+    }
+  }
+
+  # Fallback to text-based parser
+  if (verbose) message("[OCR] Using text-based parser")
+  parse_tournament_standings(text, total_rounds = total_rounds, verbose = verbose)
+}
+
 #' Parse tournament standings from OCR text
 #'
 #' Extracts player data from Bandai TCG+ tournament rankings screenshot.
