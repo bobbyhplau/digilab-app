@@ -204,11 +204,6 @@ observeEvent(input$faq_to_for_tos, {
   rv$current_nav <- "for_tos"
 })
 
-observeEvent(input$faq_to_about, {
-  nav_select("main_content", "about")
-  rv$current_nav <- "about"
-})
-
 # FAQ → Upload Results
 observeEvent(input$faq_to_upload, {
   nav_select("main_content", "submit")
