@@ -9,7 +9,7 @@ library(base64enc)
 #' @param image_data Path to local image file OR raw bytes
 #' @param api_key Google Cloud Vision API key
 #' @param verbose Print debug messages
-#' @return Character string of detected text, or NULL on error
+#' @return List with text, annotations (data frame), image_width, image_height; or NULL on error
 gcv_detect_text <- function(image_data, api_key = Sys.getenv("GOOGLE_CLOUD_VISION_API_KEY"), verbose = TRUE) {
   if (verbose) message("[OCR] Starting text detection...")
 
@@ -64,11 +64,101 @@ gcv_detect_text <- function(image_data, api_key = Sys.getenv("GOOGLE_CLOUD_VISIO
     if (is.null(text)) {
       warning("No text detected in image")
       if (verbose) message("[OCR] No text detected in image")
-      return("")
+      return(list(
+        text = "",
+        annotations = data.frame(
+          text = character(),
+          x_min = numeric(),
+          y_min = numeric(),
+          x_max = numeric(),
+          y_max = numeric(),
+          stringsAsFactors = FALSE
+        ),
+        image_width = 0,
+        image_height = 0
+      ))
     }
 
     if (verbose) message("[OCR] Text extracted (", nchar(text), " chars)")
-    return(text)
+
+    # Extract word-level bounding box annotations from textAnnotations
+    text_annotations <- response$responses[[1]]$textAnnotations
+    image_width <- 0
+    image_height <- 0
+    annotations_df <- data.frame(
+      text = character(),
+      x_min = numeric(),
+      y_min = numeric(),
+      x_max = numeric(),
+      y_max = numeric(),
+      stringsAsFactors = FALSE
+    )
+
+    if (!is.null(text_annotations) && length(text_annotations) > 0) {
+      # First element is the full-page annotation - use its bounding box for image dimensions
+      full_page <- text_annotations[[1]]
+      if (!is.null(full_page$boundingPoly) && !is.null(full_page$boundingPoly$vertices)) {
+        fp_vertices <- full_page$boundingPoly$vertices
+        fp_xs <- sapply(fp_vertices, function(v) {
+          if (!is.null(v$x)) v$x else 0
+        })
+        fp_ys <- sapply(fp_vertices, function(v) {
+          if (!is.null(v$y)) v$y else 0
+        })
+        image_width <- max(fp_xs)
+        image_height <- max(fp_ys)
+      }
+
+      if (verbose) message("[OCR] Image dimensions from annotation: ", image_width, "x", image_height)
+
+      # Elements 2..N are individual word annotations
+      if (length(text_annotations) > 1) {
+        word_annotations <- text_annotations[2:length(text_annotations)]
+        ann_texts <- character(length(word_annotations))
+        ann_x_min <- numeric(length(word_annotations))
+        ann_y_min <- numeric(length(word_annotations))
+        ann_x_max <- numeric(length(word_annotations))
+        ann_y_max <- numeric(length(word_annotations))
+
+        for (w in seq_along(word_annotations)) {
+          ann <- word_annotations[[w]]
+          ann_texts[w] <- if (!is.null(ann$description)) ann$description else ""
+
+          if (!is.null(ann$boundingPoly) && !is.null(ann$boundingPoly$vertices)) {
+            vertices <- ann$boundingPoly$vertices
+            xs <- sapply(vertices, function(v) {
+              if (!is.null(v$x)) v$x else 0
+            })
+            ys <- sapply(vertices, function(v) {
+              if (!is.null(v$y)) v$y else 0
+            })
+            ann_x_min[w] <- min(xs)
+            ann_y_min[w] <- min(ys)
+            ann_x_max[w] <- max(xs)
+            ann_y_max[w] <- max(ys)
+          }
+          # else defaults to 0 from numeric() initialization
+        }
+
+        annotations_df <- data.frame(
+          text = ann_texts,
+          x_min = ann_x_min,
+          y_min = ann_y_min,
+          x_max = ann_x_max,
+          y_max = ann_y_max,
+          stringsAsFactors = FALSE
+        )
+
+        if (verbose) message("[OCR] Extracted ", nrow(annotations_df), " word annotations")
+      }
+    }
+
+    return(list(
+      text = text,
+      annotations = annotations_df,
+      image_width = image_width,
+      image_height = image_height
+    ))
   }, error = function(e) {
     warning(paste("OCR API error:", e$message))
     if (verbose) message("[OCR] EXCEPTION: ", e$message)
@@ -199,6 +289,524 @@ should_autofill_points <- function(placement, player_count, points) {
   if (player_count <= 8 && placement >= player_count - 1) return(FALSE)
 
   TRUE
+}
+
+#' Parse tournament standings using layout-aware bounding box analysis
+#'
+#' Uses Google Cloud Vision bounding box coordinates to extract structured
+#' player data from Bandai TCG+ standings screenshots. The Bandai TCG+ app
+#' has a consistent column layout:
+#'   - Ranking: 0-15% of image width
+#'   - Username + Member Number: 15-60%
+#'   - Win Points: 60-78%
+#'   - OMW%: 78%+ (ignored)
+#'
+#' @param annotations Data frame with columns: text, x_min, y_min, x_max, y_max
+#' @param image_width Image width in pixels (for normalization)
+#' @param image_height Image height in pixels (for normalization)
+#' @param total_rounds Total rounds in tournament (for W-L-T calculation)
+#' @param verbose Print debug messages
+#' @return Data frame with columns: placement, username, member_number, points, wins, losses, ties
+parse_standings_layout <- function(annotations, image_width, image_height,
+                                    total_rounds = 4, verbose = TRUE) {
+
+  # --- Empty result template ---
+  empty_result <- data.frame(
+    placement = integer(),
+    username = character(),
+    member_number = character(),
+    points = integer(),
+    wins = integer(),
+    losses = integer(),
+    ties = integer(),
+    stringsAsFactors = FALSE
+  )
+
+  if (verbose) message("[LAYOUT] Starting layout-aware parsing...")
+
+  # Validate inputs
+
+  if (is.null(annotations) || nrow(annotations) == 0) {
+    if (verbose) message("[LAYOUT] No annotations to parse")
+    return(empty_result)
+  }
+
+  if (image_width <= 0 || image_height <= 0) {
+    if (verbose) message("[LAYOUT] Invalid image dimensions: ", image_width, "x", image_height)
+    return(empty_result)
+  }
+
+  if (verbose) message("[LAYOUT] ", nrow(annotations), " annotations, image: ",
+                        image_width, "x", image_height)
+
+  # --- Step 1: Normalize coordinates to percentages ---
+  ann <- annotations
+  ann$x_center_pct <- ((ann$x_min + ann$x_max) / 2) / image_width * 100
+  ann$y_center_pct <- ((ann$y_min + ann$y_max) / 2) / image_height * 100
+  ann$y_min_pct <- ann$y_min / image_height * 100
+  ann$y_max_pct <- ann$y_max / image_height * 100
+  ann$x_min_pct <- ann$x_min / image_width * 100
+  ann$x_max_pct <- ann$x_max / image_width * 100
+
+  if (verbose) {
+    message("[LAYOUT] Sample annotations (first 10):")
+    for (i in seq_len(min(10, nrow(ann)))) {
+      message("[LAYOUT]   '", ann$text[i], "' x_center=", round(ann$x_center_pct[i], 1),
+              "% y_center=", round(ann$y_center_pct[i], 1), "%")
+    }
+  }
+
+  # --- Step 2: Filter top/bottom noise (status bar, nav bar) ---
+  n_before <- nrow(ann)
+  ann <- ann[ann$y_center_pct > 7 & ann$y_center_pct < 93, ]
+  if (verbose) message("[LAYOUT] Filtered top/bottom bars: ", n_before, " -> ", nrow(ann), " annotations")
+
+  if (nrow(ann) == 0) {
+    if (verbose) message("[LAYOUT] No annotations left after bar filtering")
+    return(empty_result)
+  }
+
+  # --- Step 3: Detect header row and column boundaries ---
+  header_keywords <- c("ranking", "user", "name", "win", "points", "omw", "gw")
+
+  header_rows <- which(tolower(ann$text) %in% header_keywords)
+  ranking_max <- 15
+  username_min <- 15
+  username_max <- 60
+  points_min <- 60
+  points_max <- 78
+
+  if (length(header_rows) >= 2) {
+    # Find the Y-center of header row (median of header keyword Y-positions)
+    header_y_centers <- ann$y_center_pct[header_rows]
+    header_y <- median(header_y_centers)
+
+    if (verbose) message("[LAYOUT] Header row detected at y=", round(header_y, 1), "%")
+
+    # Use header X-positions to refine column boundaries
+    for (h in header_rows) {
+      kw <- tolower(ann$text[h])
+      x_center <- ann$x_center_pct[h]
+      x_min_h <- ann$x_min_pct[h]
+      x_max_h <- ann$x_max_pct[h]
+
+      if (kw == "ranking") {
+        ranking_max <- x_max_h + 2
+        if (verbose) message("[LAYOUT]   'ranking' at x=", round(x_center, 1),
+                              "%, ranking_max=", round(ranking_max, 1), "%")
+      } else if (kw %in% c("user", "name")) {
+        username_min <- min(username_min, x_min_h - 2)
+        if (verbose) message("[LAYOUT]   '", kw, "' at x=", round(x_center, 1),
+                              "%, username_min=", round(username_min, 1), "%")
+      } else if (kw == "win" || kw == "points") {
+        # "Win Points" header marks the points column
+        if (kw == "win") {
+          points_min <- x_min_h - 2
+        }
+        if (kw == "points") {
+          points_max <- x_max_h + 2
+        }
+        if (verbose) message("[LAYOUT]   '", kw, "' at x=", round(x_center, 1),
+                              "%, points_min=", round(points_min, 1),
+                              "%, points_max=", round(points_max, 1), "%")
+      } else if (kw == "omw" || kw == "gw") {
+        # OMW/GW columns mark the end of points column
+        points_max <- min(points_max, x_min_h - 1)
+        if (verbose) message("[LAYOUT]   '", kw, "' at x=", round(x_center, 1),
+                              "%, adjusted points_max=", round(points_max, 1), "%")
+      }
+    }
+
+    # Adjust username_max to be just before points_min
+    username_max <- points_min
+
+    # Remove header row annotations (within 2% of header Y)
+    ann <- ann[abs(ann$y_center_pct - header_y) > 2, ]
+    if (verbose) message("[LAYOUT] Removed header row, ", nrow(ann), " annotations remain")
+  } else {
+    if (verbose) message("[LAYOUT] No header row found (scrolled screenshot?), using defaults")
+  }
+
+  if (verbose) {
+    message("[LAYOUT] Column boundaries: ranking=[0-", round(ranking_max, 1),
+            "%], username=[", round(username_min, 1), "-", round(username_max, 1),
+            "%], points=[", round(points_min, 1), "-", round(points_max, 1), "%]")
+  }
+
+  if (nrow(ann) == 0) {
+    if (verbose) message("[LAYOUT] No annotations left after header removal")
+    return(empty_result)
+  }
+
+  # --- Step 4: Filter known noise text ---
+  noise_patterns <- c(
+    "privacy", "policy", "digimon", "card", "game", "home",
+    "my", "events", "event", "search", "decks", "others",
+    "store", "match", "history", "results",
+    "bandai", "akiyoshi", "animation", "reserved", "rights",
+    "all", "©", "toei"
+  )
+
+  # Also filter the B-star logo and copyright-like text
+  is_noise <- tolower(ann$text) %in% noise_patterns |
+    grepl("^B⭑", ann$text) |
+    grepl("^©", ann$text) |
+    grepl("^\\.$", ann$text)  # Standalone periods
+
+  n_before <- nrow(ann)
+  ann <- ann[!is_noise, ]
+  if (verbose) message("[LAYOUT] Filtered noise text: ", n_before, " -> ", nrow(ann), " annotations")
+
+  if (nrow(ann) == 0) {
+    if (verbose) message("[LAYOUT] No annotations left after noise filtering")
+    return(empty_result)
+  }
+
+  # --- Step 5: Cluster into rows by Y-center ---
+  ann <- ann[order(ann$y_center_pct), ]
+  row_ids <- integer(nrow(ann))
+  current_row <- 1
+  row_ids[1] <- 1
+
+  for (i in 2:nrow(ann)) {
+    # Gap > 1.5% of image height = new row
+    if (ann$y_center_pct[i] - ann$y_center_pct[i - 1] > 1.5) {
+      current_row <- current_row + 1
+    }
+    row_ids[i] <- current_row
+  }
+
+  ann$row_id <- row_ids
+  n_rows <- max(row_ids)
+
+  if (verbose) message("[LAYOUT] Clustered into ", n_rows, " visual rows")
+
+  # --- Step 6 & 7: For each row, assign text to columns ---
+  results <- list()
+
+  for (r in seq_len(n_rows)) {
+    row_ann <- ann[ann$row_id == r, ]
+    if (nrow(row_ann) == 0) next
+
+    row_y_center <- mean(row_ann$y_center_pct)
+
+    # Classify each annotation by column
+    ranking_texts <- row_ann[row_ann$x_center_pct <= ranking_max, , drop = FALSE]
+    username_texts <- row_ann[row_ann$x_center_pct > username_min &
+                               row_ann$x_center_pct <= username_max, , drop = FALSE]
+    points_texts <- row_ann[row_ann$x_center_pct > points_min &
+                             row_ann$x_center_pct <= points_max, , drop = FALSE]
+
+    if (verbose && nrow(row_ann) > 0) {
+      all_text <- paste(row_ann$text, collapse = " | ")
+      message("[LAYOUT] Row ", r, " (y=", round(row_y_center, 1), "%): ", all_text)
+    }
+
+    # --- Extract ranking ---
+    ranking <- NA_integer_
+    if (nrow(ranking_texts) > 0) {
+      for (rt in seq_len(nrow(ranking_texts))) {
+        cleaned <- gsub("[^0-9]", "", ranking_texts$text[rt])
+        if (nchar(cleaned) > 0) {
+          val <- suppressWarnings(as.integer(cleaned))
+          if (!is.na(val) && val >= 1 && val <= 128) {
+            ranking <- val
+            break
+          }
+        }
+      }
+    }
+
+    # --- Extract username and member number from username column ---
+    username <- NA_character_
+    member_number <- NA_character_
+
+    if (nrow(username_texts) > 0) {
+      # Sort by Y position (username is above member number)
+      username_texts <- username_texts[order(username_texts$y_center_pct), ]
+
+      # Separate texts into visual sub-lines within this row
+      # Texts within 1% Y of each other are on the same visual line
+      sub_lines <- list()
+      current_sub <- list(username_texts[1, ])
+      if (nrow(username_texts) > 1) {
+        for (ut in 2:nrow(username_texts)) {
+          if (abs(username_texts$y_center_pct[ut] -
+                  username_texts$y_center_pct[ut - 1]) <= 1.0) {
+            # Same visual line
+            current_sub[[length(current_sub) + 1]] <- username_texts[ut, ]
+          } else {
+            # New visual line
+            sub_lines[[length(sub_lines) + 1]] <- do.call(rbind, current_sub)
+            current_sub <- list(username_texts[ut, ])
+          }
+        }
+      }
+      sub_lines[[length(sub_lines) + 1]] <- do.call(rbind, current_sub)
+
+      # Process each visual sub-line
+      for (sl in seq_along(sub_lines)) {
+        sub_line <- sub_lines[[sl]]
+        # Sort left to right within the sub-line
+        sub_line <- sub_line[order(sub_line$x_center_pct), ]
+        line_text <- paste(sub_line$text, collapse = " ")
+
+        # Check for member number patterns
+        # 10-digit number
+        if (grepl("^\\d{10}$", line_text) || grepl("\\d{10}", line_text)) {
+          mem_match <- regmatches(line_text, regexec("(\\d{10})", line_text))[[1]]
+          if (length(mem_match) > 1) {
+            member_number <- mem_match[2]
+            if (verbose) message("[LAYOUT]   Member number (10-digit): ", member_number)
+            next
+          }
+        }
+
+        # GUEST##### pattern
+        if (grepl("GUEST\\d{5}", line_text, ignore.case = TRUE)) {
+          mem_match <- regmatches(line_text, regexec("(GUEST\\d{5})", line_text, ignore.case = TRUE))[[1]]
+          if (length(mem_match) > 1) {
+            member_number <- mem_match[2]
+            if (verbose) message("[LAYOUT]   Member number (GUEST): ", member_number)
+            next
+          }
+        }
+
+        # "Member Number XXXXXXXXXX" or "Member Number" keyword
+        if (grepl("^Member$", line_text, ignore.case = TRUE) ||
+            grepl("^Number$", line_text, ignore.case = TRUE) ||
+            grepl("^Member\\s+Number", line_text, ignore.case = TRUE)) {
+          # Check if the full member number is in this text
+          full_match <- regmatches(line_text,
+                                    regexec("Member\\s+Number\\s*:?\\s*(\\d{10}|GUEST\\d{5})",
+                                            line_text, ignore.case = TRUE))[[1]]
+          if (length(full_match) > 1) {
+            member_number <- full_match[2]
+            if (verbose) message("[LAYOUT]   Member number (labeled): ", member_number)
+          }
+          next  # Skip "Member" and "Number" keywords as username candidates
+        }
+
+        # Skip percentages (OMW%, GW%)
+        if (grepl("^\\d{1,3}%$", line_text)) next
+        if (grepl("%", line_text)) next
+
+        # Skip individual words that are just "Member" or "Number"
+        individual_texts <- sub_line$text
+        remaining_parts <- individual_texts[!grepl("^(Member|Number)$", individual_texts, ignore.case = TRUE)]
+        if (length(remaining_parts) == 0) next
+
+        # Check each annotation in this sub-line for member numbers individually
+        has_member_num <- FALSE
+        for (at in seq_len(nrow(sub_line))) {
+          ann_text <- sub_line$text[at]
+          if (grepl("^\\d{10}$", ann_text)) {
+            member_number <- ann_text
+            has_member_num <- TRUE
+            if (verbose) message("[LAYOUT]   Member number (individual): ", member_number)
+          } else if (grepl("^GUEST\\d{5}$", ann_text, ignore.case = TRUE)) {
+            member_number <- ann_text
+            has_member_num <- TRUE
+            if (verbose) message("[LAYOUT]   Member number (GUEST individual): ", member_number)
+          }
+        }
+        if (has_member_num) next
+
+        # This sub-line is a username candidate
+        # Build username from remaining parts (excluding member-number annotations)
+        username_parts <- c()
+        for (at in seq_len(nrow(sub_line))) {
+          ann_text <- sub_line$text[at]
+          # Skip "Member", "Number" keywords
+          if (grepl("^(Member|Number)$", ann_text, ignore.case = TRUE)) next
+          # Skip if it's a pure small number that looks like noise
+          # BUT keep numbers in the username column (they're usernames like "1596")
+          username_parts <- c(username_parts, ann_text)
+        }
+
+        if (length(username_parts) > 0 && is.na(username)) {
+          username <- paste(username_parts, collapse = " ")
+          if (verbose) message("[LAYOUT]   Username: '", username, "'")
+        }
+      }
+    }
+
+    # --- Step 8: Handle member numbers that span the row ---
+    # If member number not found in username column, scan all text in the row
+    if (is.na(member_number)) {
+      for (ri in seq_len(nrow(row_ann))) {
+        txt <- row_ann$text[ri]
+        if (grepl("^\\d{10}$", txt)) {
+          member_number <- txt
+          if (verbose) message("[LAYOUT]   Member number (row scan): ", member_number)
+          break
+        } else if (grepl("^GUEST\\d{5}$", txt, ignore.case = TRUE)) {
+          member_number <- txt
+          if (verbose) message("[LAYOUT]   Member number (row scan GUEST): ", member_number)
+          break
+        }
+      }
+    }
+
+    # --- Extract points ---
+    points <- NA_integer_
+    if (nrow(points_texts) > 0) {
+      for (pt in seq_len(nrow(points_texts))) {
+        cleaned <- gsub("[^0-9]", "", points_texts$text[pt])
+        if (nchar(cleaned) > 0) {
+          val <- suppressWarnings(as.integer(cleaned))
+          if (!is.na(val) && val >= 0 && val <= 99) {
+            points <- val
+            if (verbose) message("[LAYOUT]   Points: ", points)
+            break
+          }
+        }
+      }
+    }
+
+    # --- Step 9: Skip incomplete rows ---
+    has_identity <- !is.na(ranking) || !is.na(username)
+    has_player_info <- !is.na(member_number) || !is.na(username)
+
+    if (!has_identity || !has_player_info) {
+      if (verbose) message("[LAYOUT]   Skipping incomplete row ", r,
+                            ": ranking=", ranking, " username=", username,
+                            " member=", member_number)
+      next
+    }
+
+    # Default points to 0 if not found
+    if (is.na(points)) points <- 0L
+
+    results[[length(results) + 1]] <- list(
+      placement = ranking,
+      username = username,
+      member_number = member_number,
+      points = points
+    )
+
+    if (verbose) {
+      message("[LAYOUT]   -> Player: rank=", ranking, " user='", username,
+              "' member=", member_number, " pts=", points)
+    }
+  }
+
+  if (verbose) message("[LAYOUT] Extracted ", length(results), " player rows")
+
+  if (length(results) == 0) {
+    if (verbose) message("[LAYOUT] No valid player rows found")
+    return(empty_result)
+  }
+
+  # --- Build result data frame ---
+  result_df <- data.frame(
+    placement = sapply(results, function(x) if (is.na(x$placement)) NA_integer_ else as.integer(x$placement)),
+    username = sapply(results, function(x) if (is.na(x$username)) NA_character_ else as.character(x$username)),
+    member_number = sapply(results, function(x) if (is.na(x$member_number)) NA_character_ else as.character(x$member_number)),
+    points = sapply(results, function(x) if (is.na(x$points)) 0L else as.integer(x$points)),
+    stringsAsFactors = FALSE
+  )
+
+  player_count <- nrow(result_df)
+
+  # --- Step 10: Autofill points ---
+  autofilled_count <- 0
+  for (i in seq_len(player_count)) {
+    pl <- result_df$placement[i]
+    pts <- result_df$points[i]
+
+    if (!is.na(pl) && should_autofill_points(pl, player_count, pts)) {
+      estimated <- estimate_points_for_placement(pl, player_count, total_rounds)
+      if (verbose) {
+        message("[LAYOUT] Autofill: ", result_df$username[i], " (place ", pl,
+                ") points ", pts, " -> ", estimated)
+      }
+      result_df$points[i] <- estimated
+      autofilled_count <- autofilled_count + 1
+    }
+  }
+
+  if (autofilled_count > 0 && verbose) {
+    message("[LAYOUT] Autofilled points for ", autofilled_count, " players")
+  }
+
+  # --- Step 11: Calculate W-L-T from points ---
+  result_df$wins <- result_df$points %/% 3L
+  result_df$ties <- result_df$points %% 3L
+  result_df$losses <- pmax(0L, as.integer(total_rounds) - result_df$wins - result_df$ties)
+
+  # --- Step 12: Sort by ranking ---
+  # Put rows with NA ranking at the end
+  result_df <- result_df[order(result_df$placement, na.last = TRUE), ]
+  rownames(result_df) <- NULL
+
+  if (verbose) {
+    message("[LAYOUT] Final result: ", nrow(result_df), " players")
+    for (i in seq_len(nrow(result_df))) {
+      message("[LAYOUT]   #", result_df$placement[i], " ", result_df$username[i],
+              " (", result_df$member_number[i], ") ", result_df$points[i], "pts ",
+              result_df$wins[i], "-", result_df$losses[i], "-", result_df$ties[i])
+    }
+  }
+
+  result_df
+}
+
+#' Parse tournament standings with layout-first fallback strategy
+#'
+#' Tries the layout-aware parser first (uses bounding boxes for accuracy).
+#' Falls back to the text-based parser if layout parsing fails.
+#'
+#' @param ocr_result Result from gcv_detect_text() — either a list or plain text
+#' @param total_rounds Total rounds in tournament
+#' @param verbose Print debug messages
+#' @return Data frame with columns: placement, username, member_number, points, wins, losses, ties
+parse_standings <- function(ocr_result, total_rounds = 4, verbose = TRUE) {
+  # Handle both new list format and legacy plain text
+  if (is.list(ocr_result)) {
+    text <- ocr_result$text
+    annotations <- ocr_result$annotations
+    image_width <- ocr_result$image_width
+    image_height <- ocr_result$image_height
+  } else {
+    text <- ocr_result
+    annotations <- NULL
+    image_width <- 0
+    image_height <- 0
+  }
+
+  # Try layout-aware parser first
+  if (!is.null(annotations) && nrow(annotations) > 0 && image_width > 0 && image_height > 0) {
+    if (verbose) message("[OCR] Trying layout-aware parser...")
+
+    layout_result <- tryCatch({
+      parse_standings_layout(annotations, image_width, image_height,
+                              total_rounds = total_rounds, verbose = verbose)
+    }, error = function(e) {
+      if (verbose) message("[OCR] Layout parser error: ", e$message)
+      data.frame()
+    })
+
+    # Validate: need at least 1 player with ranking, username, and member number
+    if (nrow(layout_result) > 0) {
+      has_ranking <- any(!is.na(layout_result$placement) & layout_result$placement > 0)
+      has_username <- any(!is.na(layout_result$username) & layout_result$username != "")
+      has_member <- any(!is.na(layout_result$member_number) & layout_result$member_number != "")
+
+      if (has_ranking && has_username && has_member) {
+        if (verbose) message("[OCR] Using layout parser (", nrow(layout_result), " players found)")
+        return(layout_result)
+      } else {
+        if (verbose) message("[OCR] Layout parser returned incomplete data, falling back to text parser")
+      }
+    } else {
+      if (verbose) message("[OCR] Layout parser returned 0 players, falling back to text parser")
+    }
+  }
+
+  # Fallback to text-based parser
+  if (verbose) message("[OCR] Using text-based parser")
+  parse_tournament_standings(text, total_rounds = total_rounds, verbose = verbose)
 }
 
 #' Parse tournament standings from OCR text
