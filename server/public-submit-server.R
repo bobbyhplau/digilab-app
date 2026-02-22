@@ -240,18 +240,33 @@ observeEvent(input$submit_process_ocr, {
 
     if (any(!is.na(combined$member_number) & combined$member_number != "")) {
       has_member <- !is.na(combined$member_number) & combined$member_number != ""
-      with_member <- combined[has_member, ]
+
+      # Separate GUEST IDs from real member numbers
+      is_guest <- has_member & grepl("^GUEST\\d+$", combined$member_number, ignore.case = TRUE)
+      has_real_member <- has_member & !is_guest
+
+      with_real_member <- combined[has_real_member, ]
+      with_guest <- combined[is_guest, ]
       without_member <- combined[!has_member, ]
 
-      with_member <- with_member[!duplicated(with_member$member_number), ]
+      # Dedup real member numbers
+      with_real_member <- with_real_member[!duplicated(with_real_member$member_number), ]
 
+      # Dedup GUEST players by username (case-insensitive) since they share GUEST99999
+      if (nrow(with_guest) > 0) {
+        with_guest$username_lower <- tolower(with_guest$username)
+        with_guest <- with_guest[!duplicated(with_guest$username_lower), ]
+        with_guest$username_lower <- NULL
+      }
+
+      # Dedup no-member players by username
       if (nrow(without_member) > 0) {
         without_member$username_lower <- tolower(without_member$username)
         without_member <- without_member[!duplicated(without_member$username_lower), ]
         without_member$username_lower <- NULL
       }
 
-      combined <- rbind(with_member, without_member)
+      combined <- rbind(with_real_member, with_guest, without_member)
     } else {
       combined$username_lower <- tolower(combined$username)
       combined <- combined[!duplicated(combined$username_lower), ]
@@ -264,34 +279,50 @@ observeEvent(input$submit_process_ocr, {
     }
   }
 
-  # Sort by placement
+  # Sort by placement (contains real ranking numbers from layout parser)
   combined <- combined[order(combined$placement), ]
 
   # Track how many were parsed from OCR
   parsed_count <- nrow(combined)
+
+  # Rank-based validation against declared player count
+  max_rank <- if (nrow(combined) > 0) max(combined$placement, na.rm = TRUE) else 0
+
+  if (max_rank > total_players) {
+    # Screenshots show more players than declared — auto-correct upward
+    message("[SUBMIT] Auto-correcting player count: ", total_players, " -> ", max_rank,
+            " (screenshots show rank ", max_rank, ")")
+    total_players <- max_rank
+  }
 
   # Enforce exactly total_players rows
   if (nrow(combined) > total_players) {
     # Truncate to declared count (keep top N after sort by placement)
     combined <- combined[1:total_players, ]
   } else if (nrow(combined) < total_players) {
-    # Pad with blank rows to reach total_players
-    for (p in (nrow(combined) + 1):total_players) {
-      blank_row <- data.frame(
-        placement = p,
-        username = "",
-        member_number = "",
-        points = 0,
-        wins = 0,
-        losses = total_rounds,
-        ties = 0,
-        stringsAsFactors = FALSE
-      )
-      combined <- rbind(combined, blank_row)
+    # Pad with blank rows for missing ranks
+    existing_ranks <- combined$placement
+    for (p in seq_len(total_players)) {
+      if (!(p %in% existing_ranks)) {
+        blank_row <- data.frame(
+          placement = p,
+          username = "",
+          member_number = "",
+          points = 0,
+          wins = 0,
+          losses = total_rounds,
+          ties = 0,
+          stringsAsFactors = FALSE
+        )
+        combined <- rbind(combined, blank_row)
+      }
     }
   }
 
-  # Re-assign placements sequentially (1 to N)
+  # Re-sort after adding blank rows
+  combined <- combined[order(combined$placement), ]
+
+  # Re-assign placements sequentially (1 to N) for the review UI
   combined$placement <- seq_len(nrow(combined))
 
   # Add deck column
