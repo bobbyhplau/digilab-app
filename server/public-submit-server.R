@@ -358,9 +358,34 @@ observeEvent(input$submit_process_ocr, {
         }
       }
 
-      # Clear GUEST IDs so they don't get stored (they're not real member numbers)
+      # GUEST IDs aren't real member numbers — try to find this player by username
       if (is_guest_id) {
         combined$member_number[i] <- ""
+
+        # Look up by username to find their real member number
+        if (!is.null(username) && !is.na(username) && nchar(username) > 0) {
+          guest_lookup <- safe_query(rv$db_con, "
+            SELECT player_id, display_name, member_number FROM players
+            WHERE LOWER(display_name) = LOWER(?)
+            LIMIT 1
+          ", params = list(username))
+
+          if (nrow(guest_lookup) > 0) {
+            combined$matched_player_id[i] <- guest_lookup$player_id[1]
+            combined$matched_player_name[i] <- guest_lookup$display_name[1]
+
+            # If the DB has their real member number, pre-fill it
+            if (!is.na(guest_lookup$member_number[1]) && nchar(guest_lookup$member_number[1]) > 0) {
+              combined$member_number[i] <- guest_lookup$member_number[1]
+              combined$match_status[i] <- "matched"
+              message("[SUBMIT] GUEST '", username, "' matched to player with member number: ", guest_lookup$member_number[1])
+            } else {
+              combined$match_status[i] <- "matched"
+              message("[SUBMIT] GUEST '", username, "' matched to existing player (no member number)")
+            }
+            next
+          }
+        }
       }
 
       # Try to match by username
