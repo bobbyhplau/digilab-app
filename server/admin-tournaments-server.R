@@ -160,13 +160,13 @@ output$admin_tournament_list <- renderReactable({
     highlight = TRUE,
     compact = TRUE,
     pagination = TRUE,
-    defaultPageSize = 32,
+    defaultPageSize = 12,
     columns = list(
       ID = colDef(show = FALSE),
       Store = colDef(minWidth = 150),
       Date = colDef(width = 100),
       Type = colDef(width = 90),
-      Format = colDef(width = 70),
+      Format = colDef(minWidth = 100),
       Players = colDef(width = 70, align = "center"),
       Rounds = colDef(width = 65, align = "center"),
       Results = colDef(width = 70, align = "center")
