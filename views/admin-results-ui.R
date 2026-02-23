@@ -37,9 +37,9 @@ admin_results_ui <- tagList(
           # Row 1: Store + Date
           div(
             class = "row g-3 mb-3",
-            div(class = "col-md-8",
+            div(class = "col-12 col-md-8",
                 selectInput("tournament_store", "Store", choices = NULL)),
-            div(class = "col-md-4",
+            div(class = "col-12 col-md-4",
                 div(
                   class = "date-required",
                   dateInput("tournament_date", "Date *", value = NA),
@@ -49,24 +49,24 @@ admin_results_ui <- tagList(
           # Row 2: Event Type + Format
           div(
             class = "row g-3 mb-3",
-            div(class = "col-md-6",
+            div(class = "col-12 col-md-6",
                 selectInput("tournament_type", "Event Type",
                             choices = c("Select event type..." = "", EVENT_TYPES))),
-            div(class = "col-md-6",
+            div(class = "col-12 col-md-6",
                 selectInput("tournament_format", "Format/Set", choices = list("Loading..." = "")))
           ),
           # Row 3: Players + Rounds
           div(
             class = "row g-3 mb-3",
-            div(class = "col-md-6",
+            div(class = "col-12 col-md-6",
                 numericInput("tournament_players", "Number of Players", value = 8, min = 2)),
-            div(class = "col-md-6",
+            div(class = "col-12 col-md-6",
                 numericInput("tournament_rounds", "Number of Rounds", value = 3, min = 1))
           ),
           # Row 4: Record Format
           div(
             class = "row g-3 mb-3",
-            div(class = "col-md-6",
+            div(class = "col-12 col-md-6",
                 radioButtons("admin_record_format", "Record Format",
                              choices = c("Points" = "points", "W-L-T" = "wlt"),
                              selected = "points", inline = TRUE),

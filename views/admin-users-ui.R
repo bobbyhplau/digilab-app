@@ -12,7 +12,7 @@ admin_users_ui <- tagList(
   div(
     class = "admin-panel",
     layout_columns(
-      col_widths = c(7, 5),
+      col_widths = breakpoints(sm = c(12, 12), md = c(7, 5)),
       fill = FALSE,
 
       # Admin list table

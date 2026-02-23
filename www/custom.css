@@ -1437,7 +1437,7 @@ body.bslib-gap-spacing {
   }
 
   .vb-label {
-    font-size: 0.55rem;
+    font-size: 0.65rem;
     letter-spacing: 0.04em;
   }
 
@@ -1450,7 +1450,7 @@ body.bslib-gap-spacing {
   }
 
   .vb-subtitle {
-    font-size: 0.6rem;
+    font-size: 0.65rem;
   }
 
   .vb-content {
@@ -4097,6 +4097,14 @@ a:hover, .nav-link:hover {
     display: none !important;
   }
 
+  /* Stores table — keep: Store, Events, Last Event
+     Hide: City, Avg Event Size, Avg Rating */
+  .rt-table [data-col-id="City"],
+  .rt-table [data-col-id="Avg Event Size"],
+  .rt-table [data-col-id="Avg Rating"] {
+    display: none !important;
+  }
+
   /* Smaller table text */
   .reactable {
     font-size: 0.8rem;
@@ -4180,6 +4188,13 @@ a:hover, .nav-link:hover {
 
   /* Stores: hide State */
   .admin-panel .rt-table [data-col-id="State"] {
+    display: none !important;
+  }
+
+  /* Admin Tournaments: hide Type, Format, Rounds */
+  .admin-panel .rt-table [data-col-id="Type"],
+  .admin-panel .rt-table [data-col-id="Format"],
+  .admin-panel .rt-table [data-col-id="Rounds"] {
     display: none !important;
   }
 }
@@ -6401,15 +6416,17 @@ div.player-match-indicator.new {
     display: flex;
     flex-direction: column;
     align-items: center;
+    justify-content: center;
     gap: 0.15rem;
     color: rgba(255, 255, 255, 0.6);
     font-size: 0.65rem;
-    padding: 0.25rem 0.3rem;
+    padding: 0.35rem 0.5rem;
     border-radius: 6px;
     transition: all 0.15s ease;
     text-decoration: none;
     cursor: pointer;
-    min-width: 0;
+    min-width: 44px;
+    min-height: 44px;
   }
 
   .mobile-tab-bar .tab-bar-item .bi {

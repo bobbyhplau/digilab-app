@@ -21,7 +21,7 @@ admin_stores_ui <- tagList(
   div(
     class = "admin-panel",
     layout_columns(
-      col_widths = c(6, 6),
+      col_widths = breakpoints(sm = c(12, 12), md = c(6, 6)),
       card(
         card_header(
           class = "d-flex justify-content-between align-items-center",
@@ -114,7 +114,7 @@ admin_stores_ui <- tagList(
             div(
               class = "mt-3",
               layout_columns(
-                col_widths = c(4, 3, 3, 2),
+                col_widths = breakpoints(sm = c(6, 6, 6, 6), md = c(4, 3, 3, 2)),
                 selectInput(
                   "schedule_day", "Day",
                   choices = list(

@@ -219,7 +219,7 @@ dashboard_ui <- tagList(
 
   # Top 3 Conversion + Color Distribution row
   layout_columns(
-    col_widths = c(6, 6),
+    col_widths = breakpoints(sm = c(12, 12), md = c(6, 6)),
     card(
       card_header(
         class = "d-flex align-items-center gap-2",

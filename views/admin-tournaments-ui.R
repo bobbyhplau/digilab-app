@@ -21,7 +21,7 @@ admin_tournaments_ui <- tagList(
   div(
     class = "admin-panel",
     layout_columns(
-      col_widths = c(5, 7),
+      col_widths = breakpoints(sm = c(12, 12), md = c(5, 7)),
       card(
         card_header(
           class = "d-flex justify-content-between align-items-center",
@@ -46,7 +46,7 @@ admin_tournaments_ui <- tagList(
 
           # Event Type + Format
           layout_columns(
-            col_widths = c(6, 6),
+            col_widths = breakpoints(sm = c(12, 12), md = c(6, 6)),
             selectInput("edit_tournament_type", "Event Type",
                         choices = c("Select event type..." = "", EVENT_TYPES)),
             selectInput("edit_tournament_format", "Format/Set", choices = list("Loading..." = ""))
@@ -54,7 +54,7 @@ admin_tournaments_ui <- tagList(
 
           # Players + Rounds
           layout_columns(
-            col_widths = c(6, 6),
+            col_widths = breakpoints(sm = c(12, 12), md = c(6, 6)),
             numericInput("edit_tournament_players", "Number of Players", value = 8, min = 2),
             numericInput("edit_tournament_rounds", "Number of Rounds", value = 3, min = 1)
           ),

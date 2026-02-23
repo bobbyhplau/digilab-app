@@ -12,7 +12,7 @@ admin_formats_ui <- tagList(
   div(
     class = "admin-panel",
     layout_columns(
-      col_widths = c(5, 7),
+      col_widths = breakpoints(sm = c(12, 12), md = c(5, 7)),
       card(
         card_header(
           class = "d-flex justify-content-between align-items-center",
