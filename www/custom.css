@@ -6430,17 +6430,34 @@ div.player-match-indicator.new {
   font-weight: 500;
 }
 
-/* Change password section in admin modal */
-.admin-change-password .admin-section-header {
-  font-size: 0.85rem;
-  font-weight: 600;
-  margin-bottom: 0.75rem;
-  display: flex;
+/* Change password collapsible toggle */
+.admin-change-pw-toggle {
+  display: inline-flex;
   align-items: center;
-  gap: 0.4rem;
-  opacity: 0.7;
+  gap: 0.3rem;
+  font-size: 0.8rem;
+  font-weight: 500;
+  opacity: 0.6;
+  text-decoration: none;
+  cursor: pointer;
+  transition: opacity 0.2s;
 }
 
+.admin-change-pw-toggle:hover {
+  opacity: 0.9;
+  text-decoration: none;
+}
+
+.admin-change-pw-toggle .admin-chevron-icon {
+  font-size: 0.65rem;
+  transition: transform 0.25s ease;
+}
+
+.admin-change-pw-toggle[aria-expanded="true"] .admin-chevron-icon {
+  transform: rotate(180deg);
+}
+
+/* Change password section in admin modal */
 .admin-change-password .form-group {
   margin-bottom: 0.5rem;
 }

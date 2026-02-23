@@ -392,18 +392,26 @@ observeEvent(input$admin_login_link, {
       )
     )
 
-    # Change password section
+    # Change password section (collapsible)
     change_password_section <- div(
-      class = "admin-change-password",
-      tags$h6(
-        class = "admin-section-header",
-        bsicons::bs_icon("key"), " Change Password"
+      tags$a(
+        class = "admin-change-pw-toggle",
+        `data-bs-toggle` = "collapse",
+        href = "#change_password_panel",
+        role = "button",
+        `aria-expanded` = "false",
+        bsicons::bs_icon("key"), " Change Password ",
+        bsicons::bs_icon("chevron-down", class = "admin-chevron-icon")
       ),
-      passwordInput("change_current_password", "Current Password"),
-      passwordInput("change_new_password", "New Password"),
-      passwordInput("change_confirm_password", "Confirm New Password"),
-      actionButton("change_password_btn", "Update Password",
-                   class = "btn-primary btn-sm mt-1")
+      div(
+        id = "change_password_panel",
+        class = "collapse admin-change-password mt-2",
+        passwordInput("change_current_password", "Current Password"),
+        passwordInput("change_new_password", "New Password"),
+        passwordInput("change_confirm_password", "Confirm New Password"),
+        actionButton("change_password_btn", "Update Password",
+                     class = "btn-primary btn-sm mt-1")
+      )
     )
 
     # Mobile nav links (hidden on desktop)
@@ -444,7 +452,7 @@ observeEvent(input$admin_login_link, {
     }
 
     showModal(modalDialog(
-      title = paste0(admin_name, " (", role_label, ")"),
+      title = "Account",
       account_info,
       tags$hr(class = "my-3"),
       change_password_section,
