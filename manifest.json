@@ -4328,7 +4328,7 @@
       "checksum": "2209b31b91119dd05fb80ff1a2c13be2"
     },
     ".Rprofile": {
-      "checksum": "5e8bb7b79aaffd67da1820eaf6d36f5b"
+      "checksum": "dfe0ac5dbd76a91deebb4a350a326f4c"
     },
     ".vscode/settings.json": {
       "checksum": "4aa85c6acde752675b31b354987521ce"
@@ -4385,7 +4385,7 @@
       "checksum": "c6b2fb26433f8c8d9828dc68124a7199"
     },
     "docs/index.html": {
-      "checksum": "0f4d645f1fa016488bf2b3b1b3a3f580"
+      "checksum": "de23806e8bb2ec8ad0332ee33552579e"
     },
     "docs/original-project-plan.md": {
       "checksum": "5a0af68450e3992935688006f22b3e46"
@@ -5483,7 +5483,7 @@
       "checksum": "6d1c04028d63453c33c5bf165245e286"
     },
     "server/shared-server.R": {
-      "checksum": "9fd5bb7f6d9e122598e0c52618304e44"
+      "checksum": "bd80bea2485f4b6468b9271269ec21dd"
     },
     "server/url-routing-server.R": {
       "checksum": "e9cfcaccc10048b10291db6ede464522"
