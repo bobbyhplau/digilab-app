@@ -17,6 +17,7 @@ library(atomtemplates)
 library(mapgl)
 library(sf)
 library(highcharter)
+library(bcrypt)
 
 # Removed after audit (unused or optional atomtemplates dependencies):
 # - tidygeocoder: Not used (custom Mapbox geocoding in admin-stores-server.R)
@@ -327,19 +328,6 @@ admin_empty_state <- function(title = "No records found",
 # Configuration
 # =============================================================================
 
-# Admin password - MUST be set via environment variable
-ADMIN_PASSWORD <- Sys.getenv("ADMIN_PASSWORD")
-if (ADMIN_PASSWORD == "") {
-  warning("ADMIN_PASSWORD environment variable not set - admin login disabled")
-  ADMIN_PASSWORD <- NULL
-}
-
-# Super admin password - optional, grants access to Edit Stores and Edit Formats
-SUPERADMIN_PASSWORD <- Sys.getenv("SUPERADMIN_PASSWORD")
-if (SUPERADMIN_PASSWORD == "") {
-  SUPERADMIN_PASSWORD <- NULL
-}
-
 # Event type choices
 EVENT_TYPES <- c(
   "Locals" = "locals",
@@ -393,6 +381,7 @@ source("views/admin-decks-ui.R", local = TRUE)
 source("views/admin-stores-ui.R", local = TRUE)
 source("views/admin-formats-ui.R", local = TRUE)
 source("views/admin-players-ui.R", local = TRUE)
+source("views/admin-users-ui.R", local = TRUE)
 source("views/about-ui.R", local = TRUE)
 source("views/faq-ui.R", local = TRUE)
 source("views/for-tos-ui.R", local = TRUE)
@@ -788,6 +777,9 @@ ui <- page_fillable(
                      class = "nav-link-sidebar"),
           actionLink("nav_admin_formats",
                      tagList(bsicons::bs_icon("calendar3"), " Edit Formats"),
+                     class = "nav-link-sidebar"),
+          actionLink("nav_admin_users",
+                     tagList(bsicons::bs_icon("person-gear"), " Manage Admins"),
                      class = "nav-link-sidebar")
         )
       )
@@ -816,6 +808,7 @@ ui <- page_fillable(
         nav_panel_hidden(value = "admin_stores", admin_stores_ui),
         nav_panel_hidden(value = "admin_formats", admin_formats_ui),
         nav_panel_hidden(value = "admin_players", admin_players_ui),
+        nav_panel_hidden(value = "admin_users", admin_users_ui),
 
         # Content pages (accessed via footer)
         nav_panel_hidden(value = "about", about_ui),
@@ -915,6 +908,8 @@ server <- function(input, output, session) {
     db_con = NULL,
     is_admin = FALSE,
     is_superadmin = FALSE,
+    admin_user = NULL,          # List: user_id, username, display_name, role, scene_id
+    needs_bootstrap = FALSE,    # TRUE when admin_users table is empty
 
     # === NAVIGATION ===
     current_nav = "dashboard",
@@ -1008,6 +1003,7 @@ server <- function(input, output, session) {
       source("server/admin-stores-server.R", local = TRUE)
       source("server/admin-formats-server.R", local = TRUE)
       source("server/admin-players-server.R", local = TRUE)
+      source("server/admin-users-server.R", local = TRUE)
       admin_modules_loaded(TRUE)
     }
   }, ignoreInit = TRUE)

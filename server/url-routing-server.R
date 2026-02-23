@@ -224,7 +224,8 @@ observeEvent(rv$current_nav, {
   # Admin tabs should clear URL back to base
 
   admin_tabs <- c("admin_results", "admin_tournaments", "admin_decks",
-                  "admin_stores", "admin_formats", "admin_players")
+                  "admin_stores", "admin_formats", "admin_players",
+                  "admin_users")
 
   if (!is.null(rv$current_nav)) {
     if (rv$current_nav %in% public_tabs) {

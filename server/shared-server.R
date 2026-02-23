@@ -25,6 +25,14 @@ observe({
       message("[startup] Could not check/populate ratings cache: ", e$message)
     })
 
+    # Check if admin_users table needs bootstrap (first-ever setup)
+    admin_count <- safe_query(rv$db_con,
+      "SELECT COUNT(*) as n FROM admin_users",
+      default = data.frame(n = 0))
+    if (nrow(admin_count) > 0 && admin_count$n[1] == 0) {
+      rv$needs_bootstrap <- TRUE
+    }
+
     # Hide loading screen - data is ready after cache check
     session$sendCustomMessage("hideLoading", list())
   }
@@ -145,6 +153,11 @@ observeEvent(input$nav_admin_players, {
   rv$current_nav <- "admin_players"
 })
 
+observeEvent(input$nav_admin_users, {
+  nav_select("main_content", "admin_users")
+  rv$current_nav <- "admin_users"
+})
+
 # Admin modal navigation (for mobile access)
 observeEvent(input$modal_admin_results, {
   removeModal()
@@ -175,6 +188,11 @@ observeEvent(input$modal_admin_formats, {
   removeModal()
   nav_select("main_content", "admin_formats")
   rv$current_nav <- "admin_formats"
+})
+observeEvent(input$modal_admin_users, {
+  removeModal()
+  nav_select("main_content", "admin_users")
+  rv$current_nav <- "admin_users"
 })
 
 # Content pages (footer navigation)
@@ -334,7 +352,8 @@ outputOptions(output, "has_active_tournament", suspendWhenHidden = FALSE)
 observeEvent(input$admin_login_link, {
   if (rv$is_admin) {
     # Already logged in - show admin nav + logout
-    role_label <- if (rv$is_superadmin) "super admin" else "admin"
+    role_label <- if (rv$is_superadmin) "super admin" else "scene admin"
+    admin_name <- rv$admin_user$display_name
 
     # Build admin nav links
     admin_links <- tagList(
@@ -363,12 +382,15 @@ observeEvent(input$admin_login_link, {
                    class = "admin-modal-link"),
         actionLink("modal_admin_formats",
                    tagList(bsicons::bs_icon("calendar3"), " Edit Formats"),
+                   class = "admin-modal-link"),
+        actionLink("modal_admin_users",
+                   tagList(bsicons::bs_icon("person-gear"), " Manage Admins"),
                    class = "admin-modal-link")
       )
     }
 
     showModal(modalDialog(
-      title = paste0("Admin (", role_label, ")"),
+      title = paste0(admin_name, " (", role_label, ")"),
       div(
         class = "admin-modal-nav",
         admin_links,
@@ -379,18 +401,29 @@ observeEvent(input$admin_login_link, {
         modalButton("Close")
       )
     ))
-  } else if (is.null(ADMIN_PASSWORD) && is.null(SUPERADMIN_PASSWORD)) {
-    # Admin login disabled
+  } else if (rv$needs_bootstrap) {
+    # First-time setup - create super admin
     showModal(modalDialog(
-      title = "Admin Login Disabled",
-      "Admin login is not configured. Set the ADMIN_PASSWORD environment variable to enable.",
-      footer = modalButton("Close")
+      title = "Create Super Admin",
+      tags$p(class = "text-muted", "No admin accounts exist yet. Create the first super admin account."),
+      textInput("bootstrap_username", "Username", placeholder = "e.g., michael"),
+      textInput("bootstrap_display_name", "Display Name", placeholder = "e.g., Michael"),
+      tags$div(
+        passwordInput("bootstrap_password", "Password"),
+        style = "margin-bottom: 0.5rem;"
+      ),
+      passwordInput("bootstrap_confirm", "Confirm Password"),
+      footer = tagList(
+        actionButton("bootstrap_btn", "Create Account", class = "btn-primary"),
+        modalButton("Cancel")
+      )
     ))
   } else {
-    # Show login form
+    # Normal login form
     showModal(modalDialog(
       title = "Admin Login",
-      passwordInput("admin_password", "Password"),
+      textInput("login_username", "Username"),
+      passwordInput("login_password", "Password"),
       footer = tagList(
         actionButton("login_btn", "Login", class = "btn-primary"),
         modalButton("Cancel")
@@ -401,21 +434,55 @@ observeEvent(input$admin_login_link, {
 
 # Handle login
 observeEvent(input$login_btn, {
-  pw <- input$admin_password
+  username <- trimws(input$login_username)
+  password <- input$login_password
 
-  if (!is.null(SUPERADMIN_PASSWORD) && pw == SUPERADMIN_PASSWORD) {
-    rv$is_admin <- TRUE
-    rv$is_superadmin <- TRUE
-    removeModal()
-    notify("Logged in as super admin", type = "message")
-  } else if (!is.null(ADMIN_PASSWORD) && pw == ADMIN_PASSWORD) {
-    rv$is_admin <- TRUE
-    rv$is_superadmin <- FALSE
-    removeModal()
-    notify("Logged in as admin", type = "message")
-  } else {
-    notify("Invalid password", type = "error")
+  if (nchar(username) == 0 || nchar(password) == 0) {
+    notify("Please enter username and password", type = "warning")
     return()
+  }
+
+  # Look up user
+  user <- safe_query(rv$db_con,
+    "SELECT user_id, username, password_hash, display_name, role, scene_id
+     FROM admin_users WHERE username = ? AND is_active = TRUE",
+    params = list(username),
+    default = data.frame())
+
+  if (nrow(user) == 0) {
+    notify("Invalid username or password", type = "error")
+    return()
+  }
+
+  # Verify password
+  if (!bcrypt::checkpw(password, user$password_hash[1])) {
+    notify("Invalid username or password", type = "error")
+    return()
+  }
+
+  # Success - set reactive state
+  rv$is_admin <- TRUE
+  rv$is_superadmin <- (user$role[1] == "super_admin")
+  rv$admin_user <- list(
+    user_id = user$user_id[1],
+    username = user$username[1],
+    display_name = user$display_name[1],
+    role = user$role[1],
+    scene_id = if (is.na(user$scene_id[1])) NULL else user$scene_id[1]
+  )
+
+  removeModal()
+  notify(paste0("Welcome, ", user$display_name[1], "!"), type = "message")
+
+  # Force scene for scene admins
+  if (rv$admin_user$role == "scene_admin" && !is.null(rv$admin_user$scene_id)) {
+    scene_slug <- safe_query(rv$db_con,
+      "SELECT slug FROM scenes WHERE scene_id = ?",
+      params = list(rv$admin_user$scene_id),
+      default = data.frame())
+    if (nrow(scene_slug) > 0) {
+      updateSelectInput(session, "scene_selector", selected = scene_slug$slug[1])
+    }
   }
 
   # Update dropdowns with data
@@ -423,14 +490,84 @@ observeEvent(input$login_btn, {
                     choices = get_store_choices(rv$db_con, include_none = TRUE))
 })
 
+# Handle bootstrap (first super admin creation)
+observeEvent(input$bootstrap_btn, {
+  username <- trimws(input$bootstrap_username)
+  display_name <- trimws(input$bootstrap_display_name)
+  password <- input$bootstrap_password
+  confirm <- input$bootstrap_confirm
+
+  # Validation
+  if (nchar(username) < 3) {
+    notify("Username must be at least 3 characters", type = "warning")
+    return()
+  }
+  if (nchar(display_name) == 0) {
+    notify("Display name is required", type = "warning")
+    return()
+  }
+  if (nchar(password) < 8) {
+    notify("Password must be at least 8 characters", type = "warning")
+    return()
+  }
+  if (password != confirm) {
+    notify("Passwords do not match", type = "error")
+    return()
+  }
+
+  # Double-check table is still empty
+  admin_count <- safe_query(rv$db_con,
+    "SELECT COUNT(*) as n FROM admin_users",
+    default = data.frame(n = 0))
+  if (admin_count$n[1] > 0) {
+    rv$needs_bootstrap <- FALSE
+    notify("Admin accounts already exist. Please log in.", type = "warning")
+    removeModal()
+    return()
+  }
+
+  # Create super admin
+  hash <- bcrypt::hashpw(password)
+  max_id <- safe_query(rv$db_con,
+    "SELECT COALESCE(MAX(user_id), 0) as max_id FROM admin_users",
+    default = data.frame(max_id = 0))
+  new_id <- max_id$max_id[1] + 1
+
+  result <- safe_execute(rv$db_con,
+    "INSERT INTO admin_users (user_id, username, password_hash, display_name, role, scene_id)
+     VALUES (?, ?, ?, ?, 'super_admin', NULL)",
+    params = list(new_id, username, hash, display_name))
+
+  if (result > 0) {
+    rv$needs_bootstrap <- FALSE
+    rv$is_admin <- TRUE
+    rv$is_superadmin <- TRUE
+    rv$admin_user <- list(
+      user_id = new_id,
+      username = username,
+      display_name = display_name,
+      role = "super_admin",
+      scene_id = NULL
+    )
+    removeModal()
+    notify(paste0("Super admin account created. Welcome, ", display_name, "!"), type = "message")
+
+    # Update dropdowns with data
+    updateSelectInput(session, "tournament_store",
+                      choices = get_store_choices(rv$db_con, include_none = TRUE))
+  } else {
+    notify("Failed to create account. Please try again.", type = "error")
+  }
+})
+
 # Handle logout
 observeEvent(input$logout_btn, {
   rv$is_admin <- FALSE
   rv$is_superadmin <- FALSE
+  rv$admin_user <- NULL
   rv$active_tournament_id <- NULL
   removeModal()
   notify("Logged out", type = "message")
-  # Navigate back to dashboard
   nav_select("main_content", "dashboard")
   rv$current_nav <- "dashboard"
 })
