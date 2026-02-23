@@ -382,6 +382,7 @@ source("views/admin-stores-ui.R", local = TRUE)
 source("views/admin-formats-ui.R", local = TRUE)
 source("views/admin-players-ui.R", local = TRUE)
 source("views/admin-users-ui.R", local = TRUE)
+source("views/admin-scenes-ui.R", local = TRUE)
 source("views/about-ui.R", local = TRUE)
 source("views/faq-ui.R", local = TRUE)
 source("views/for-tos-ui.R", local = TRUE)
@@ -787,6 +788,9 @@ ui <- page_fillable(
                      class = "nav-link-sidebar"),
           actionLink("nav_admin_users",
                      tagList(bsicons::bs_icon("person-gear"), " Manage Admins"),
+                     class = "nav-link-sidebar"),
+          actionLink("nav_admin_scenes",
+                     tagList(bsicons::bs_icon("globe2"), " Manage Scenes"),
                      class = "nav-link-sidebar")
         )
       )
@@ -816,6 +820,7 @@ ui <- page_fillable(
         nav_panel_hidden(value = "admin_formats", admin_formats_ui),
         nav_panel_hidden(value = "admin_players", admin_players_ui),
         nav_panel_hidden(value = "admin_users", admin_users_ui),
+        nav_panel_hidden(value = "admin_scenes", admin_scenes_ui),
 
         # Content pages (accessed via footer)
         nav_panel_hidden(value = "about", about_ui),
@@ -1014,6 +1019,7 @@ server <- function(input, output, session) {
       source("server/admin-formats-server.R", local = TRUE)
       source("server/admin-players-server.R", local = TRUE)
       source("server/admin-users-server.R", local = TRUE)
+      source("server/admin-scenes-server.R", local = TRUE)
       admin_modules_loaded(TRUE)
     }
   }, ignoreInit = TRUE)

@@ -158,6 +158,11 @@ observeEvent(input$nav_admin_users, {
   rv$current_nav <- "admin_users"
 })
 
+observeEvent(input$nav_admin_scenes, {
+  nav_select("main_content", "admin_scenes")
+  rv$current_nav <- "admin_scenes"
+})
+
 # Admin modal navigation (for mobile access)
 observeEvent(input$modal_admin_results, {
   removeModal()
@@ -193,6 +198,11 @@ observeEvent(input$modal_admin_users, {
   removeModal()
   nav_select("main_content", "admin_users")
   rv$current_nav <- "admin_users"
+})
+observeEvent(input$modal_admin_scenes, {
+  removeModal()
+  nav_select("main_content", "admin_scenes")
+  rv$current_nav <- "admin_scenes"
 })
 
 # Content pages (footer navigation)
@@ -351,11 +361,52 @@ outputOptions(output, "has_active_tournament", suspendWhenHidden = FALSE)
 # Login modal
 observeEvent(input$admin_login_link, {
   if (rv$is_admin) {
-    # Already logged in - show admin nav + logout
-    role_label <- if (rv$is_superadmin) "super admin" else "scene admin"
+    # Already logged in - show account info, change password, nav (mobile)
+    role_label <- if (rv$is_superadmin) "Super Admin" else "Scene Admin"
     admin_name <- rv$admin_user$display_name
 
-    # Build admin nav links
+    # Get scene name for display
+    scene_display <- "All Scenes"
+    if (!is.null(rv$admin_user$scene_id)) {
+      scene_row <- safe_query(rv$db_con,
+        "SELECT display_name FROM scenes WHERE scene_id = ?",
+        params = list(rv$admin_user$scene_id),
+        default = data.frame())
+      if (nrow(scene_row) > 0) scene_display <- scene_row$display_name[1]
+    }
+
+    # Account info section (visible on desktop and mobile)
+    account_info <- div(
+      class = "admin-account-info",
+      div(class = "admin-account-row",
+        span(class = "admin-account-label", "Username"),
+        span(class = "admin-account-value", rv$admin_user$username)
+      ),
+      div(class = "admin-account-row",
+        span(class = "admin-account-label", "Role"),
+        span(class = "admin-account-value", role_label)
+      ),
+      div(class = "admin-account-row",
+        span(class = "admin-account-label", "Scene"),
+        span(class = "admin-account-value", scene_display)
+      )
+    )
+
+    # Change password section
+    change_password_section <- div(
+      class = "admin-change-password",
+      tags$h6(
+        class = "admin-section-header",
+        bsicons::bs_icon("key"), " Change Password"
+      ),
+      passwordInput("change_current_password", "Current Password"),
+      passwordInput("change_new_password", "New Password"),
+      passwordInput("change_confirm_password", "Confirm New Password"),
+      actionButton("change_password_btn", "Update Password",
+                   class = "btn-primary btn-sm mt-1")
+    )
+
+    # Mobile nav links (hidden on desktop)
     admin_links <- tagList(
       actionLink("modal_admin_results",
                  tagList(bsicons::bs_icon("pencil-square"), " Enter Results"),
@@ -365,9 +416,6 @@ observeEvent(input$admin_login_link, {
                  class = "admin-modal-link"),
       actionLink("modal_admin_players",
                  tagList(bsicons::bs_icon("people"), " Edit Players"),
-                 class = "admin-modal-link"),
-      actionLink("modal_admin_decks",
-                 tagList(bsicons::bs_icon("collection"), " Edit Decks"),
                  class = "admin-modal-link")
     )
 
@@ -380,19 +428,30 @@ observeEvent(input$admin_login_link, {
         actionLink("modal_admin_stores",
                    tagList(bsicons::bs_icon("shop"), " Edit Stores"),
                    class = "admin-modal-link"),
+        actionLink("modal_admin_decks",
+                   tagList(bsicons::bs_icon("collection"), " Edit Decks"),
+                   class = "admin-modal-link"),
         actionLink("modal_admin_formats",
                    tagList(bsicons::bs_icon("calendar3"), " Edit Formats"),
                    class = "admin-modal-link"),
         actionLink("modal_admin_users",
                    tagList(bsicons::bs_icon("person-gear"), " Manage Admins"),
+                   class = "admin-modal-link"),
+        actionLink("modal_admin_scenes",
+                   tagList(bsicons::bs_icon("globe2"), " Manage Scenes"),
                    class = "admin-modal-link")
       )
     }
 
     showModal(modalDialog(
       title = paste0(admin_name, " (", role_label, ")"),
+      account_info,
+      tags$hr(class = "my-3"),
+      change_password_section,
       div(
         class = "admin-modal-nav",
+        tags$hr(class = "my-3"),
+        tags$div(class = "admin-modal-section", "Navigation"),
         admin_links,
         superadmin_links
       ),
@@ -570,6 +629,65 @@ observeEvent(input$logout_btn, {
   notify("Logged out", type = "message")
   nav_select("main_content", "dashboard")
   rv$current_nav <- "dashboard"
+})
+
+# Handle change password
+observeEvent(input$change_password_btn, {
+  req(rv$is_admin, rv$admin_user)
+
+  current_pw <- input$change_current_password
+  new_pw <- input$change_new_password
+  confirm_pw <- input$change_confirm_password
+
+  if (nchar(current_pw) == 0) {
+    notify("Please enter your current password", type = "warning")
+    return()
+  }
+  if (nchar(new_pw) < 8) {
+    notify("New password must be at least 8 characters", type = "warning")
+    return()
+  }
+  if (new_pw != confirm_pw) {
+    notify("New passwords do not match", type = "error")
+    return()
+  }
+
+  # Verify current password
+  user <- safe_query(rv$db_con,
+    "SELECT password_hash FROM admin_users WHERE user_id = ?",
+    params = list(rv$admin_user$user_id),
+    default = data.frame())
+
+  if (nrow(user) == 0) {
+    notify("Account not found", type = "error")
+    return()
+  }
+
+  if (!bcrypt::checkpw(current_pw, user$password_hash[1])) {
+    notify("Current password is incorrect", type = "error")
+    return()
+  }
+
+  # Update password (DuckDB: DELETE + INSERT)
+  old <- safe_query(rv$db_con,
+    "SELECT * FROM admin_users WHERE user_id = ?",
+    params = list(rv$admin_user$user_id),
+    default = data.frame())
+
+  new_hash <- bcrypt::hashpw(new_pw)
+  safe_execute(rv$db_con,
+    "DELETE FROM admin_users WHERE user_id = ?",
+    params = list(rv$admin_user$user_id))
+  safe_execute(rv$db_con,
+    "INSERT INTO admin_users (user_id, username, password_hash, display_name, role, scene_id, is_active, created_at)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
+    params = list(old$user_id[1], old$username[1], new_hash, old$display_name[1],
+                  old$role[1],
+                  if (is.na(old$scene_id[1])) NA_integer_ else old$scene_id[1],
+                  old$is_active[1], old$created_at[1]))
+
+  notify("Password updated successfully", type = "message")
+  removeModal()
 })
 
 # ---------------------------------------------------------------------------

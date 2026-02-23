@@ -6403,6 +6403,58 @@ div.player-match-indicator.new {
   }
 }
 
+/* Admin account info in modal */
+.admin-account-info {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.admin-account-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0.35rem 0;
+}
+
+.admin-account-label {
+  font-size: 0.8rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  opacity: 0.55;
+}
+
+.admin-account-value {
+  font-size: 0.9rem;
+  font-weight: 500;
+}
+
+/* Change password section in admin modal */
+.admin-change-password .admin-section-header {
+  font-size: 0.85rem;
+  font-weight: 600;
+  margin-bottom: 0.75rem;
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  opacity: 0.7;
+}
+
+.admin-change-password .form-group {
+  margin-bottom: 0.5rem;
+}
+
+.admin-change-password .form-control {
+  font-size: 0.85rem;
+  padding: 0.35rem 0.65rem;
+}
+
+.admin-change-password .control-label {
+  font-size: 0.75rem;
+  margin-bottom: 0.15rem;
+}
+
 /* Admin modal navigation links - hidden on desktop, shown on mobile */
 .admin-modal-nav {
   display: none;

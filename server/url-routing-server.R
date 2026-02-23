@@ -225,7 +225,7 @@ observeEvent(rv$current_nav, {
 
   admin_tabs <- c("admin_results", "admin_tournaments", "admin_decks",
                   "admin_stores", "admin_formats", "admin_players",
-                  "admin_users")
+                  "admin_users", "admin_scenes")
 
   if (!is.null(rv$current_nav)) {
     # Track tab visit in GA4
