@@ -15,6 +15,37 @@
     }
   },
   "packages": {
+    "AsioHeaders": {
+      "Source": "CRAN",
+      "Repository": "https://cran.rstudio.com",
+      "description": {
+        "Package": "AsioHeaders",
+        "Type": "Package",
+        "Title": "'Asio' C++ Header Files",
+        "Version": "1.30.2-1",
+        "Date": "2025-04-15",
+        "Authors@R": "c(person(\"Dirk\", \"Eddelbuettel\", role = c(\"aut\", \"cre\"), email = \"edd@debian.org\",\n                    comment = c(ORCID = \"0000-0001-6419-907X\")),\n             person(\"Christopher M.\", \"Kohlhoff\", role = \"aut\",\n                    comment = \"Author of Asio\"))",
+        "Description": "'Asio' is a cross-platform C++ library for network and low-level\n I/O programming that provides developers with a consistent asynchronous model\n using a modern C++ approach. It is also included in Boost but requires linking\n when used with Boost. Standalone it can be used header-only (provided a recent\n compiler). 'Asio' is written and maintained by Christopher M. Kohlhoff, and\n released under the 'Boost Software License', Version 1.0.",
+        "Copyright": "file inst/COPYRIGHTS",
+        "License": "BSL-1.0",
+        "URL": "https://github.com/eddelbuettel/asioheaders,\nhttps://dirk.eddelbuettel.com/code/asioheaders.html",
+        "BugReports": "https://github.com/eddelbuettel/asioheaders/issues",
+        "NeedsCompilation": "no",
+        "Packaged": "2025-04-15 10:31:52 UTC; edd",
+        "Author": "Dirk Eddelbuettel [aut, cre] (<https://orcid.org/0000-0001-6419-907X>),\n  Christopher M. Kohlhoff [aut] (Author of Asio)",
+        "Maintainer": "Dirk Eddelbuettel <edd@debian.org>",
+        "Repository": "CRAN",
+        "Date/Publication": "2025-04-15 10:50:01 UTC",
+        "Built": "R 4.5.2; ; 2025-11-01 00:35:01 UTC; windows",
+        "RemoteType": "standard",
+        "RemoteRef": "AsioHeaders",
+        "RemotePkgRef": "AsioHeaders",
+        "RemoteRepos": "https://cran.rstudio.com",
+        "RemoteReposName": "CRAN",
+        "RemotePkgPlatform": "x86_64-w64-mingw32",
+        "RemoteSha": "1.30.2-1"
+      }
+    },
     "DBI": {
       "Source": "CRAN",
       "Repository": "https://cran.rstudio.com",
@@ -475,6 +506,41 @@
         "Archs": "x64"
       }
     },
+    "bcrypt": {
+      "Source": "CRAN",
+      "Repository": "https://cran.rstudio.com",
+      "description": {
+        "Package": "bcrypt",
+        "Type": "Package",
+        "Title": "'Blowfish' Key Derivation and Password Hashing",
+        "Version": "1.2.0",
+        "Authors@R": "c(\n    person(\"Jeroen\", \"Ooms\", role = c(\"aut\", \"cre\"), email = \"jeroenooms@gmail.com\",\n      comment = c(ORCID = \"0000-0002-4035-0289\")),\n    person(\"Damien\", \"Miller\", role = \"cph\", comment = 'blowfish algorithm'),\n    person(\"Niels\", \"Provos\", role = \"cph\", comment = 'py_bcrypt code'))",
+        "Description": "Bindings to the 'blowfish' password hashing algorithm\n    <https://www.openbsd.org/papers/bcrypt-paper.pdf> derived from\n    the 'OpenBSD' implementation.",
+        "URL": "https://jeroen.r-universe.dev/bcrypt",
+        "BugReports": "https://github.com/jeroen/bcrypt/issues",
+        "License": "BSD_2_clause + file LICENSE",
+        "Imports": "openssl",
+        "RoxygenNote": "6.1.1",
+        "Suggests": "spelling",
+        "Language": "en-US",
+        "Encoding": "UTF-8",
+        "NeedsCompilation": "yes",
+        "Packaged": "2024-10-03 16:15:56 UTC; jeroen",
+        "Author": "Jeroen Ooms [aut, cre] (<https://orcid.org/0000-0002-4035-0289>),\n  Damien Miller [cph] (blowfish algorithm),\n  Niels Provos [cph] (py_bcrypt code)",
+        "Maintainer": "Jeroen Ooms <jeroenooms@gmail.com>",
+        "Repository": "CRAN",
+        "Date/Publication": "2024-10-04 13:30:10 UTC",
+        "Built": "R 4.5.2; x86_64-w64-mingw32; 2026-02-18 02:45:33 UTC; windows",
+        "Archs": "x64",
+        "RemoteType": "standard",
+        "RemoteRef": "bcrypt",
+        "RemotePkgRef": "bcrypt",
+        "RemoteRepos": "https://cran.rstudio.com",
+        "RemoteReposName": "CRAN",
+        "RemotePkgPlatform": "x86_64-w64-mingw32",
+        "RemoteSha": "1.2.0"
+      }
+    },
     "bigD": {
       "Source": "CRAN",
       "Repository": "https://cran.rstudio.com",
@@ -501,6 +567,79 @@
         "Repository": "CRAN",
         "Date/Publication": "2025-04-03 14:20:02 UTC",
         "Built": "R 4.5.2; ; 2026-01-23 01:48:47 UTC; windows"
+      }
+    },
+    "bit": {
+      "Source": "CRAN",
+      "Repository": "https://cran.rstudio.com",
+      "description": {
+        "Package": "bit",
+        "Title": "Classes and Methods for Fast Memory-Efficient Boolean Selections",
+        "Version": "4.6.0",
+        "Authors@R": "c(\n    person(\"Michael\", \"Chirico\", email = \"MichaelChirico4@gmail.com\", role = c(\"aut\", \"cre\")),\n    person(\"Jens\", \"Oehlschlägel\", role = \"aut\"),\n    person(\"Brian\", \"Ripley\", role = \"ctb\")\n  )",
+        "Depends": "R (>= 3.4.0)",
+        "Suggests": "testthat (>= 3.0.0), roxygen2, knitr, markdown, rmarkdown,\nmicrobenchmark, bit64 (>= 4.0.0), ff (>= 4.0.0)",
+        "Description": "Provided are classes for boolean and skewed boolean vectors,\n    fast boolean methods, fast unique and non-unique integer sorting,\n    fast set operations on sorted and unsorted sets of integers, and\n    foundations for ff (range index, compression, chunked processing).",
+        "License": "GPL-2 | GPL-3",
+        "LazyLoad": "yes",
+        "ByteCompile": "yes",
+        "Encoding": "UTF-8",
+        "URL": "https://github.com/r-lib/bit",
+        "VignetteBuilder": "knitr, rmarkdown",
+        "RoxygenNote": "7.3.2",
+        "Config/testthat/edition": "3",
+        "NeedsCompilation": "yes",
+        "Packaged": "2025-03-05 07:18:45 UTC; michael",
+        "Author": "Michael Chirico [aut, cre],\n  Jens Oehlschlägel [aut],\n  Brian Ripley [ctb]",
+        "Maintainer": "Michael Chirico <MichaelChirico4@gmail.com>",
+        "Repository": "CRAN",
+        "Date/Publication": "2025-03-06 10:50:01 UTC",
+        "Built": "R 4.5.2; x86_64-w64-mingw32; 2026-02-18 01:42:27 UTC; windows",
+        "Archs": "x64",
+        "RemoteType": "standard",
+        "RemoteRef": "bit",
+        "RemotePkgRef": "bit",
+        "RemoteRepos": "https://cran.rstudio.com",
+        "RemoteReposName": "CRAN",
+        "RemotePkgPlatform": "x86_64-w64-mingw32",
+        "RemoteSha": "4.6.0"
+      }
+    },
+    "bit64": {
+      "Source": "CRAN",
+      "Repository": "https://cran.rstudio.com",
+      "description": {
+        "Package": "bit64",
+        "Title": "A S3 Class for Vectors of 64bit Integers",
+        "Version": "4.6.0-1",
+        "Authors@R": "c(\n    person(\"Michael\", \"Chirico\", email = \"michaelchirico4@gmail.com\", role = c(\"aut\", \"cre\")),\n    person(\"Jens\", \"Oehlschlägel\", role = \"aut\"),\n    person(\"Leonardo\", \"Silvestri\", role = \"ctb\"),\n    person(\"Ofek\", \"Shilon\", role = \"ctb\")\n  )",
+        "Depends": "R (>= 3.4.0), bit (>= 4.0.0)",
+        "Description": "\n  Package 'bit64' provides serializable S3 atomic 64bit (signed) integers.\n  These are useful for handling database keys and exact counting in +-2^63.\n  WARNING: do not use them as replacement for 32bit integers, integer64 are not\n  supported for subscripting by R-core and they have different semantics when\n  combined with double, e.g. integer64 + double => integer64.\n  Class integer64 can be used in vectors, matrices, arrays and data.frames.\n  Methods are available for coercion from and to logicals, integers, doubles,\n  characters and factors as well as many elementwise and summary functions.\n  Many fast algorithmic operations such as 'match' and 'order' support inter-\n  active data exploration and manipulation and optionally leverage caching.",
+        "License": "GPL-2 | GPL-3",
+        "LazyLoad": "yes",
+        "ByteCompile": "yes",
+        "URL": "https://github.com/r-lib/bit64",
+        "Encoding": "UTF-8",
+        "Imports": "graphics, methods, stats, utils",
+        "Suggests": "testthat (>= 3.0.3), withr",
+        "Config/testthat/edition": "3",
+        "Config/needs/development": "testthat",
+        "RoxygenNote": "7.3.2",
+        "NeedsCompilation": "yes",
+        "Packaged": "2025-01-16 14:04:20 UTC; michael",
+        "Author": "Michael Chirico [aut, cre],\n  Jens Oehlschlägel [aut],\n  Leonardo Silvestri [ctb],\n  Ofek Shilon [ctb]",
+        "Maintainer": "Michael Chirico <michaelchirico4@gmail.com>",
+        "Repository": "CRAN",
+        "Date/Publication": "2025-01-16 16:00:07 UTC",
+        "Built": "R 4.5.2; x86_64-w64-mingw32; 2026-02-18 02:25:56 UTC; windows",
+        "Archs": "x64",
+        "RemoteType": "standard",
+        "RemoteRef": "bit64",
+        "RemotePkgRef": "bit64",
+        "RemoteRepos": "https://cran.rstudio.com",
+        "RemoteReposName": "CRAN",
+        "RemotePkgPlatform": "x86_64-w64-mingw32",
+        "RemoteSha": "4.6.0-1"
       }
     },
     "bitops": {
@@ -806,6 +945,33 @@
         "Repository": "RSPM",
         "Date/Publication": "2025-03-03 23:20:02 UTC",
         "Built": "R 4.5.1; ; 2026-02-06 16:20:23 UTC; windows"
+      }
+    },
+    "crayon": {
+      "Source": "CRAN",
+      "Repository": "https://cran.rstudio.com",
+      "description": {
+        "Package": "crayon",
+        "Title": "Colored Terminal Output",
+        "Version": "1.5.3",
+        "Authors@R": "c(\n    person(\"Gábor\", \"Csárdi\", , \"csardi.gabor@gmail.com\", role = c(\"aut\", \"cre\")),\n    person(\"Brodie\", \"Gaslam\", , \"brodie.gaslam@yahoo.com\", role = \"ctb\"),\n    person(\"Posit Software, PBC\", role = c(\"cph\", \"fnd\"))\n  )",
+        "Description": "The crayon package is now superseded. Please use the 'cli'\n    package for new projects.  Colored terminal output on terminals that\n    support 'ANSI' color and highlight codes. It also works in 'Emacs'\n    'ESS'. 'ANSI' color support is automatically detected. Colors and\n    highlighting can be combined and nested. New styles can also be\n    created easily.  This package was inspired by the 'chalk' 'JavaScript'\n    project.",
+        "License": "MIT + file LICENSE",
+        "URL": "https://r-lib.github.io/crayon/, https://github.com/r-lib/crayon",
+        "BugReports": "https://github.com/r-lib/crayon/issues",
+        "Imports": "grDevices, methods, utils",
+        "Suggests": "mockery, rstudioapi, testthat, withr",
+        "Config/Needs/website": "tidyverse/tidytemplate",
+        "Encoding": "UTF-8",
+        "RoxygenNote": "7.3.1",
+        "Collate": "'aaa-rstudio-detect.R' 'aaaa-rematch2.R'\n'aab-num-ansi-colors.R' 'aac-num-ansi-colors.R' 'ansi-256.R'\n'ansi-palette.R' 'combine.R' 'string.R' 'utils.R'\n'crayon-package.R' 'disposable.R' 'enc-utils.R' 'has_ansi.R'\n'has_color.R' 'link.R' 'styles.R' 'machinery.R' 'parts.R'\n'print.R' 'style-var.R' 'show.R' 'string_operations.R'",
+        "NeedsCompilation": "no",
+        "Packaged": "2024-06-20 11:49:08 UTC; gaborcsardi",
+        "Author": "Gábor Csárdi [aut, cre],\n  Brodie Gaslam [ctb],\n  Posit Software, PBC [cph, fnd]",
+        "Maintainer": "Gábor Csárdi <csardi.gabor@gmail.com>",
+        "Repository": "RSPM",
+        "Date/Publication": "2024-06-20 13:00:02 UTC",
+        "Built": "R 4.5.0; ; 2025-12-02 12:31:45 UTC; windows"
       }
     },
     "credentials": {
@@ -1531,6 +1697,34 @@
         "Repository": "RSPM",
         "Date/Publication": "2024-05-26 20:00:03 UTC",
         "Built": "R 4.5.0; ; 2025-12-02 12:33:57 UTC; windows"
+      }
+    },
+    "hms": {
+      "Source": "CRAN",
+      "Repository": "https://cran.rstudio.com",
+      "description": {
+        "Package": "hms",
+        "Title": "Pretty Time of Day",
+        "Date": "2025-10-11",
+        "Version": "1.1.4",
+        "Authors@R": "c(\n    person(\"Kirill\", \"Müller\", , \"kirill@cynkra.com\", role = c(\"aut\", \"cre\"),\n           comment = c(ORCID = \"0000-0002-1416-3412\")),\n    person(\"R Consortium\", role = \"fnd\"),\n    person(\"Posit Software, PBC\", role = \"fnd\",\n           comment = c(ROR = \"03wc8by49\"))\n  )",
+        "Description": "Implements an S3 class for storing and formatting time-of-day\n    values, based on the 'difftime' class.",
+        "License": "MIT + file LICENSE",
+        "URL": "https://hms.tidyverse.org/, https://github.com/tidyverse/hms",
+        "BugReports": "https://github.com/tidyverse/hms/issues",
+        "Imports": "cli, lifecycle, methods, pkgconfig, rlang (>= 1.0.2), vctrs\n(>= 0.3.8)",
+        "Suggests": "crayon, lubridate, pillar (>= 1.1.0), testthat (>= 3.0.0)",
+        "Config/Needs/website": "tidyverse/tidytemplate",
+        "Config/testthat/edition": "3",
+        "Encoding": "UTF-8",
+        "RoxygenNote": "7.3.3.9000",
+        "NeedsCompilation": "no",
+        "Packaged": "2025-10-16 19:10:16 UTC; kirill",
+        "Author": "Kirill Müller [aut, cre] (ORCID:\n    <https://orcid.org/0000-0002-1416-3412>),\n  R Consortium [fnd],\n  Posit Software, PBC [fnd] (ROR: <https://ror.org/03wc8by49>)",
+        "Maintainer": "Kirill Müller <kirill@cynkra.com>",
+        "Repository": "RSPM",
+        "Date/Publication": "2025-10-17 05:10:11 UTC",
+        "Built": "R 4.5.0; ; 2025-12-02 12:40:59 UTC; windows"
       }
     },
     "htmltools": {
@@ -2369,6 +2563,96 @@
         "Archs": "x64"
       }
     },
+    "prettyunits": {
+      "Source": "CRAN",
+      "Repository": "https://cran.rstudio.com",
+      "description": {
+        "Package": "prettyunits",
+        "Title": "Pretty, Human Readable Formatting of Quantities",
+        "Version": "1.2.0",
+        "Authors@R": "c(\n  person(\"Gabor\", \"Csardi\", email=\"csardi.gabor@gmail.com\", role=c(\"aut\", \"cre\")),\n  person(\"Bill\", \"Denney\", email=\"wdenney@humanpredictions.com\", role=c(\"ctb\"), comment=c(ORCID=\"0000-0002-5759-428X\")),\n  person(\"Christophe\", \"Regouby\", email=\"christophe.regouby@free.fr\", role=c(\"ctb\"))\n  )",
+        "Description": "Pretty, human readable formatting of quantities.\n    Time intervals: '1337000' -> '15d 11h 23m 20s'.\n    Vague time intervals: '2674000' -> 'about a month ago'.\n    Bytes: '1337' -> '1.34 kB'.\n    Rounding: '99' with 3 significant digits -> '99.0'\n    p-values: '0.00001' -> '<0.0001'.\n    Colors: '#FF0000' -> 'red'.\n    Quantities: '1239437' -> '1.24 M'.",
+        "License": "MIT + file LICENSE",
+        "URL": "https://github.com/r-lib/prettyunits",
+        "BugReports": "https://github.com/r-lib/prettyunits/issues",
+        "Depends": "R(>= 2.10)",
+        "Suggests": "codetools, covr, testthat",
+        "RoxygenNote": "7.2.3",
+        "Encoding": "UTF-8",
+        "NeedsCompilation": "no",
+        "Packaged": "2023-09-24 10:53:19 UTC; gaborcsardi",
+        "Author": "Gabor Csardi [aut, cre],\n  Bill Denney [ctb] (<https://orcid.org/0000-0002-5759-428X>),\n  Christophe Regouby [ctb]",
+        "Maintainer": "Gabor Csardi <csardi.gabor@gmail.com>",
+        "Repository": "RSPM",
+        "Date/Publication": "2023-09-24 21:10:02 UTC",
+        "Built": "R 4.5.0; ; 2025-12-02 12:39:01 UTC; windows"
+      }
+    },
+    "profvis": {
+      "Source": "CRAN",
+      "Repository": "https://cran.rstudio.com",
+      "description": {
+        "Package": "profvis",
+        "Title": "Interactive Visualizations for Profiling R Code",
+        "Version": "0.4.0",
+        "Authors@R": "c(\n    person(\"Hadley\", \"Wickham\", , \"hadley@posit.co\", role = c(\"aut\", \"cre\")),\n    person(\"Winston\", \"Chang\", role = \"aut\"),\n    person(\"Javier\", \"Luraschi\", role = \"aut\"),\n    person(\"Timothy\", \"Mastny\", role = \"aut\"),\n    person(\"Posit Software, PBC\", role = c(\"cph\", \"fnd\")),\n    person(, \"jQuery Foundation\", role = \"cph\",\n           comment = \"jQuery library\"),\n    person(, \"jQuery contributors\", role = c(\"ctb\", \"cph\"),\n           comment = \"jQuery library; authors listed in inst/htmlwidgets/lib/jquery/AUTHORS.txt\"),\n    person(\"Mike\", \"Bostock\", role = c(\"ctb\", \"cph\"),\n           comment = \"D3 library\"),\n    person(, \"D3 contributors\", role = \"ctb\",\n           comment = \"D3 library\"),\n    person(\"Ivan\", \"Sagalaev\", role = c(\"ctb\", \"cph\"),\n           comment = \"highlight.js library\")\n  )",
+        "Description": "Interactive visualizations for profiling R code.",
+        "License": "MIT + file LICENSE",
+        "URL": "https://profvis.r-lib.org, https://github.com/r-lib/profvis",
+        "BugReports": "https://github.com/r-lib/profvis/issues",
+        "Depends": "R (>= 4.0)",
+        "Imports": "htmlwidgets (>= 0.3.2), rlang (>= 1.1.0), vctrs",
+        "Suggests": "htmltools, knitr, rmarkdown, shiny, testthat (>= 3.0.0)",
+        "VignetteBuilder": "knitr",
+        "Config/Needs/website": "tidyverse/tidytemplate, rmarkdown",
+        "Config/testthat/edition": "3",
+        "Encoding": "UTF-8",
+        "RoxygenNote": "7.3.2",
+        "NeedsCompilation": "yes",
+        "Packaged": "2024-09-19 19:26:06 UTC; hadleywickham",
+        "Author": "Hadley Wickham [aut, cre],\n  Winston Chang [aut],\n  Javier Luraschi [aut],\n  Timothy Mastny [aut],\n  Posit Software, PBC [cph, fnd],\n  jQuery Foundation [cph] (jQuery library),\n  jQuery contributors [ctb, cph] (jQuery library; authors listed in\n    inst/htmlwidgets/lib/jquery/AUTHORS.txt),\n  Mike Bostock [ctb, cph] (D3 library),\n  D3 contributors [ctb] (D3 library),\n  Ivan Sagalaev [ctb, cph] (highlight.js library)",
+        "Maintainer": "Hadley Wickham <hadley@posit.co>",
+        "Repository": "CRAN",
+        "Date/Publication": "2024-09-20 11:50:10 UTC",
+        "Built": "R 4.5.2; x86_64-w64-mingw32; 2026-02-15 03:58:46 UTC; windows",
+        "Archs": "x64",
+        "RemoteType": "standard",
+        "RemoteRef": "profvis",
+        "RemotePkgRef": "profvis",
+        "RemoteRepos": "https://cran.rstudio.com",
+        "RemoteReposName": "CRAN",
+        "RemotePkgPlatform": "x86_64-w64-mingw32",
+        "RemoteSha": "0.4.0"
+      }
+    },
+    "progress": {
+      "Source": "CRAN",
+      "Repository": "https://cran.rstudio.com",
+      "description": {
+        "Package": "progress",
+        "Title": "Terminal Progress Bars",
+        "Version": "1.2.3",
+        "Authors@R": "c(\n    person(\"Gábor\", \"Csárdi\", , \"csardi.gabor@gmail.com\", role = c(\"aut\", \"cre\")),\n    person(\"Rich\", \"FitzJohn\", role = \"aut\"),\n    person(\"Posit Software, PBC\", role = c(\"cph\", \"fnd\"))\n  )",
+        "Description": "Configurable Progress bars, they may include percentage,\n    elapsed time, and/or the estimated completion time. They work in\n    terminals, in 'Emacs' 'ESS', 'RStudio', 'Windows' 'Rgui' and the\n    'macOS' 'R.app'. The package also provides a 'C++' 'API', that works\n    with or without 'Rcpp'.",
+        "License": "MIT + file LICENSE",
+        "URL": "https://github.com/r-lib/progress#readme,\nhttp://r-lib.github.io/progress/",
+        "BugReports": "https://github.com/r-lib/progress/issues",
+        "Depends": "R (>= 3.6)",
+        "Imports": "crayon, hms, prettyunits, R6",
+        "Suggests": "Rcpp, testthat (>= 3.0.0), withr",
+        "Config/Needs/website": "tidyverse/tidytemplate",
+        "Config/testthat/edition": "3",
+        "Encoding": "UTF-8",
+        "RoxygenNote": "7.2.3",
+        "NeedsCompilation": "no",
+        "Packaged": "2023-12-05 09:33:10 UTC; gaborcsardi",
+        "Author": "Gábor Csárdi [aut, cre],\n  Rich FitzJohn [aut],\n  Posit Software, PBC [cph, fnd]",
+        "Maintainer": "Gábor Csárdi <csardi.gabor@gmail.com>",
+        "Repository": "RSPM",
+        "Date/Publication": "2023-12-06 10:30:02 UTC",
+        "Built": "R 4.5.0; ; 2025-04-06 06:12:20 UTC; windows"
+      }
+    },
     "promises": {
       "Source": "CRAN",
       "Repository": "https://cran.rstudio.com",
@@ -3027,6 +3311,48 @@
         "Built": "R 4.5.1; ; 2026-02-06 16:45:30 UTC; windows"
       }
     },
+    "shinyloadtest": {
+      "Source": "CRAN",
+      "Repository": "https://cran.rstudio.com",
+      "description": {
+        "Type": "Package",
+        "Package": "shinyloadtest",
+        "Title": "Load Test Shiny Applications",
+        "Version": "1.2.1",
+        "Authors@R": "c(\n    person(\"Barret\", \"Schloerke\", , \"barret@posit.co\", role = c(\"aut\", \"cre\"),\n           comment = c(ORCID = \"0000-0001-9986-114X\")),\n    person(\"Alan\", \"Dipert\", role = \"aut\"),\n    person(\"Barbara\", \"Borges\", role = \"aut\"),\n    person(\"Posit Software, PBC\", role = c(\"cph\", \"fnd\"),\n           comment = c(ROR = \"03wc8by49\"))\n  )",
+        "Description": "Assesses the number of concurrent users 'shiny' applications\n    are capable of supporting, and for directing application changes in\n    order to support a higher number of users. Provides facilities for\n    recording 'shiny' application sessions, playing recorded sessions\n    against a target server at load, and analyzing the resulting metrics.",
+        "License": "GPL-3",
+        "URL": "https://rstudio.github.io/shinyloadtest/,\nhttps://github.com/rstudio/shinyloadtest",
+        "BugReports": "https://github.com/rstudio/shinyloadtest/issues",
+        "Depends": "R (>= 2.10)",
+        "Imports": "cli, curl, dplyr (>= 1.0.0), ggplot2 (>= 3.4.0), httpuv (>=\n1.5.2), jsonlite, magrittr, R6, rlang (>= 0.1.2), scales,\nstringr, svglite, vroom, websocket (>= 1.0.0), xml2",
+        "Suggests": "getPass, glue, gtable, htmltools, lubridate, progress,\nrmarkdown, spelling, testthat (>= 3.2.0)",
+        "Config/Needs/routine": "devtools, readr, httr, jsonlite, rprojroot,\nusethis, stringr",
+        "Config/Needs/website": "devtools, httr, readr, gh, tidyverse/tidytemplate",
+        "Config/testthat/edition": "3",
+        "Config/usethis/last-upkeep": "2026-02-05",
+        "Encoding": "UTF-8",
+        "Language": "en-US",
+        "LazyData": "true",
+        "RoxygenNote": "7.3.3",
+        "SystemRequirements": "pandoc (>= 2.2) - http://pandoc.org",
+        "Collate": "'enum.R' 'data.R' 'analysis.R' 'detect.R' 'auth.R'\n'make_report.R' 'plotting.R' 'shiny-recorder.R'\n'shinyloadtest-package.R' 'url.R' 'util.R' 'util-pipe.R'",
+        "NeedsCompilation": "no",
+        "Packaged": "2026-02-05 20:27:25 UTC; barret",
+        "Author": "Barret Schloerke [aut, cre] (ORCID:\n    <https://orcid.org/0000-0001-9986-114X>),\n  Alan Dipert [aut],\n  Barbara Borges [aut],\n  Posit Software, PBC [cph, fnd] (ROR: <https://ror.org/03wc8by49>)",
+        "Maintainer": "Barret Schloerke <barret@posit.co>",
+        "Repository": "CRAN",
+        "Date/Publication": "2026-02-05 20:50:02 UTC",
+        "Built": "R 4.5.2; ; 2026-02-18 03:47:05 UTC; windows",
+        "RemoteType": "standard",
+        "RemoteRef": "shinyloadtest",
+        "RemotePkgRef": "shinyloadtest",
+        "RemoteRepos": "https://cran.rstudio.com",
+        "RemoteReposName": "CRAN",
+        "RemotePkgPlatform": "x86_64-w64-mingw32",
+        "RemoteSha": "1.2.1"
+      }
+    },
     "sourcetools": {
       "Source": "CRAN",
       "Repository": "https://cran.rstudio.com",
@@ -3120,6 +3446,47 @@
         "Built": "R 4.5.1; ; 2026-02-06 16:25:33 UTC; windows"
       }
     },
+    "svglite": {
+      "Source": "CRAN",
+      "Repository": "https://cran.rstudio.com",
+      "description": {
+        "Package": "svglite",
+        "Title": "An 'SVG' Graphics Device",
+        "Version": "2.2.2",
+        "Authors@R": "c(\n    person(\"Hadley\", \"Wickham\", , \"hadley@posit.co\", role = \"aut\"),\n    person(\"Lionel\", \"Henry\", , \"lionel@posit.co\", role = \"aut\"),\n    person(\"Thomas Lin\", \"Pedersen\", , \"thomas.pedersen@posit.co\", role = c(\"cre\", \"aut\"),\n           comment = c(ORCID = \"0000-0002-5147-4711\")),\n    person(\"T Jake\", \"Luciani\", , \"jake@apache.org\", role = \"aut\"),\n    person(\"Matthieu\", \"Decorde\", , \"matthieu.decorde@ens-lyon.fr\", role = \"aut\"),\n    person(\"Vaudor\", \"Lise\", , \"lise.vaudor@ens-lyon.fr\", role = \"aut\"),\n    person(\"Tony\", \"Plate\", role = \"ctb\",\n           comment = \"Early line dashing code\"),\n    person(\"David\", \"Gohel\", role = \"ctb\",\n           comment = \"Line dashing code and early raster code\"),\n    person(\"Yixuan\", \"Qiu\", role = \"ctb\",\n           comment = \"Improved styles; polypath implementation\"),\n    person(\"Håkon\", \"Malmedal\", role = \"ctb\",\n           comment = \"Opacity code\"),\n    person(\"Posit Software, PBC\", role = c(\"cph\", \"fnd\"),\n           comment = c(ROR = \"03wc8by49\"))\n  )",
+        "Description": "A graphics device for R that produces 'Scalable Vector\n    Graphics'. 'svglite' is a fork of the older 'RSvgDevice' package.",
+        "License": "GPL (>= 2)",
+        "URL": "https://svglite.r-lib.org, https://github.com/r-lib/svglite",
+        "BugReports": "https://github.com/r-lib/svglite/issues",
+        "Depends": "R (>= 4.1)",
+        "Imports": "base64enc, cli, lifecycle, rlang (>= 1.1.0), systemfonts (>=\n1.3.0), textshaping (>= 0.3.0)",
+        "Suggests": "covr, fontquiver (>= 0.2.0), htmltools, knitr, rmarkdown,\ntestthat (>= 3.0.0), xml2 (>= 1.0.0)",
+        "LinkingTo": "cpp11, systemfonts, textshaping",
+        "VignetteBuilder": "knitr",
+        "Config/build/compilation-database": "true",
+        "Config/Needs/website": "tidyverse/tidytemplate",
+        "Config/testthat/edition": "3",
+        "Config/usethis/last-upkeep": "2025-04-25",
+        "Encoding": "UTF-8",
+        "RoxygenNote": "7.3.2",
+        "SystemRequirements": "libpng",
+        "NeedsCompilation": "yes",
+        "Packaged": "2025-10-20 15:57:25 UTC; thomas",
+        "Author": "Hadley Wickham [aut],\n  Lionel Henry [aut],\n  Thomas Lin Pedersen [cre, aut] (ORCID:\n    <https://orcid.org/0000-0002-5147-4711>),\n  T Jake Luciani [aut],\n  Matthieu Decorde [aut],\n  Vaudor Lise [aut],\n  Tony Plate [ctb] (Early line dashing code),\n  David Gohel [ctb] (Line dashing code and early raster code),\n  Yixuan Qiu [ctb] (Improved styles; polypath implementation),\n  Håkon Malmedal [ctb] (Opacity code),\n  Posit Software, PBC [cph, fnd] (ROR: <https://ror.org/03wc8by49>)",
+        "Maintainer": "Thomas Lin Pedersen <thomas.pedersen@posit.co>",
+        "Repository": "CRAN",
+        "Date/Publication": "2025-10-21 16:10:02 UTC",
+        "Built": "R 4.5.2; x86_64-w64-mingw32; 2026-02-18 03:18:39 UTC; windows",
+        "Archs": "x64",
+        "RemoteType": "standard",
+        "RemoteRef": "svglite",
+        "RemotePkgRef": "svglite",
+        "RemoteRepos": "https://cran.rstudio.com",
+        "RemoteReposName": "CRAN",
+        "RemotePkgPlatform": "x86_64-w64-mingw32",
+        "RemoteSha": "2.2.2"
+      }
+    },
     "sys": {
       "Source": "CRAN",
       "Repository": "https://cran.rstudio.com",
@@ -3145,6 +3512,47 @@
         "Date/Publication": "2024-10-04 09:40:02 UTC",
         "Built": "R 4.5.0; x86_64-w64-mingw32; 2025-12-02 12:32:44 UTC; windows",
         "Archs": "x64"
+      }
+    },
+    "systemfonts": {
+      "Source": "CRAN",
+      "Repository": "https://cran.rstudio.com",
+      "description": {
+        "Type": "Package",
+        "Package": "systemfonts",
+        "Title": "System Native Font Finding",
+        "Version": "1.3.1",
+        "Authors@R": "c(\n    person(\"Thomas Lin\", \"Pedersen\", , \"thomas.pedersen@posit.co\", role = c(\"aut\", \"cre\"),\n           comment = c(ORCID = \"0000-0002-5147-4711\")),\n    person(\"Jeroen\", \"Ooms\", , \"jeroen@berkeley.edu\", role = \"aut\",\n           comment = c(ORCID = \"0000-0002-4035-0289\")),\n    person(\"Devon\", \"Govett\", role = \"aut\",\n           comment = \"Author of font-manager\"),\n    person(\"Posit Software, PBC\", role = c(\"cph\", \"fnd\"),\n           comment = c(ROR = \"03wc8by49\"))\n  )",
+        "Description": "Provides system native access to the font catalogue. As font\n    handling varies between systems it is difficult to correctly locate\n    installed fonts across different operating systems. The 'systemfonts'\n    package provides bindings to the native libraries on Windows, macOS\n    and Linux for finding font files that can then be used further by e.g.\n    graphic devices. The main use is intended to be from compiled code but\n    'systemfonts' also provides access from R.",
+        "License": "MIT + file LICENSE",
+        "URL": "https://github.com/r-lib/systemfonts,\nhttps://systemfonts.r-lib.org",
+        "BugReports": "https://github.com/r-lib/systemfonts/issues",
+        "Depends": "R (>= 3.2.0)",
+        "Imports": "base64enc, grid, jsonlite, lifecycle, tools, utils",
+        "Suggests": "covr, farver, ggplot2, graphics, knitr, ragg, rmarkdown,\nsvglite, testthat (>= 2.1.0)",
+        "LinkingTo": "cpp11 (>= 0.2.1)",
+        "VignetteBuilder": "knitr",
+        "Config/build/compilation-database": "true",
+        "Config/Needs/website": "tidyverse/tidytemplate",
+        "Config/usethis/last-upkeep": "2025-04-23",
+        "Encoding": "UTF-8",
+        "RoxygenNote": "7.3.2",
+        "SystemRequirements": "fontconfig, freetype2",
+        "NeedsCompilation": "yes",
+        "Packaged": "2025-10-01 11:58:08 UTC; thomas",
+        "Author": "Thomas Lin Pedersen [aut, cre] (ORCID:\n    <https://orcid.org/0000-0002-5147-4711>),\n  Jeroen Ooms [aut] (ORCID: <https://orcid.org/0000-0002-4035-0289>),\n  Devon Govett [aut] (Author of font-manager),\n  Posit Software, PBC [cph, fnd] (ROR: <https://ror.org/03wc8by49>)",
+        "Maintainer": "Thomas Lin Pedersen <thomas.pedersen@posit.co>",
+        "Repository": "CRAN",
+        "Date/Publication": "2025-10-01 14:00:02 UTC",
+        "Built": "R 4.5.2; x86_64-w64-mingw32; 2026-02-15 03:04:45 UTC; windows",
+        "Archs": "x64",
+        "RemoteType": "standard",
+        "RemoteRef": "systemfonts",
+        "RemotePkgRef": "systemfonts",
+        "RemoteRepos": "https://cran.rstudio.com",
+        "RemoteReposName": "CRAN",
+        "RemotePkgPlatform": "x86_64-w64-mingw32",
+        "RemoteSha": "1.3.1"
       }
     },
     "terra": {
@@ -3177,6 +3585,46 @@
         "Date/Publication": "2025-06-01 16:20:01 UTC",
         "Built": "R 4.5.1; x86_64-w64-mingw32; 2026-02-06 16:39:54 UTC; windows",
         "Archs": "x64"
+      }
+    },
+    "textshaping": {
+      "Source": "CRAN",
+      "Repository": "https://cran.rstudio.com",
+      "description": {
+        "Package": "textshaping",
+        "Title": "Bindings to the 'HarfBuzz' and 'Fribidi' Libraries for Text\nShaping",
+        "Version": "1.0.4",
+        "Authors@R": "c(\n    person(\"Thomas Lin\", \"Pedersen\", , \"thomas.pedersen@posit.co\", role = c(\"cre\", \"aut\"),\n           comment = c(ORCID = \"0000-0002-5147-4711\")),\n    person(\"Posit Software, PBC\", role = c(\"cph\", \"fnd\"),\n           comment = c(ROR = \"03wc8by49\"))\n  )",
+        "Description": "Provides access to the text shaping functionality in the\n    'HarfBuzz' library and the bidirectional algorithm in the 'Fribidi'\n    library. 'textshaping' is a low-level utility package mainly for\n    graphic devices that expands upon the font tool-set provided by the\n    'systemfonts' package.",
+        "License": "MIT + file LICENSE",
+        "URL": "https://github.com/r-lib/textshaping",
+        "BugReports": "https://github.com/r-lib/textshaping/issues",
+        "Depends": "R (>= 3.2.0)",
+        "Imports": "lifecycle, stats, stringi, systemfonts (>= 1.3.0), utils",
+        "Suggests": "covr, grDevices, grid, knitr, rmarkdown, testthat (>= 3.0.0)",
+        "LinkingTo": "cpp11 (>= 0.2.1), systemfonts (>= 1.0.0)",
+        "VignetteBuilder": "knitr",
+        "Config/build/compilation-database": "true",
+        "Config/testthat/edition": "3",
+        "Config/usethis/last-upkeep": "2025-04-23",
+        "Encoding": "UTF-8",
+        "RoxygenNote": "7.3.2",
+        "SystemRequirements": "freetype2, harfbuzz, fribidi",
+        "NeedsCompilation": "yes",
+        "Packaged": "2025-10-10 07:33:22 UTC; thomas",
+        "Author": "Thomas Lin Pedersen [cre, aut] (ORCID:\n    <https://orcid.org/0000-0002-5147-4711>),\n  Posit Software, PBC [cph, fnd] (ROR: <https://ror.org/03wc8by49>)",
+        "Maintainer": "Thomas Lin Pedersen <thomas.pedersen@posit.co>",
+        "Repository": "CRAN",
+        "Date/Publication": "2025-10-10 08:00:02 UTC",
+        "Built": "R 4.5.2; x86_64-w64-mingw32; 2026-02-15 03:25:01 UTC; windows",
+        "Archs": "x64",
+        "RemoteType": "standard",
+        "RemoteRef": "textshaping",
+        "RemotePkgRef": "textshaping",
+        "RemoteRepos": "https://cran.rstudio.com",
+        "RemoteReposName": "CRAN",
+        "RemotePkgPlatform": "x86_64-w64-mingw32",
+        "RemoteSha": "1.0.4"
       }
     },
     "tibble": {
@@ -3330,6 +3778,43 @@
         "Built": "R 4.5.2; ; 2026-01-23 02:34:29 UTC; windows"
       }
     },
+    "tzdb": {
+      "Source": "CRAN",
+      "Repository": "https://cran.rstudio.com",
+      "description": {
+        "Package": "tzdb",
+        "Title": "Time Zone Database Information",
+        "Version": "0.5.0",
+        "Authors@R": "c(\n    person(\"Davis\", \"Vaughan\", , \"davis@posit.co\", role = c(\"aut\", \"cre\")),\n    person(\"Howard\", \"Hinnant\", role = \"cph\",\n           comment = \"Author of the included date library\"),\n    person(\"Posit Software, PBC\", role = c(\"cph\", \"fnd\"))\n  )",
+        "Description": "Provides an up-to-date copy of the Internet Assigned Numbers\n    Authority (IANA) Time Zone Database. It is updated periodically to\n    reflect changes made by political bodies to time zone boundaries, UTC\n    offsets, and daylight saving time rules. Additionally, this package\n    provides a C++ interface for working with the 'date' library. 'date'\n    provides comprehensive support for working with dates and date-times,\n    which this package exposes to make it easier for other R packages to\n    utilize. Headers are provided for calendar specific calculations,\n    along with a limited interface for time zone manipulations.",
+        "License": "MIT + file LICENSE",
+        "URL": "https://tzdb.r-lib.org, https://github.com/r-lib/tzdb",
+        "BugReports": "https://github.com/r-lib/tzdb/issues",
+        "Depends": "R (>= 4.0.0)",
+        "Suggests": "covr, testthat (>= 3.0.0)",
+        "LinkingTo": "cpp11 (>= 0.5.2)",
+        "Biarch": "yes",
+        "Config/Needs/website": "tidyverse/tidytemplate",
+        "Config/testthat/edition": "3",
+        "Encoding": "UTF-8",
+        "RoxygenNote": "7.3.2",
+        "NeedsCompilation": "yes",
+        "Packaged": "2025-03-14 18:41:13 UTC; davis",
+        "Author": "Davis Vaughan [aut, cre],\n  Howard Hinnant [cph] (Author of the included date library),\n  Posit Software, PBC [cph, fnd]",
+        "Maintainer": "Davis Vaughan <davis@posit.co>",
+        "Repository": "CRAN",
+        "Date/Publication": "2025-03-15 22:50:02 UTC",
+        "Built": "R 4.5.2; x86_64-w64-mingw32; 2026-02-18 02:25:57 UTC; windows",
+        "Archs": "x64",
+        "RemoteType": "standard",
+        "RemoteRef": "tzdb",
+        "RemotePkgRef": "tzdb",
+        "RemoteRepos": "https://cran.rstudio.com",
+        "RemoteReposName": "CRAN",
+        "RemotePkgPlatform": "x86_64-w64-mingw32",
+        "RemoteSha": "0.5.0"
+      }
+    },
     "units": {
       "Source": "CRAN",
       "Repository": "https://cran.rstudio.com",
@@ -3475,6 +3960,85 @@
         "Repository": "RSPM",
         "Date/Publication": "2023-05-02 23:50:02 UTC",
         "Built": "R 4.5.1; ; 2026-02-06 16:20:27 UTC; windows"
+      }
+    },
+    "vroom": {
+      "Source": "CRAN",
+      "Repository": "https://cran.rstudio.com",
+      "description": {
+        "Package": "vroom",
+        "Title": "Read and Write Rectangular Text Data Quickly",
+        "Version": "1.7.0",
+        "Authors@R": "c(\n    person(\"Jim\", \"Hester\", role = \"aut\",\n           comment = c(ORCID = \"0000-0002-2739-7082\")),\n    person(\"Hadley\", \"Wickham\", , \"hadley@posit.co\", role = \"aut\",\n           comment = c(ORCID = \"0000-0003-4757-117X\")),\n    person(\"Jennifer\", \"Bryan\", , \"jenny@posit.co\", role = c(\"aut\", \"cre\"),\n           comment = c(ORCID = \"0000-0002-6983-2759\")),\n    person(\"Shelby\", \"Bearrows\", role = \"ctb\"),\n    person(\"https://github.com/mandreyel/\", role = \"cph\",\n           comment = \"mio library\"),\n    person(\"Jukka\", \"Jylänki\", role = \"cph\",\n           comment = \"grisu3 implementation\"),\n    person(\"Mikkel\", \"Jørgensen\", role = \"cph\",\n           comment = \"grisu3 implementation\"),\n    person(\"Posit Software, PBC\", role = c(\"cph\", \"fnd\"), comment = c(ROR = \"03wc8by49\"))\n  )",
+        "Description": "The goal of 'vroom' is to read and write data (like 'csv',\n    'tsv' and 'fwf') quickly. When reading it uses a quick initial\n    indexing step, then reads the values lazily , so only the data you\n    actually use needs to be read.  The writer formats the data in\n    parallel and writes to disk asynchronously from formatting.",
+        "License": "MIT + file LICENSE",
+        "URL": "https://vroom.tidyverse.org, https://github.com/tidyverse/vroom",
+        "BugReports": "https://github.com/tidyverse/vroom/issues",
+        "Depends": "R (>= 4.1)",
+        "Imports": "bit64, cli (>= 3.2.0), crayon, glue, hms, lifecycle (>=\n1.0.3), methods, rlang (>= 1.1.0), stats, tibble (>= 2.0.0),\ntidyselect, tzdb (>= 0.1.1), vctrs (>= 0.2.0), withr",
+        "Suggests": "archive, bench (>= 1.1.0), covr, curl, dplyr, forcats, fs,\nggplot2, knitr, patchwork, prettyunits, purrr, rmarkdown,\nrstudioapi, scales, spelling, testthat (>= 2.1.0), tidyr,\nutils, waldo, xml2",
+        "LinkingTo": "cpp11 (>= 0.2.0), progress (>= 1.2.3), tzdb (>= 0.1.1)",
+        "VignetteBuilder": "knitr",
+        "Config/Needs/website": "nycflights13, tidyverse/tidytemplate",
+        "Config/testthat/edition": "3",
+        "Config/testthat/parallel": "false",
+        "Config/usethis/last-upkeep": "2025-11-25",
+        "Copyright": "file COPYRIGHTS",
+        "Encoding": "UTF-8",
+        "Language": "en-US",
+        "RoxygenNote": "7.3.3",
+        "Config/build/compilation-database": "true",
+        "NeedsCompilation": "yes",
+        "Packaged": "2026-01-25 17:51:12 UTC; jenny",
+        "Author": "Jim Hester [aut] (ORCID: <https://orcid.org/0000-0002-2739-7082>),\n  Hadley Wickham [aut] (ORCID: <https://orcid.org/0000-0003-4757-117X>),\n  Jennifer Bryan [aut, cre] (ORCID:\n    <https://orcid.org/0000-0002-6983-2759>),\n  Shelby Bearrows [ctb],\n  https://github.com/mandreyel/ [cph] (mio library),\n  Jukka Jylänki [cph] (grisu3 implementation),\n  Mikkel Jørgensen [cph] (grisu3 implementation),\n  Posit Software, PBC [cph, fnd] (ROR: <https://ror.org/03wc8by49>)",
+        "Maintainer": "Jennifer Bryan <jenny@posit.co>",
+        "Repository": "CRAN",
+        "Date/Publication": "2026-01-27 11:40:02 UTC",
+        "Built": "R 4.5.2; x86_64-w64-mingw32; 2026-02-18 03:32:41 UTC; windows",
+        "Archs": "x64",
+        "RemoteType": "standard",
+        "RemoteRef": "vroom",
+        "RemotePkgRef": "vroom",
+        "RemoteRepos": "https://cran.rstudio.com",
+        "RemoteReposName": "CRAN",
+        "RemotePkgPlatform": "x86_64-w64-mingw32",
+        "RemoteSha": "1.7.0"
+      }
+    },
+    "websocket": {
+      "Source": "CRAN",
+      "Repository": "https://cran.rstudio.com",
+      "description": {
+        "Package": "websocket",
+        "Version": "1.4.4",
+        "Title": "'WebSocket' Client Library",
+        "Description": "Provides a 'WebSocket' client interface for R.\n    'WebSocket' is a protocol for low-overhead real-time communication:\n    <https://en.wikipedia.org/wiki/WebSocket>.",
+        "Authors@R": "c(\n    person(\"Winston\", \"Chang\", role = c(\"aut\", \"cre\"), email = \"winston@posit.co\"),\n    person(\"Joe\", \"Cheng\", role = \"aut\", email = \"joe@posit.co\"),\n    person(\"Alan\", \"Dipert\", role = \"aut\"),\n    person(\"Barbara\", \"Borges\", role = \"aut\"),\n    person(family = \"Posit, PBC\", role = \"cph\"),\n    person(\"Peter\", \"Thorson\", role = c(\"ctb\", \"cph\"), comment = \"WebSocket++ library\"),\n    person(\"René\", \"Nyffenegger\", role = c(\"ctb\", \"cph\"), comment = \"Base 64 library\"),\n    person(\"Micael\", \"Hildenborg\", role = c(\"ctb\", \"cph\"), comment = \"SHA1 library\"),\n    person(family = \"Aladdin Enterprises\", role = \"cph\", comment = \"MD5 library\"),\n    person(\"Bjoern\", \"Hoehrmann\", role = c(\"ctb\", \"cph\"), comment = \"UTF8 Validation library\"))",
+        "License": "GPL-2",
+        "Encoding": "UTF-8",
+        "ByteCompile": "true",
+        "Imports": "R6, later (>= 1.2.0)",
+        "LinkingTo": "cpp11, AsioHeaders, later",
+        "BugReports": "https://github.com/rstudio/websocket/issues",
+        "SystemRequirements": "GNU make, OpenSSL >= 1.0.2",
+        "RoxygenNote": "7.3.2",
+        "Suggests": "httpuv, testthat, knitr, rmarkdown",
+        "VignetteBuilder": "knitr",
+        "NeedsCompilation": "yes",
+        "Packaged": "2025-04-09 10:46:21 UTC; cg334",
+        "Author": "Winston Chang [aut, cre],\n  Joe Cheng [aut],\n  Alan Dipert [aut],\n  Barbara Borges [aut],\n  Posit, PBC [cph],\n  Peter Thorson [ctb, cph] (WebSocket++ library),\n  René Nyffenegger [ctb, cph] (Base 64 library),\n  Micael Hildenborg [ctb, cph] (SHA1 library),\n  Aladdin Enterprises [cph] (MD5 library),\n  Bjoern Hoehrmann [ctb, cph] (UTF8 Validation library)",
+        "Maintainer": "Winston Chang <winston@posit.co>",
+        "Repository": "CRAN",
+        "Date/Publication": "2025-04-10 09:00:02 UTC",
+        "Built": "R 4.5.2; x86_64-w64-mingw32; 2026-02-18 02:40:57 UTC; windows",
+        "Archs": "x64",
+        "RemoteType": "standard",
+        "RemoteRef": "websocket",
+        "RemotePkgRef": "websocket",
+        "RemoteRepos": "https://cran.rstudio.com",
+        "RemoteReposName": "CRAN",
+        "RemotePkgPlatform": "x86_64-w64-mingw32",
+        "RemoteSha": "1.4.4"
       }
     },
     "withr": {
@@ -3749,13 +4313,13 @@
   },
   "files": {
     ".claude/settings.local.json": {
-      "checksum": "73034f5af7246b234a990282c16922f3"
+      "checksum": "3db0bda4b3d1ebdedf72b6e3fd96871e"
     },
     ".env": {
       "checksum": "75647938b53bd9d90e5e53bc3a85c1dc"
     },
     ".env.example": {
-      "checksum": "29c3c4e956de70a1aa7b079ebc9536c0"
+      "checksum": "fda84f6aad200594e07806dedb410d62"
     },
     ".github/workflows/sync-cards.yml": {
       "checksum": "edff493833b6cfc4e9c680cb3b50c79b"
@@ -3764,7 +4328,7 @@
       "checksum": "2209b31b91119dd05fb80ff1a2c13be2"
     },
     ".Rprofile": {
-      "checksum": "19cc9050875c8eabaf69428b0cb9d24e"
+      "checksum": "69a699bf1a928fe539fe56debc022ae0"
     },
     ".vscode/settings.json": {
       "checksum": "4aa85c6acde752675b31b354987521ce"
@@ -3773,16 +4337,16 @@
       "checksum": "adfe9ebb234cf98011117227749e7b13"
     },
     "app.R": {
-      "checksum": "902dac108a2e2121ab1514632829d15b"
+      "checksum": "d704883e0e65a628df684e7a51b6fa07"
     },
     "ARCHITECTURE.md": {
-      "checksum": "c2043f085e49f6121fb5272a912c357e"
+      "checksum": "6564cd1cb9998964799379bd0f95b8d3"
     },
     "CHANGELOG.md": {
-      "checksum": "77cca9b747c0c537d03ecbea3091a2e4"
+      "checksum": "0ffa735d6f744eb593a9bea9bc35cc6d"
     },
     "CLAUDE.md": {
-      "checksum": "dad7f393755b0bedf658f1a3b8858ace"
+      "checksum": "358eefcbc5da80674b16dd32158b2c0b"
     },
     "CNAME": {
       "checksum": "87ff68e0569e2429eb4219929ef53399"
@@ -3791,7 +4355,7 @@
       "checksum": "ac76f9b9ad950f6e3a524c10a7c43b8a"
     },
     "data/local.duckdb": {
-      "checksum": "bc818e0e19574998e6245fab5e754a62"
+      "checksum": "db30a5dd3d65614572ebc7aaf5c36445"
     },
     "db/migrations/002_limitless_integration.sql": {
       "checksum": "24669a90807862edbf2c200caad55fb5"
@@ -3800,7 +4364,7 @@
       "checksum": "10c1ca8a11d8cede4769654fa6c14406"
     },
     "db/schema.sql": {
-      "checksum": "241edbac989f707ed24e3e20f0c3a213"
+      "checksum": "e268dc6efceea628f3d48165f1335963"
     },
     "docs/card-sync.md": {
       "checksum": "0a718cb7a0105cc5dada8a601b27581b"
@@ -3809,10 +4373,10 @@
       "checksum": "3da0312a3b6d021aba01d421d5faf1d7"
     },
     "docs/digilab-icon.svg": {
-      "checksum": "7f66a05ad2d067d7f98b95c279276f7c"
+      "checksum": "247f81a901bdb4d8797f364d77593801"
     },
     "docs/digilab-logo.svg": {
-      "checksum": "79072260952e96f5fbce01702348d7d7"
+      "checksum": "4d2f40c41a6aa16e5cd9fd5ec9a831b0"
     },
     "docs/digimon-mascots.md": {
       "checksum": "806856e2ee970794dc23e24ad06b4946"
@@ -3821,7 +4385,7 @@
       "checksum": "c6b2fb26433f8c8d9828dc68124a7199"
     },
     "docs/index.html": {
-      "checksum": "bc53beaaf832bf011a42647e57339e41"
+      "checksum": "0f4d645f1fa016488bf2b3b1b3a3f580"
     },
     "docs/original-project-plan.md": {
       "checksum": "5a0af68450e3992935688006f22b3e46"
@@ -3949,11 +4513,41 @@
     "docs/plans/2026-02-22-content-and-error-tracking-implementation.md": {
       "checksum": "ff0add7f84c515c30d73b938bde2fbd1"
     },
+    "docs/plans/2026-02-22-edit-tournaments-grid-design.md": {
+      "checksum": "e0fd355e25e4d0b281305fa178fa3850"
+    },
+    "docs/plans/2026-02-22-edit-tournaments-grid-implementation.md": {
+      "checksum": "cefb99d46d80716e560dfa54be1fc42b"
+    },
     "docs/plans/2026-02-22-ocr-layout-parser-design.md": {
       "checksum": "246cf7e940fd4b86d4cf894c42861db3"
     },
     "docs/plans/2026-02-22-ocr-layout-parser-implementation.md": {
       "checksum": "d7b0b5b96ea994227781d42a4c28661b"
+    },
+    "docs/plans/2026-02-23-enter-submit-results-ux-design.md": {
+      "checksum": "a2ac1f887a26321a948b9e22486a0a57"
+    },
+    "docs/plans/2026-02-23-enter-submit-results-ux-implementation.md": {
+      "checksum": "b6549d324d18c7b0f13ab7466c0146b1"
+    },
+    "docs/plans/2026-02-23-performance-optimizations-design.md": {
+      "checksum": "89b76a34f8ab0c67f497f912a5a79979"
+    },
+    "docs/plans/2026-02-23-performance-optimizations-plan.md": {
+      "checksum": "46066b88a0234535c6d433b1283ccc5a"
+    },
+    "docs/plans/2026-02-23-pwa-design.md": {
+      "checksum": "9f2e8f8aed1f75616860df6f3a2acb29"
+    },
+    "docs/plans/2026-02-23-pwa-implementation.md": {
+      "checksum": "095f10ddc9c16100e0e302f893b7332a"
+    },
+    "docs/plans/2026-02-23-shinyloadtest-design.md": {
+      "checksum": "f7fbd4e057949d3c9c11fbad393e6bf7"
+    },
+    "docs/profiling-report.md": {
+      "checksum": "c5bb056f09d3e98c784db002709fc409"
     },
     "docs/solutions/modal-selection-bug.md": {
       "checksum": "a55a0df030de1bc877f5e0e92d15e1e7"
@@ -3964,8 +4558,578 @@
     "LICENSE": {
       "checksum": "08e0f8696bced86821e0c2e7639838cb"
     },
+    "loadtest/.gitkeep": {
+      "checksum": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    "loadtest/loadtest_report.html": {
+      "checksum": "347fe05f2405cd7df47376e093fd0707"
+    },
+    "loadtest/profvis_report_20260223_025018.html": {
+      "checksum": "ccdb7dc56b080f6ebd2259b40dbd97bc"
+    },
+    "loadtest/profvis_report_20260223_025018_files/d3-3.5.6/d3.min.js": {
+      "checksum": "e9b501452b74836764e9c186f2ed337e"
+    },
+    "loadtest/profvis_report_20260223_025018_files/d3-3.5.6/LICENSE": {
+      "checksum": "9a43e3ae9eeb6821b99b41158d0b08cd"
+    },
+    "loadtest/profvis_report_20260223_025018_files/highlight-11.10.0/highlight.min.js": {
+      "checksum": "713fb8e0cfcccb78c096d4be9b8df4e4"
+    },
+    "loadtest/profvis_report_20260223_025018_files/highlight-11.10.0/LICENSE": {
+      "checksum": "ec39d75cbc4de8171c2f6656a26816a3"
+    },
+    "loadtest/profvis_report_20260223_025018_files/highlight-11.10.0/textmate.css": {
+      "checksum": "c9152d800ab9c61f0c711b9457b77763"
+    },
+    "loadtest/profvis_report_20260223_025018_files/htmltools-fill-0.5.9/fill.css": {
+      "checksum": "0c307b2ce7a3fa7f260a0451457c809f"
+    },
+    "loadtest/profvis_report_20260223_025018_files/htmlwidgets-1.6.4/htmlwidgets.js": {
+      "checksum": "237f59bc086ccf24f39be55311023b91"
+    },
+    "loadtest/profvis_report_20260223_025018_files/jquery-3.7.1/AUTHORS.txt": {
+      "checksum": "5cb850401bd1956658b342ec52790385"
+    },
+    "loadtest/profvis_report_20260223_025018_files/jquery-3.7.1/jquery.min.js": {
+      "checksum": "2c872dbe60f4ba70fb85356113d8b35e"
+    },
+    "loadtest/profvis_report_20260223_025018_files/profvis-0.3.6.9000/profvis.css": {
+      "checksum": "243e151eeab6d5c1375440fd0f9112c9"
+    },
+    "loadtest/profvis_report_20260223_025018_files/profvis-0.3.6.9000/profvis.js": {
+      "checksum": "4b96b35a0f4f1226cbdc706588625650"
+    },
+    "loadtest/profvis_report_20260223_025018_files/profvis-0.3.6.9000/scroll.js": {
+      "checksum": "f1aff1fccd1bfad791d235661db8e661"
+    },
+    "loadtest/profvis_report_20260223_025018_files/profvis-binding-0.4.0/profvis.js": {
+      "checksum": "fbfaf87de560067baca923e490fbfff9"
+    },
+    "loadtest/recording.log": {
+      "checksum": "83d41ead52628edef5ed36c5d92fe22a"
+    },
+    "loadtest/recording.log.bak": {
+      "checksum": "25fda0ac7f135fbc124ac4f45ee34899"
+    },
+    "loadtest/run_10users/recording.log": {
+      "checksum": "83d41ead52628edef5ed36c5d92fe22a"
+    },
+    "loadtest/run_10users/sessions/0_0_0.csv": {
+      "checksum": "77caab63fbbd3e0ee0468d57e1ca2d15"
+    },
+    "loadtest/run_10users/sessions/1_1_0.csv": {
+      "checksum": "1628b069fff5b7e1e0cfe00b6d2568c0"
+    },
+    "loadtest/run_10users/sessions/10_0_1.csv": {
+      "checksum": "d2bd15b86adaffee6becf127ab659120"
+    },
+    "loadtest/run_10users/sessions/11_1_1.csv": {
+      "checksum": "547b367bcf7432b533f6303f92875a4d"
+    },
+    "loadtest/run_10users/sessions/12_2_1.csv": {
+      "checksum": "39f7670f2fd4b6483e4406050d8df6ab"
+    },
+    "loadtest/run_10users/sessions/13_3_1.csv": {
+      "checksum": "9e0b8079276f670659b69d294e321ae3"
+    },
+    "loadtest/run_10users/sessions/14_4_1.csv": {
+      "checksum": "c2d96fcd751489ebd296bceb35e83779"
+    },
+    "loadtest/run_10users/sessions/15_5_1.csv": {
+      "checksum": "9d77178886193bc0a29a4771a4c95159"
+    },
+    "loadtest/run_10users/sessions/16_6_1.csv": {
+      "checksum": "a973ba9aa651c47457e6a9c352f4d884"
+    },
+    "loadtest/run_10users/sessions/17_7_1.csv": {
+      "checksum": "6969a554360b722eafea0948c8913ba1"
+    },
+    "loadtest/run_10users/sessions/18_8_1.csv": {
+      "checksum": "b8ea76c5d9be80ec4fc50e1f6e7cbbae"
+    },
+    "loadtest/run_10users/sessions/19_9_1.csv": {
+      "checksum": "330c2b7b435408afd1822ddde61b11bb"
+    },
+    "loadtest/run_10users/sessions/2_2_0.csv": {
+      "checksum": "3d184c102d09ad7cf7a21591b414b2a3"
+    },
+    "loadtest/run_10users/sessions/20_0_2.csv": {
+      "checksum": "30b91510667236acc8e86d538dae8383"
+    },
+    "loadtest/run_10users/sessions/21_1_2.csv": {
+      "checksum": "e8c0cf3a747ff8863e2851bc499a5c84"
+    },
+    "loadtest/run_10users/sessions/22_2_2.csv": {
+      "checksum": "587070142ae82ca946ac85c4222819a8"
+    },
+    "loadtest/run_10users/sessions/23_3_2.csv": {
+      "checksum": "6f5ff6a1be4045b8aec76b267532e6b7"
+    },
+    "loadtest/run_10users/sessions/24_4_2.csv": {
+      "checksum": "a11f48c4d339d863b21e1327e19b480a"
+    },
+    "loadtest/run_10users/sessions/25_5_2.csv": {
+      "checksum": "6e7de850eb3b7f71d3691ab33a6bc0dc"
+    },
+    "loadtest/run_10users/sessions/26_6_2.csv": {
+      "checksum": "90998c09018c6b569de6d46104036198"
+    },
+    "loadtest/run_10users/sessions/27_7_2.csv": {
+      "checksum": "391deb5b5fa7ff01fda04e4adc1807da"
+    },
+    "loadtest/run_10users/sessions/28_8_2.csv": {
+      "checksum": "d2224de13d967e971b428b0949daf083"
+    },
+    "loadtest/run_10users/sessions/29_9_2.csv": {
+      "checksum": "9f6ed92abaeffd7e7f57f19dbd3bb5f8"
+    },
+    "loadtest/run_10users/sessions/3_3_0.csv": {
+      "checksum": "0618678bc236e778114b9c75ea4b6694"
+    },
+    "loadtest/run_10users/sessions/30_0_3.csv": {
+      "checksum": "7a252f2ed615943b1de1ee6f6ac23936"
+    },
+    "loadtest/run_10users/sessions/31_1_3.csv": {
+      "checksum": "784b1cb4d5d943e753961d80bfd04e16"
+    },
+    "loadtest/run_10users/sessions/32_2_3.csv": {
+      "checksum": "861f17afebdc0739ff00c215e8b45e5c"
+    },
+    "loadtest/run_10users/sessions/33_3_3.csv": {
+      "checksum": "b82f528351dee76a852953f3591bc29f"
+    },
+    "loadtest/run_10users/sessions/34_4_3.csv": {
+      "checksum": "5d033e7dcf4db92cc20486ee57d1e7db"
+    },
+    "loadtest/run_10users/sessions/35_5_3.csv": {
+      "checksum": "1e75df05b81b9d7d300f29a172f15b75"
+    },
+    "loadtest/run_10users/sessions/36_6_3.csv": {
+      "checksum": "d5b48de67591b09fcc2bc7293e5a9e66"
+    },
+    "loadtest/run_10users/sessions/37_7_3.csv": {
+      "checksum": "bcdfa9d6ef8ed2c1024b8473110ce8f4"
+    },
+    "loadtest/run_10users/sessions/38_8_3.csv": {
+      "checksum": "c54dcd70debb3e2c3f9a85f53eaf0731"
+    },
+    "loadtest/run_10users/sessions/39_9_3.csv": {
+      "checksum": "6888093e6f3c5f5d460f40a186cf5790"
+    },
+    "loadtest/run_10users/sessions/4_4_0.csv": {
+      "checksum": "b7156a02fb17f92250c8254d37133187"
+    },
+    "loadtest/run_10users/sessions/40_0_4.csv": {
+      "checksum": "dea02db595be465c4e08fccc39b89554"
+    },
+    "loadtest/run_10users/sessions/41_1_4.csv": {
+      "checksum": "3c3ea3c537d4e7db01e70228cbcf7f44"
+    },
+    "loadtest/run_10users/sessions/42_2_4.csv": {
+      "checksum": "af0fe72d54346106ef5ad41632061513"
+    },
+    "loadtest/run_10users/sessions/43_3_4.csv": {
+      "checksum": "d52fe67b41b58f95662d7320ff3f0e6f"
+    },
+    "loadtest/run_10users/sessions/44_4_4.csv": {
+      "checksum": "aeb64a956c66231c9e1edf2db7d0c187"
+    },
+    "loadtest/run_10users/sessions/45_5_4.csv": {
+      "checksum": "b22948c0905b6b86ef88b8b9b020c212"
+    },
+    "loadtest/run_10users/sessions/46_6_4.csv": {
+      "checksum": "dfe149f78ba256fb4e27f9b9c2b782f6"
+    },
+    "loadtest/run_10users/sessions/47_7_4.csv": {
+      "checksum": "c54aa0f69514fb352bd638ba945c5ad6"
+    },
+    "loadtest/run_10users/sessions/48_8_4.csv": {
+      "checksum": "5d5b0758820b2fb520ab858a40d52121"
+    },
+    "loadtest/run_10users/sessions/5_5_0.csv": {
+      "checksum": "eee81a4a300650ffd1237508566a6586"
+    },
+    "loadtest/run_10users/sessions/6_6_0.csv": {
+      "checksum": "08991f6cfd74d5b8760979100d804a7e"
+    },
+    "loadtest/run_10users/sessions/7_7_0.csv": {
+      "checksum": "1a0c1b4e062037231c234d70374c17a7"
+    },
+    "loadtest/run_10users/sessions/8_8_0.csv": {
+      "checksum": "f15dcdafb3c8c4b8714f6158e3f638ba"
+    },
+    "loadtest/run_10users/sessions/9_9_0.csv": {
+      "checksum": "67d3546b825398a6a56b9a5e21280895"
+    },
+    "loadtest/run_10users/shinycannon-version.txt": {
+      "checksum": "ba048eb1e602346b5b055848cb7f84c2"
+    },
+    "loadtest/run_1user/recording.log": {
+      "checksum": "83d41ead52628edef5ed36c5d92fe22a"
+    },
+    "loadtest/run_1user/sessions/0_0_0.csv": {
+      "checksum": "9cecd477345bc3fcc758aebcafe656bc"
+    },
+    "loadtest/run_1user/sessions/1_0_1.csv": {
+      "checksum": "fbebf672fc64337cf958ab6ae61b03a4"
+    },
+    "loadtest/run_1user/sessions/10_0_10.csv": {
+      "checksum": "4403392330d44fd53ee48522dc971a83"
+    },
+    "loadtest/run_1user/sessions/11_0_11.csv": {
+      "checksum": "dbc95d9d48831c19853c4eae24c07cc4"
+    },
+    "loadtest/run_1user/sessions/12_0_12.csv": {
+      "checksum": "57fac97a2e87a041bf2f9ed2c7ce8d50"
+    },
+    "loadtest/run_1user/sessions/13_0_13.csv": {
+      "checksum": "75c378a1dda295f3478432af85d232e0"
+    },
+    "loadtest/run_1user/sessions/14_0_14.csv": {
+      "checksum": "e0b51874da31095ed200c41518a998c5"
+    },
+    "loadtest/run_1user/sessions/15_0_15.csv": {
+      "checksum": "afd358a4aae6c39c9df01e6248bd61fa"
+    },
+    "loadtest/run_1user/sessions/16_0_16.csv": {
+      "checksum": "8152d066809dd0d201a10cab7e4184a7"
+    },
+    "loadtest/run_1user/sessions/17_0_17.csv": {
+      "checksum": "1821846324ac8a8c80603ea78a2a1c78"
+    },
+    "loadtest/run_1user/sessions/18_0_18.csv": {
+      "checksum": "f77da42ac9377d334dafd6b08489c5d4"
+    },
+    "loadtest/run_1user/sessions/2_0_2.csv": {
+      "checksum": "8e0bb8f8d70e514c4178ce48d9716aed"
+    },
+    "loadtest/run_1user/sessions/3_0_3.csv": {
+      "checksum": "0d7c27ff9fead8d930b3abc52752995e"
+    },
+    "loadtest/run_1user/sessions/4_0_4.csv": {
+      "checksum": "be614cfaa3e0bd1ee88063f9d4fc9df2"
+    },
+    "loadtest/run_1user/sessions/5_0_5.csv": {
+      "checksum": "8ee91e6578664e0975903edb982ff875"
+    },
+    "loadtest/run_1user/sessions/6_0_6.csv": {
+      "checksum": "a8d302a06d54b24b0a96c83349789b9e"
+    },
+    "loadtest/run_1user/sessions/7_0_7.csv": {
+      "checksum": "537ce8bdd7fd5509d20488eeec9a6d60"
+    },
+    "loadtest/run_1user/sessions/8_0_8.csv": {
+      "checksum": "94e059f1d81ca905bd82465f29bea47f"
+    },
+    "loadtest/run_1user/sessions/9_0_9.csv": {
+      "checksum": "e6b9a535d3d4bc7ef898e5e4719d2e49"
+    },
+    "loadtest/run_1user/shinycannon-version.txt": {
+      "checksum": "ba048eb1e602346b5b055848cb7f84c2"
+    },
+    "loadtest/run_25users/recording.log": {
+      "checksum": "83d41ead52628edef5ed36c5d92fe22a"
+    },
+    "loadtest/run_25users/sessions/0_0_0.csv": {
+      "checksum": "8952478d5646a13be18c4077b1010876"
+    },
+    "loadtest/run_25users/sessions/1_1_0.csv": {
+      "checksum": "2428ebeefcec007a5a157dfb70c374fe"
+    },
+    "loadtest/run_25users/sessions/10_10_0.csv": {
+      "checksum": "b04decfcd8322b3bd559e4108f127421"
+    },
+    "loadtest/run_25users/sessions/11_11_0.csv": {
+      "checksum": "9b76f3d1b993ac0134fc39fec48f5d6d"
+    },
+    "loadtest/run_25users/sessions/12_12_0.csv": {
+      "checksum": "396ee25abb43f8ac574539950563b025"
+    },
+    "loadtest/run_25users/sessions/13_13_0.csv": {
+      "checksum": "3a375583759ec1181501b1d3350e2198"
+    },
+    "loadtest/run_25users/sessions/14_14_0.csv": {
+      "checksum": "5a4346a3f0bcce1cceeaf8938f5acd7e"
+    },
+    "loadtest/run_25users/sessions/15_15_0.csv": {
+      "checksum": "753c9a78419a4fe033409333f480a7ae"
+    },
+    "loadtest/run_25users/sessions/16_16_0.csv": {
+      "checksum": "c350e201b349fb9a51bb446123f9ec6b"
+    },
+    "loadtest/run_25users/sessions/17_17_0.csv": {
+      "checksum": "d66dbdc73aa21c422bdee7db436bfd82"
+    },
+    "loadtest/run_25users/sessions/18_18_0.csv": {
+      "checksum": "ddd8c710c0b6fba55274485623a9e06b"
+    },
+    "loadtest/run_25users/sessions/19_19_0.csv": {
+      "checksum": "df8d65bc4d82bd3a3c0c1d75a35ad4cc"
+    },
+    "loadtest/run_25users/sessions/2_2_0.csv": {
+      "checksum": "9f4c627d7b270f001636628d9ea5189c"
+    },
+    "loadtest/run_25users/sessions/20_20_0.csv": {
+      "checksum": "dada0a31ff2db2390a979a8a878f4c36"
+    },
+    "loadtest/run_25users/sessions/21_21_0.csv": {
+      "checksum": "843513ad3c868eeeefd8d95d529fb8b7"
+    },
+    "loadtest/run_25users/sessions/22_22_0.csv": {
+      "checksum": "83cc48217a4be71bacd6082b4caa6d40"
+    },
+    "loadtest/run_25users/sessions/23_23_0.csv": {
+      "checksum": "c5526eb59964fbce1c4e957facc28851"
+    },
+    "loadtest/run_25users/sessions/24_24_0.csv": {
+      "checksum": "d3f1c244b0806253dccee118dd9a5ce5"
+    },
+    "loadtest/run_25users/sessions/25_0_1.csv": {
+      "checksum": "e029dced87e95d11cf45b6fb93858a28"
+    },
+    "loadtest/run_25users/sessions/26_1_1.csv": {
+      "checksum": "c0dc1927b53f71927fc5ef30ca0d09ff"
+    },
+    "loadtest/run_25users/sessions/27_2_1.csv": {
+      "checksum": "835cd7369ba61295658e8ac0e98bdac8"
+    },
+    "loadtest/run_25users/sessions/28_3_1.csv": {
+      "checksum": "0f20d944ec1c4891f871d5f44af19a36"
+    },
+    "loadtest/run_25users/sessions/29_4_1.csv": {
+      "checksum": "ae88b216a4cce9ab5c4d578c7f75e673"
+    },
+    "loadtest/run_25users/sessions/3_3_0.csv": {
+      "checksum": "2d7a66e4836073f2b8726e2fbf7c6fcc"
+    },
+    "loadtest/run_25users/sessions/30_5_1.csv": {
+      "checksum": "91956920f27ab273ac057dfee9ee3751"
+    },
+    "loadtest/run_25users/sessions/31_6_1.csv": {
+      "checksum": "ff94499559106f627bedca5b8129e47a"
+    },
+    "loadtest/run_25users/sessions/32_7_1.csv": {
+      "checksum": "1177cb9f3b8c9e4195d8afdc7377085c"
+    },
+    "loadtest/run_25users/sessions/33_8_1.csv": {
+      "checksum": "755d3b0c7d5ae4cee8fc0d3088add68b"
+    },
+    "loadtest/run_25users/sessions/34_9_1.csv": {
+      "checksum": "d83e11b99e428e5430eb0f794e6c3f0c"
+    },
+    "loadtest/run_25users/sessions/35_10_1.csv": {
+      "checksum": "61be556ae81d7c33357b83cb8128e18d"
+    },
+    "loadtest/run_25users/sessions/36_11_1.csv": {
+      "checksum": "02a34337a4ef8f1a05c5efa9fb7af504"
+    },
+    "loadtest/run_25users/sessions/37_12_1.csv": {
+      "checksum": "7c20d7f9f73cabf3ee82dc7c841ffc4a"
+    },
+    "loadtest/run_25users/sessions/38_13_1.csv": {
+      "checksum": "f5752206bca366e3be4236154c5d42fd"
+    },
+    "loadtest/run_25users/sessions/39_14_1.csv": {
+      "checksum": "3b89407abf448c6e066c7ce6b1d5c422"
+    },
+    "loadtest/run_25users/sessions/4_4_0.csv": {
+      "checksum": "b03e2293845a2200f88dadaceaa5cd76"
+    },
+    "loadtest/run_25users/sessions/40_15_1.csv": {
+      "checksum": "c3b754184d62ba2c5a1d9a8467e49dd4"
+    },
+    "loadtest/run_25users/sessions/41_16_1.csv": {
+      "checksum": "b9b8633d9e6d872d3dfbbe4c6cf2767d"
+    },
+    "loadtest/run_25users/sessions/42_17_1.csv": {
+      "checksum": "f38f47d44d7d6d993a876229b255724e"
+    },
+    "loadtest/run_25users/sessions/43_18_1.csv": {
+      "checksum": "c166e1c35cc3f13c2c0aadca073600da"
+    },
+    "loadtest/run_25users/sessions/44_19_1.csv": {
+      "checksum": "8bb4a525f916f3f4eeab36327c060a17"
+    },
+    "loadtest/run_25users/sessions/45_20_1.csv": {
+      "checksum": "f6f6dee1dfa4331220527a75c3ff235d"
+    },
+    "loadtest/run_25users/sessions/46_21_1.csv": {
+      "checksum": "cc5bb11a729d164e7ef9334fc9518385"
+    },
+    "loadtest/run_25users/sessions/47_22_1.csv": {
+      "checksum": "74b35ae0f8cd3233e1197322168e9e67"
+    },
+    "loadtest/run_25users/sessions/48_23_1.csv": {
+      "checksum": "47d890801abbdd98ebc6aa412976e344"
+    },
+    "loadtest/run_25users/sessions/49_24_1.csv": {
+      "checksum": "94568a868b7f8a6fad305a195fc16951"
+    },
+    "loadtest/run_25users/sessions/5_5_0.csv": {
+      "checksum": "c0e413642f05ca03a453d30b0e851f60"
+    },
+    "loadtest/run_25users/sessions/6_6_0.csv": {
+      "checksum": "0a97417a55bb7499aea67f79295e21ae"
+    },
+    "loadtest/run_25users/sessions/7_7_0.csv": {
+      "checksum": "d350584b031a5a680966ee1a581dce6b"
+    },
+    "loadtest/run_25users/sessions/8_8_0.csv": {
+      "checksum": "08fd7048643cf8920d36bfc0d547c8ad"
+    },
+    "loadtest/run_25users/sessions/9_9_0.csv": {
+      "checksum": "33e19ab951f6a21adbf3f39f2654c0f8"
+    },
+    "loadtest/run_25users/shinycannon-version.txt": {
+      "checksum": "ba048eb1e602346b5b055848cb7f84c2"
+    },
+    "loadtest/run_5users/recording.log": {
+      "checksum": "83d41ead52628edef5ed36c5d92fe22a"
+    },
+    "loadtest/run_5users/sessions/0_0_0.csv": {
+      "checksum": "ce46757daa03e3d34bab14008d9dc2b1"
+    },
+    "loadtest/run_5users/sessions/1_1_0.csv": {
+      "checksum": "5a9f7fadb461c44922e285a41ac3a7d0"
+    },
+    "loadtest/run_5users/sessions/10_0_2.csv": {
+      "checksum": "69e5d10220a70db00cb59efce428b363"
+    },
+    "loadtest/run_5users/sessions/11_1_2.csv": {
+      "checksum": "ab7f4bfad343859dbca1d30881558711"
+    },
+    "loadtest/run_5users/sessions/12_2_2.csv": {
+      "checksum": "ec6e5e8b20aaa03978cc726a7fb0701e"
+    },
+    "loadtest/run_5users/sessions/13_3_2.csv": {
+      "checksum": "a9f78213e1465d8037b53b9bf6f21f3f"
+    },
+    "loadtest/run_5users/sessions/14_4_2.csv": {
+      "checksum": "b6a5b6a8450387d5e02c70d3f77f9583"
+    },
+    "loadtest/run_5users/sessions/15_0_3.csv": {
+      "checksum": "2dcfd37cf42a2889240e6b51d1c3f77a"
+    },
+    "loadtest/run_5users/sessions/16_1_3.csv": {
+      "checksum": "522fe403f63f05bd7f94c2288ca93e6d"
+    },
+    "loadtest/run_5users/sessions/17_2_3.csv": {
+      "checksum": "578772002f516dbfaf842ee5dacbfc9c"
+    },
+    "loadtest/run_5users/sessions/18_3_3.csv": {
+      "checksum": "f825798522af0e98d5b6db84791ea2cb"
+    },
+    "loadtest/run_5users/sessions/19_4_3.csv": {
+      "checksum": "e7e277d9ea762fa10248a0c864e448fb"
+    },
+    "loadtest/run_5users/sessions/2_2_0.csv": {
+      "checksum": "572e01fc3b056653ff678fc44634fd59"
+    },
+    "loadtest/run_5users/sessions/20_0_4.csv": {
+      "checksum": "300d292da0f8a6ceed00c365d60d30fb"
+    },
+    "loadtest/run_5users/sessions/21_1_4.csv": {
+      "checksum": "a543d4c4d5473c8c450ba51cc23585bf"
+    },
+    "loadtest/run_5users/sessions/22_2_4.csv": {
+      "checksum": "37abe974f75263af9d07313a9916353a"
+    },
+    "loadtest/run_5users/sessions/23_3_4.csv": {
+      "checksum": "3e818a53bbe4b9124a33834138739576"
+    },
+    "loadtest/run_5users/sessions/24_4_4.csv": {
+      "checksum": "dfab25a0821b58c076b204c92aacb535"
+    },
+    "loadtest/run_5users/sessions/25_0_5.csv": {
+      "checksum": "881cb038a8155a82974843b46569ba84"
+    },
+    "loadtest/run_5users/sessions/26_1_5.csv": {
+      "checksum": "74cd91e4357b6dc23f9e55ecfe1bd9d3"
+    },
+    "loadtest/run_5users/sessions/27_2_5.csv": {
+      "checksum": "fcbf5ded664553857e2e4ee28b844217"
+    },
+    "loadtest/run_5users/sessions/28_3_5.csv": {
+      "checksum": "a0253bc9a9672296dc63dfe22a7e661a"
+    },
+    "loadtest/run_5users/sessions/29_4_5.csv": {
+      "checksum": "53fad086bf70c03d5f0e3509ca2304c5"
+    },
+    "loadtest/run_5users/sessions/3_3_0.csv": {
+      "checksum": "826437b830e0fc1a8bc87b93c9b9259d"
+    },
+    "loadtest/run_5users/sessions/30_0_6.csv": {
+      "checksum": "f65142b9d4cbcd418d126aab633ef148"
+    },
+    "loadtest/run_5users/sessions/31_1_6.csv": {
+      "checksum": "04c7b402b524755b1ca017b38aec8a6a"
+    },
+    "loadtest/run_5users/sessions/32_2_6.csv": {
+      "checksum": "f3064f9c752c801d93f2f291f93c989e"
+    },
+    "loadtest/run_5users/sessions/33_3_6.csv": {
+      "checksum": "9ad40d450e6eb84628158820c610e240"
+    },
+    "loadtest/run_5users/sessions/34_4_6.csv": {
+      "checksum": "eac36f339869c035f5ba8c37e66a005d"
+    },
+    "loadtest/run_5users/sessions/35_0_7.csv": {
+      "checksum": "5d0a97972304d7be02ddadbe44dbb4ed"
+    },
+    "loadtest/run_5users/sessions/36_1_7.csv": {
+      "checksum": "1f9d7ca1f4b30669cf006145cbc398c5"
+    },
+    "loadtest/run_5users/sessions/37_2_7.csv": {
+      "checksum": "7c09b7ba3608eaa76c02eec8514e174f"
+    },
+    "loadtest/run_5users/sessions/38_3_7.csv": {
+      "checksum": "37938ae736de49bf144b4d23e73e5ab7"
+    },
+    "loadtest/run_5users/sessions/39_4_7.csv": {
+      "checksum": "17708f3e5094783525523749d1be101d"
+    },
+    "loadtest/run_5users/sessions/4_4_0.csv": {
+      "checksum": "33b5fb114e7b1f1ac000b3105faa461e"
+    },
+    "loadtest/run_5users/sessions/40_0_8.csv": {
+      "checksum": "c9fec247b7e55bd389de2dda0ed23854"
+    },
+    "loadtest/run_5users/sessions/41_1_8.csv": {
+      "checksum": "b7eccd0fa63247dc0a052fb1af24cdca"
+    },
+    "loadtest/run_5users/sessions/42_2_8.csv": {
+      "checksum": "8f37fb56976c75aa21acee3f0bae557e"
+    },
+    "loadtest/run_5users/sessions/43_3_8.csv": {
+      "checksum": "c73854ab0630646a1c8bf4bcb267701d"
+    },
+    "loadtest/run_5users/sessions/44_4_8.csv": {
+      "checksum": "ae1f9f293537b87a6b2ac2f8c3cbdb73"
+    },
+    "loadtest/run_5users/sessions/5_0_1.csv": {
+      "checksum": "9111f4b901fecbee7084699a8a1c1b8b"
+    },
+    "loadtest/run_5users/sessions/6_1_1.csv": {
+      "checksum": "f989a7e654672fa71af9344b744411d6"
+    },
+    "loadtest/run_5users/sessions/7_2_1.csv": {
+      "checksum": "ff9623791d474359f668de9a01a05db8"
+    },
+    "loadtest/run_5users/sessions/8_3_1.csv": {
+      "checksum": "80f8cd58d3f89d97604fd97f64313ce9"
+    },
+    "loadtest/run_5users/sessions/9_4_1.csv": {
+      "checksum": "be499cc282e82a070dcc9229acac27d6"
+    },
+    "loadtest/run_5users/shinycannon-version.txt": {
+      "checksum": "ba048eb1e602346b5b055848cb7f84c2"
+    },
     "logs/dev_log.md": {
-      "checksum": "70805078012cf640ae455d4ea313bd41"
+      "checksum": "64891a62ac002f8081797249a46e1af5"
+    },
+    "R/admin_grid.R": {
+      "checksum": "d5227f54be0d61441bac1ce22b61a657"
     },
     "R/db_connection.R": {
       "checksum": "95d8c5f5f87ad24f19a57b6be2e773bd"
@@ -3986,10 +5150,10 @@
       "checksum": "328ca3601873a958c14918db9b86319b"
     },
     "renv.lock": {
-      "checksum": "20e7ca5cd41c545749f9d03255d3349d"
+      "checksum": "5bce555b96ddb3be36be56e54e55c99f"
     },
     "ROADMAP.md": {
-      "checksum": "f817ed9408033a5c852de6a70b4bff80"
+      "checksum": "9499ca5d97718c31db16199bb13825bd"
     },
     "screenshots/results/flagged/IMG_3780.PNG": {
       "checksum": "eb24442e720bc95a3fccbd03c05e1f4e"
@@ -4207,6 +5371,9 @@
     "scripts/__pycache__/sync_limitless.cpython-312.pyc": {
       "checksum": "e9e721e286ffbc5fca5d249f5348209e"
     },
+    "scripts/analyze_loadtest.R": {
+      "checksum": "e8f5dcf5810da2cebaa4f50f073dd764"
+    },
     "scripts/batch_test_ocr.R": {
       "checksum": "9439b54cee2f85db5eeee588d3a7ba6a"
     },
@@ -4219,14 +5386,23 @@
     "scripts/delete_mock_data.R": {
       "checksum": "fa70c59bf877260beaf82bca859f0ea2"
     },
+    "scripts/generate_pwa_icons.py": {
+      "checksum": "ebe7ea40f223bca584202ffbb1ce1160"
+    },
     "scripts/init_database.R": {
       "checksum": "37359bd255b2684ed1c733ab0cddafc6"
     },
     "scripts/populate_ratings_cache.R": {
       "checksum": "cba2b3c8418187bdd581da9d07fd021a"
     },
+    "scripts/profile_app.R": {
+      "checksum": "f98b22253cf48e06bc2fb85ee420f912"
+    },
     "scripts/README.md": {
       "checksum": "2c6c7dd492817393f2ec40445033c109"
+    },
+    "scripts/record_session.R": {
+      "checksum": "fbeb847fb5e9d273b237053e8b0ee9d6"
     },
     "scripts/seed_archetypes.R": {
       "checksum": "a04ea5ec6424adffee83167beb469292"
@@ -4250,7 +5426,7 @@
       "checksum": "ab321b6a32bca4bf4b046f64f4367721"
     },
     "scripts/sync_limitless.py": {
-      "checksum": "35969f6a34d95713471ec750185c1e13"
+      "checksum": "5dce028d49da971cfedf476a3ca88fd2"
     },
     "scripts/sync_to_motherduck.py": {
       "checksum": "7e9ec37d3ab8bc95426db0bfe1254338"
@@ -4265,70 +5441,85 @@
       "checksum": "afe0d0d88a07c159c6fe7060c933a492"
     },
     "server/admin-players-server.R": {
-      "checksum": "bab41e5c56bcc317a2d94278250225f5"
+      "checksum": "d98a63044c66719d87ac2899e2f10412"
     },
     "server/admin-results-server.R": {
-      "checksum": "01d7d331cae6d86835ff03dac29a1968"
+      "checksum": "86ccdd9a6f5f7412b14d888ff99b5e06"
+    },
+    "server/admin-scenes-server.R": {
+      "checksum": "b357ed4c70272f6ea47e3ca8e72b4da6"
     },
     "server/admin-stores-server.R": {
-      "checksum": "cee62d0e0382041a609454a32784794b"
+      "checksum": "b15cda98403e43f0d5bf7b7faa1b24dc"
     },
     "server/admin-tournaments-server.R": {
-      "checksum": "3a92efc3310b6150c665bb8f664a354e"
+      "checksum": "ea78688799b0492f64652b565a26b107"
+    },
+    "server/admin-users-server.R": {
+      "checksum": "ec3226c555bf0fa1aa43d1bafeec6130"
     },
     "server/public-dashboard-server.R": {
-      "checksum": "b6ad53a73eda812a055466c769e7e81d"
+      "checksum": "6fe5800db7aef1ea29f4a47204e53b96"
     },
     "server/public-meta-server.R": {
-      "checksum": "ba2c43115a14876d3a83981b2277c2f3"
+      "checksum": "7b372a82b8c52a17be1bceb42285d6cc"
     },
     "server/public-players-server.R": {
-      "checksum": "ccc8810b2ebe5937a7487448292ad281"
+      "checksum": "6e4257f0526951d0ff9ff73aa3c02a1f"
     },
     "server/public-stores-server.R": {
-      "checksum": "06c085a53212583388ad7e13b1f9f3b1"
+      "checksum": "e07c57db5b205492a5bbb2e745612d64"
     },
     "server/public-submit-server.R": {
-      "checksum": "1eb09cadb79ca976798ebcd591346880"
+      "checksum": "b6ebe760663565417495febd099a1e35"
     },
     "server/public-tournaments-server.R": {
-      "checksum": "6979263ec3d6a49fe77f09324564ba7c"
+      "checksum": "0bdc0946e0d67a142936c79e8c0cd00f"
     },
     "server/scene-server.R": {
-      "checksum": "c470d9d480388c4439bb076eca7ca14d"
+      "checksum": "37dbb6abae69982e91abaeb931f1dbe5"
     },
     "server/shared-server.R": {
-      "checksum": "7eb2b6a8891c25f9e76db624054e9d75"
+      "checksum": "9fd5bb7f6d9e122598e0c52618304e44"
     },
     "server/url-routing-server.R": {
-      "checksum": "d40bb9755d50d783b9eace64f502bbde"
+      "checksum": "e9cfcaccc10048b10291db6ede464522"
+    },
+    "shinycannon-1.2.0-85f280d.jar": {
+      "checksum": "0de3ededf1119b3173c0587621b60c47"
     },
     "views/about-ui.R": {
       "checksum": "68dc4c5f1b036359cf76ceba94e46b75"
     },
     "views/admin-decks-ui.R": {
-      "checksum": "0062159375f05bacd61b8753528a3456"
+      "checksum": "8781dea0f0894e5156d7c4d531081e21"
     },
     "views/admin-formats-ui.R": {
-      "checksum": "b17d334e3b83264fd7e895593346d391"
+      "checksum": "343cf14a62c622f909fdd99ad3a27ab0"
     },
     "views/admin-players-ui.R": {
-      "checksum": "fa52e482d21e6476c7a03dd42419fcf7"
+      "checksum": "dc1b5a96dee1ed808acfa098d000f011"
     },
     "views/admin-results-ui.R": {
-      "checksum": "ed52da097a2848c971314577ab9e0d33"
+      "checksum": "1899a15d9f7ee90cfeaec177fa763e4f"
+    },
+    "views/admin-scenes-ui.R": {
+      "checksum": "d4974841c8336fc16f754c358b857108"
     },
     "views/admin-stores-ui.R": {
-      "checksum": "dc908b3f28f8643aeb4cd6bd360de0a4"
+      "checksum": "e7cc06cb99cb269676a8550e95d74d65"
     },
     "views/admin-tournaments-ui.R": {
-      "checksum": "46bac369e17733efa63666f50058cb35"
+      "checksum": "0c4ad3cb6eb1d287caafe11b79613631"
+    },
+    "views/admin-users-ui.R": {
+      "checksum": "2cc9eeef311599c69812ab618ec81916"
     },
     "views/community-banner-ui.R": {
       "checksum": "0d7b8712baea3f815a48d0ce04362d91"
     },
     "views/dashboard-ui.R": {
-      "checksum": "e2709b6501e60edc2fe6fc6df0e504bb"
+      "checksum": "2500bbee5a7c62a9b8c66277f1b72d44"
     },
     "views/faq-ui.R": {
       "checksum": "6fa3e67c3c878d57ccffb8fb8578f189"
@@ -4349,7 +5540,7 @@
       "checksum": "917441225502dbce2572511b936821b0"
     },
     "views/submit-ui.R": {
-      "checksum": "d3dab9e3b39d19a5c642607f9a567f62"
+      "checksum": "c6ebd9dcc456b45886d932116ff8f119"
     },
     "views/tournaments-ui.R": {
       "checksum": "33eb56edaaaa14e62f6bce31c0cc1363"
@@ -4358,16 +5549,37 @@
       "checksum": "a818f2eb5b2b020f441e192fdc33d998"
     },
     "www/custom.css": {
-      "checksum": "78b4a45c532142cf124b4be95b584371"
-    },
-    "www/digilab-logo.svg": {
-      "checksum": "79072260952e96f5fbce01702348d7d7"
+      "checksum": "c231c58571f9fb8b4d8beefa39aa01dc"
     },
     "www/digimon-logo.png": {
       "checksum": "ddca514ef04028bd6ffbea8ec2276db5"
     },
     "www/digivice.svg": {
       "checksum": "4e147607637ec0f34ae23fdd4a68442a"
+    },
+    "www/favicon.ico": {
+      "checksum": "9a03dab045cecd4f8bf259ebcc78e854"
+    },
+    "www/icons/icon-192.png": {
+      "checksum": "440a11065c9219b9789dab3e04f98e5e"
+    },
+    "www/icons/icon-512.png": {
+      "checksum": "2dde071fb2f9b5e7c957fb8f3a071462"
+    },
+    "www/icons/icon-maskable-192.png": {
+      "checksum": "1d204a65f6ec71bf7ee1edf611f9310b"
+    },
+    "www/icons/icon-maskable-512.png": {
+      "checksum": "3f8d8749b4aa08b449fd434b9ba6d8d8"
+    },
+    "www/offline.html": {
+      "checksum": "86e7084da2bef0696e7f42e41b8de968"
+    },
+    "www/og-image.png": {
+      "checksum": "fe91f06cd89fc1cabb652041e726ccb2"
+    },
+    "www/og-image.svg": {
+      "checksum": "65f72e9e9a3480717bd1051cf1ce1aeb"
     },
     "www/pill-toggle.js": {
       "checksum": "d8d7e739c38b3abdd0a0d2d2c0b51eb3"
@@ -4380,6 +5592,9 @@
     },
     "www/sitemap.xml": {
       "checksum": "2f9c4188c5d54aba4f7d412f59160df1"
+    },
+    "www/sw.js": {
+      "checksum": "2006d3735e9cfec18d26b834e1fa2bb0"
     },
     "www/url-routing.js": {
       "checksum": "f6e9dd0b1c625384a19b0c7e66fe6cec"
