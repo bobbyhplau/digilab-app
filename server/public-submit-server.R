@@ -869,10 +869,10 @@ observeEvent(input$deck_request_submit, {
   }
 
   # Check if deck with this name already exists
-  existing <- dbGetQuery(rv$db_con, "
+  existing <- safe_query(rv$db_con, "
     SELECT archetype_id FROM deck_archetypes
     WHERE LOWER(archetype_name) = LOWER(?)
-  ", params = list(deck_name))
+  ", params = list(deck_name), default = data.frame())
 
   if (nrow(existing) > 0) {
     notify(paste0("A deck named '", deck_name, "' already exists. Please select it from the dropdown."), type = "warning")
@@ -881,10 +881,10 @@ observeEvent(input$deck_request_submit, {
   }
 
   # Check if there's already a pending request with this name
-  pending <- dbGetQuery(rv$db_con, "
+  pending <- safe_query(rv$db_con, "
     SELECT request_id FROM deck_requests
     WHERE LOWER(deck_name) = LOWER(?) AND status = 'pending'
-  ", params = list(deck_name))
+  ", params = list(deck_name), default = data.frame())
 
   if (nrow(pending) > 0) {
     notify(paste0("A request for '", deck_name, "' is already pending. You can select it from the dropdown."), type = "warning")
@@ -893,26 +893,25 @@ observeEvent(input$deck_request_submit, {
   }
 
   # Get next request_id
- max_id <- dbGetQuery(rv$db_con, "SELECT COALESCE(MAX(request_id), 0) as max_id FROM deck_requests")$max_id
-  request_id <- max_id + 1
+  request_id <- next_id(rv$db_con, "deck_requests", "request_id")
 
   # Insert the deck request
-  dbExecute(rv$db_con, "
+  safe_execute(rv$db_con, "
     INSERT INTO deck_requests (request_id, deck_name, primary_color, secondary_color, display_card_id, status)
     VALUES (?, ?, ?, ?, ?, 'pending')
   ", params = list(request_id, deck_name, primary_color, secondary_color, card_id))
 
   # Build updated deck choices with the new pending request
-  decks <- dbGetQuery(rv$db_con, "
+  decks <- safe_query(rv$db_con, "
     SELECT archetype_id, archetype_name FROM deck_archetypes
     WHERE is_active = TRUE
     ORDER BY archetype_name
-  ")
-  pending_requests <- dbGetQuery(rv$db_con, "
+  ", default = data.frame())
+  pending_requests <- safe_query(rv$db_con, "
     SELECT request_id, deck_name FROM deck_requests
     WHERE status = 'pending'
     ORDER BY deck_name
-  ")
+  ", default = data.frame())
 
   updated_choices <- c("Unknown" = "")
   updated_choices <- c(updated_choices, "\U2795 Request new deck..." = "__REQUEST_NEW__")
@@ -997,14 +996,14 @@ observeEvent(input$submit_tournament, {
   }
 
   # Check for duplicate tournament
-  existing <- dbGetQuery(rv$db_con, "
+  existing <- safe_query(rv$db_con, "
     SELECT tournament_id FROM tournaments
     WHERE store_id = ? AND event_date = ? AND event_type = ?
   ", params = list(
     as.integer(input$submit_store),
     as.character(input$submit_date),
     input$submit_event_type
-  ))
+  ), default = data.frame())
 
   if (nrow(existing) > 0) {
     notify("A tournament with this store, date, and event type already exists.",
@@ -1013,11 +1012,13 @@ observeEvent(input$submit_tournament, {
   }
 
   tryCatch({
-    # Create tournament - must generate ID since DuckDB doesn't auto-increment
-    max_tournament_id <- dbGetQuery(rv$db_con, "SELECT COALESCE(MAX(tournament_id), 0) as max_id FROM tournaments")$max_id
-    tournament_id <- max_tournament_id + 1
+    # Begin transaction for atomic tournament + results insert
+    dbExecute(rv$db_con, "BEGIN TRANSACTION")
 
-    dbExecute(rv$db_con, "
+    # Create tournament - must generate ID since DuckDB doesn't auto-increment
+    tournament_id <- next_id(rv$db_con, "tournaments", "tournament_id")
+
+    safe_execute(rv$db_con, "
       INSERT INTO tournaments (tournament_id, store_id, event_date, event_type, format, player_count, rounds)
       VALUES (?, ?, ?, ?, ?, ?, ?)
     ", params = list(
@@ -1070,30 +1071,29 @@ observeEvent(input$submit_tournament, {
       if (!is.na(row$matched_player_id) && row$match_status %in% c("matched", "possible")) {
         player_id <- row$matched_player_id
         if (!is.na(member_number)) {
-          dbExecute(rv$db_con, "
+          safe_execute(rv$db_con, "
             UPDATE players SET member_number = ?
             WHERE player_id = ? AND member_number IS NULL
           ", params = list(member_number, player_id))
         }
       } else {
-        player <- dbGetQuery(rv$db_con, "
+        player <- safe_query(rv$db_con, "
           SELECT player_id FROM players
           WHERE (member_number IS NOT NULL AND member_number = ?) OR LOWER(display_name) = LOWER(?)
           LIMIT 1
-        ", params = list(member_number, username))
+        ", params = list(member_number, username), default = data.frame())
 
         if (nrow(player) == 0) {
           # Generate player_id since DuckDB doesn't auto-increment
-          max_player_id <- dbGetQuery(rv$db_con, "SELECT COALESCE(MAX(player_id), 0) as max_id FROM players")$max_id
-          player_id <- max_player_id + 1
-          dbExecute(rv$db_con, "
+          player_id <- next_id(rv$db_con, "players", "player_id")
+          safe_execute(rv$db_con, "
             INSERT INTO players (player_id, display_name, member_number)
             VALUES (?, ?, ?)
           ", params = list(player_id, username, member_number))
         } else {
           player_id <- player$player_id[1]
           if (!is.na(member_number)) {
-            dbExecute(rv$db_con, "
+            safe_execute(rv$db_con, "
               UPDATE players SET member_number = ?
               WHERE player_id = ? AND member_number IS NULL
             ", params = list(member_number, player_id))
@@ -1103,14 +1103,13 @@ observeEvent(input$submit_tournament, {
 
       # Get UNKNOWN archetype_id if no deck selected
       if (is.na(deck_id)) {
-        unknown <- dbGetQuery(rv$db_con, "SELECT archetype_id FROM deck_archetypes WHERE archetype_name = 'UNKNOWN'")
+        unknown <- safe_query(rv$db_con, "SELECT archetype_id FROM deck_archetypes WHERE archetype_name = 'UNKNOWN'", default = data.frame())
         deck_id <- if (nrow(unknown) > 0) unknown$archetype_id[1] else NA_integer_
       }
 
       # Generate result_id since DuckDB doesn't auto-increment
-      max_result_id <- dbGetQuery(rv$db_con, "SELECT COALESCE(MAX(result_id), 0) as max_id FROM results")$max_id
-      result_id <- max_result_id + 1
-      dbExecute(rv$db_con, "
+      result_id <- next_id(rv$db_con, "results", "result_id")
+      safe_execute(rv$db_con, "
         INSERT INTO results (result_id, tournament_id, player_id, archetype_id, pending_deck_request_id, placement, wins, losses, ties)
         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
       ", params = list(
@@ -1118,6 +1117,9 @@ observeEvent(input$submit_tournament, {
         row$placement, wins, losses, ties
       ))
     }
+
+    # Commit transaction
+    dbExecute(rv$db_con, "COMMIT")
 
     # Trigger refresh
     rv$data_refresh <- (rv$data_refresh %||% 0) + 1
@@ -1158,6 +1160,7 @@ observeEvent(input$submit_tournament, {
     session$sendCustomMessage("updateSidebarNav", "nav_tournaments")
 
   }, error = function(e) {
+    tryCatch(dbExecute(rv$db_con, "ROLLBACK"), error = function(re) NULL)
     notify(paste("Error submitting tournament:", e$message), type = "error")
   })
 })
@@ -1573,7 +1576,7 @@ observeEvent(input$match_submit, {
 
   tryCatch({
     # Ensure matches table exists
-    dbExecute(rv$db_con, "
+    safe_execute(rv$db_con, "
       CREATE TABLE IF NOT EXISTS matches (
         match_id INTEGER PRIMARY KEY,
         tournament_id INTEGER NOT NULL,
@@ -1589,24 +1592,25 @@ observeEvent(input$match_submit, {
       )
     ")
 
+    # Begin transaction for atomic match history insert
+    dbExecute(rv$db_con, "BEGIN TRANSACTION")
+
     # Find or create submitting player
-    player <- dbGetQuery(rv$db_con, "
+    player <- safe_query(rv$db_con, "
       SELECT player_id FROM players
       WHERE (member_number IS NOT NULL AND member_number = ?) OR LOWER(display_name) = LOWER(?)
       LIMIT 1
-    ", params = list(submitter_member, submitter_username))
+    ", params = list(submitter_member, submitter_username), default = data.frame())
 
     if (nrow(player) == 0) {
-      # Generate player_id since DuckDB doesn't auto-increment
-      max_player_id <- dbGetQuery(rv$db_con, "SELECT COALESCE(MAX(player_id), 0) as max_id FROM players")$max_id
-      player_id <- max_player_id + 1
-      dbExecute(rv$db_con, "
+      player_id <- next_id(rv$db_con, "players", "player_id")
+      safe_execute(rv$db_con, "
         INSERT INTO players (player_id, display_name, member_number)
         VALUES (?, ?, ?)
       ", params = list(player_id, submitter_username, submitter_member))
     } else {
       player_id <- player$player_id[1]
-      dbExecute(rv$db_con, "
+      safe_execute(rv$db_con, "
         UPDATE players SET member_number = ?
         WHERE player_id = ? AND member_number IS NULL
       ", params = list(submitter_member, player_id))
@@ -1648,24 +1652,22 @@ observeEvent(input$match_submit, {
         as.integer(row$match_points)
       }
 
-      opponent <- dbGetQuery(rv$db_con, "
+      opponent <- safe_query(rv$db_con, "
         SELECT player_id FROM players
         WHERE (member_number IS NOT NULL AND member_number = ?) OR LOWER(display_name) = LOWER(?)
         LIMIT 1
-      ", params = list(opponent_member, opponent_username))
+      ", params = list(opponent_member, opponent_username), default = data.frame())
 
       if (nrow(opponent) == 0) {
-        # Generate player_id since DuckDB doesn't auto-increment
-        max_player_id <- dbGetQuery(rv$db_con, "SELECT COALESCE(MAX(player_id), 0) as max_id FROM players")$max_id
-        opponent_id <- max_player_id + 1
-        dbExecute(rv$db_con, "
+        opponent_id <- next_id(rv$db_con, "players", "player_id")
+        safe_execute(rv$db_con, "
           INSERT INTO players (player_id, display_name, member_number)
           VALUES (?, ?, ?)
         ", params = list(opponent_id, opponent_username, opponent_member))
       } else {
         opponent_id <- opponent$player_id[1]
         if (!is.na(opponent_member)) {
-          dbExecute(rv$db_con, "
+          safe_execute(rv$db_con, "
             UPDATE players SET member_number = ?
             WHERE player_id = ? AND member_number IS NULL
           ", params = list(opponent_member, opponent_id))
@@ -1673,10 +1675,8 @@ observeEvent(input$match_submit, {
       }
 
       tryCatch({
-        # Generate match_id since DuckDB doesn't auto-increment
-        max_match_id <- dbGetQuery(rv$db_con, "SELECT COALESCE(MAX(match_id), 0) as max_id FROM matches")$max_id
-        match_id <- max_match_id + 1
-        dbExecute(rv$db_con, "
+        match_id <- next_id(rv$db_con, "matches", "match_id")
+        safe_execute(rv$db_con, "
           INSERT INTO matches (match_id, tournament_id, round_number, player_id, opponent_id, games_won, games_lost, games_tied, match_points)
           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
         ", params = list(
@@ -1696,6 +1696,9 @@ observeEvent(input$match_submit, {
       })
     }
 
+    # Commit transaction
+    dbExecute(rv$db_con, "COMMIT")
+
     # Clear form
     rv$match_ocr_results <- NULL
     rv$match_uploaded_file <- NULL
@@ -1712,6 +1715,7 @@ observeEvent(input$match_submit, {
     )
 
   }, error = function(e) {
+    tryCatch(dbExecute(rv$db_con, "ROLLBACK"), error = function(re) NULL)
     notify(paste("Error submitting match history:", e$message), type = "error")
   })
 })

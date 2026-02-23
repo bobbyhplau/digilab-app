@@ -154,8 +154,7 @@ observeEvent(input$create_tournament, {
 
   tryCatch({
     # Get next ID
-    max_id <- dbGetQuery(rv$db_con, "SELECT COALESCE(MAX(tournament_id), 0) as max_id FROM tournaments")$max_id
-    new_id <- max_id + 1
+    new_id <- next_id(rv$db_con, "tournaments", "tournament_id")
 
     dbExecute(rv$db_con, "
       INSERT INTO tournaments (tournament_id, store_id, event_date, event_type, format, player_count, rounds)
@@ -343,8 +342,7 @@ observeEvent(input$create_anyway, {
   rounds <- input$tournament_rounds
 
   tryCatch({
-    max_id <- dbGetQuery(rv$db_con, "SELECT COALESCE(MAX(tournament_id), 0) as max_id FROM tournaments")$max_id
-    new_id <- max_id + 1
+    new_id <- next_id(rv$db_con, "tournaments", "tournament_id")
 
     dbExecute(rv$db_con, "
       INSERT INTO tournaments (tournament_id, store_id, event_date, event_type, format, player_count, rounds)
@@ -691,8 +689,7 @@ observeEvent(input$admin_deck_request_submit, {
   if (nrow(existing) > 0) {
     notify(sprintf("A pending request for '%s' already exists", deck_name), type = "warning")
   } else {
-    max_id <- dbGetQuery(rv$db_con, "SELECT COALESCE(MAX(request_id), 0) as max_id FROM deck_requests")$max_id
-    new_id <- max_id + 1
+    new_id <- next_id(rv$db_con, "deck_requests", "request_id")
 
     dbExecute(rv$db_con, "
       INSERT INTO deck_requests (request_id, deck_name, primary_color, secondary_color, display_card_id, status)
@@ -751,7 +748,7 @@ observeEvent(input$admin_submit_results, {
 
   tryCatch({
     result_count <- 0L
-    max_result_id <- dbGetQuery(rv$db_con, "SELECT COALESCE(MAX(result_id), 0) as max_id FROM results")$max_id
+    max_result_id <- next_id(rv$db_con, "results", "result_id") - 1
 
     for (idx in seq_len(nrow(filled_rows))) {
       row <- filled_rows[idx, ]
@@ -765,8 +762,7 @@ observeEvent(input$admin_submit_results, {
       if (nrow(player) > 0) {
         player_id <- player$player_id
       } else {
-        max_pid <- dbGetQuery(rv$db_con, "SELECT COALESCE(MAX(player_id), 0) as max_id FROM players")$max_id
-        player_id <- max_pid + 1
+        player_id <- next_id(rv$db_con, "players", "player_id")
         dbExecute(rv$db_con, "INSERT INTO players (player_id, display_name) VALUES (?, ?)",
                   params = list(player_id, name))
       }

@@ -51,20 +51,38 @@ output$total_players_val <- renderText({
 })
 
 output$total_stores_val <- renderText({
+  rv$data_refresh
   count <- 0
   if (!is.null(rv$db_con) && dbIsValid(rv$db_con)) {
-    count <- safe_query(rv$db_con, "SELECT COUNT(*) as n FROM stores WHERE is_active = TRUE", default = data.frame(n = 0))$n
+    filters <- build_dashboard_filters("t", "s")
+    result <- safe_query(rv$db_con, paste("
+      SELECT COUNT(DISTINCT s.store_id) as n
+      FROM stores s
+      JOIN tournaments t ON s.store_id = t.store_id
+      WHERE s.is_active = TRUE", filters$sql),
+      params = filters$params, default = data.frame(n = 0))
+    count <- result$n
   }
   count
-})
+}) |> bindCache(input$dashboard_format, input$dashboard_event_type, rv$current_scene, rv$community_filter, rv$data_refresh)
 
 output$total_decks_val <- renderText({
+  rv$data_refresh
   count <- 0
   if (!is.null(rv$db_con) && dbIsValid(rv$db_con)) {
-    count <- safe_query(rv$db_con, "SELECT COUNT(*) as n FROM deck_archetypes WHERE is_active = TRUE", default = data.frame(n = 0))$n
+    filters <- build_dashboard_filters("t", "s")
+    result <- safe_query(rv$db_con, paste("
+      SELECT COUNT(DISTINCT r.archetype_id) as n
+      FROM results r
+      JOIN tournaments t ON r.tournament_id = t.tournament_id
+      JOIN stores s ON t.store_id = s.store_id
+      JOIN deck_archetypes da ON r.archetype_id = da.archetype_id
+      WHERE da.is_active = TRUE AND da.archetype_name != 'UNKNOWN'", filters$sql),
+      params = filters$params, default = data.frame(n = 0))
+    count <- result$n
   }
   count
-})
+}) |> bindCache(input$dashboard_format, input$dashboard_event_type, rv$current_scene, rv$community_filter, rv$data_refresh)
 
 # Most popular deck (Top Deck) reactive - reads from deck_analytics batch
 most_popular_deck <- reactive({
@@ -247,78 +265,23 @@ output$most_popular_deck_image <- renderUI({
 #   - params: List of parameter values in order matching the placeholders
 #   - any_active: Boolean indicating if any filters are active
 build_dashboard_filters <- function(table_alias = "t", store_alias = NULL) {
-  sql_parts <- character(0)
-  params <- list()
-
-  # Format filter (parameterized)
-  if (!is.null(input$dashboard_format) && input$dashboard_format != "") {
-    sql_parts <- c(sql_parts, sprintf("AND %s.format = ?", table_alias))
-    params <- c(params, list(input$dashboard_format))
-  }
-
-  # Event type filter (parameterized)
-  if (!is.null(input$dashboard_event_type) && input$dashboard_event_type != "") {
-    sql_parts <- c(sql_parts, sprintf("AND %s.event_type = ?", table_alias))
-    params <- c(params, list(input$dashboard_event_type))
-  }
-
-  # Community filter (store-specific filtering)
-  # Takes precedence over scene filter
-  if (!is.null(rv$community_filter) && rv$community_filter != "" && !is.null(store_alias)) {
-    sql_parts <- c(sql_parts, sprintf("AND %s.slug = ?", store_alias))
-    params <- c(params, list(rv$community_filter))
-  } else {
-    # Scene filter (requires store_alias to be set)
-    scene <- rv$current_scene
-    if (!is.null(scene) && scene != "" && scene != "all" && !is.null(store_alias)) {
-      if (scene == "online") {
-        sql_parts <- c(sql_parts, sprintf("AND %s.is_online = TRUE", store_alias))
-      } else {
-        sql_parts <- c(sql_parts, sprintf(
-          "AND %s.scene_id = (SELECT scene_id FROM scenes WHERE slug = ?)",
-          store_alias
-        ))
-        params <- c(params, list(scene))
-      }
-    }
-  }
-
-  list(
-    sql = paste(sql_parts, collapse = " "),
-    params = params,
-    any_active = length(params) > 0
+  build_filters_param(
+    table_alias = table_alias,
+    format = input$dashboard_format,
+    event_type = input$dashboard_event_type,
+    scene = rv$current_scene,
+    store_alias = store_alias,
+    community_store = rv$community_filter
   )
 }
 
 # Community section: scene-only filtering (no format, no event type)
 build_community_filters <- function(table_alias = "t", store_alias = NULL) {
-  sql_parts <- character(0)
-  params <- list()
-
-  # Community filter (store-specific filtering)
-  # Takes precedence over scene filter
-  if (!is.null(rv$community_filter) && rv$community_filter != "" && !is.null(store_alias)) {
-    sql_parts <- c(sql_parts, sprintf("AND %s.slug = ?", store_alias))
-    params <- c(params, list(rv$community_filter))
-  } else {
-    scene <- rv$current_scene
-    if (!is.null(scene) && scene != "" && scene != "all" && !is.null(store_alias)) {
-      if (scene == "online") {
-        sql_parts <- c(sql_parts, sprintf("AND %s.is_online = TRUE", store_alias))
-      } else {
-        sql_parts <- c(sql_parts, sprintf(
-          "AND %s.scene_id = (SELECT scene_id FROM scenes WHERE slug = ?)",
-          store_alias
-        ))
-        params <- c(params, list(scene))
-      }
-    }
-  }
-
-  list(
-    sql = paste(sql_parts, collapse = " "),
-    params = params,
-    any_active = length(params) > 0
+  build_filters_param(
+    table_alias = table_alias,
+    scene = rv$current_scene,
+    store_alias = store_alias,
+    community_store = rv$community_filter
   )
 }
 

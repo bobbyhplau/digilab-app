@@ -337,7 +337,7 @@ if (!is.null(scenes) && nrow(scenes) > 0) {
             Select
           </button>
         </div>',
-        scenes$display_name[i], scenes$slug[i]
+        htmltools::htmlEscape(scenes$display_name[i]), htmltools::htmlEscape(scenes$slug[i])
       )
     })
 

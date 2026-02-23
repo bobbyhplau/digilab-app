@@ -841,9 +841,16 @@ safe_execute <- function(db_con, query, params = NULL) {
   })
 }
 
+# Generate next ID for a table (atomic MAX+1)
+next_id <- function(con, table, id_column) {
+  result <- safe_query(con, sprintf("SELECT COALESCE(MAX(%s), 0) + 1 as next_id FROM %s", id_column, table),
+                       default = data.frame(next_id = 1))
+  result$next_id[1]
+}
+
 get_store_choices <- function(con, include_none = FALSE) {
   if (is.null(con) || !dbIsValid(con)) return(c("Loading..." = ""))
-  stores <- dbGetQuery(con, "SELECT store_id, name FROM stores WHERE is_active = TRUE ORDER BY name")
+  stores <- safe_query(con, "SELECT store_id, name FROM stores WHERE is_active = TRUE ORDER BY name", default = data.frame())
   choices <- setNames(stores$store_id, stores$name)
   if (include_none) {
     choices <- c("Select a store..." = "", choices)
@@ -853,14 +860,14 @@ get_store_choices <- function(con, include_none = FALSE) {
 
 get_archetype_choices <- function(con) {
   if (is.null(con) || !dbIsValid(con)) return(c("Loading..." = ""))
-  archetypes <- dbGetQuery(con, "SELECT archetype_id, archetype_name FROM deck_archetypes WHERE is_active = TRUE ORDER BY archetype_name")
+  archetypes <- safe_query(con, "SELECT archetype_id, archetype_name FROM deck_archetypes WHERE is_active = TRUE ORDER BY archetype_name", default = data.frame())
   choices <- setNames(archetypes$archetype_id, archetypes$archetype_name)
   return(choices)
 }
 
 get_player_choices <- function(con) {
   if (is.null(con) || !dbIsValid(con)) return(character(0))
-  players <- dbGetQuery(con, "SELECT player_id, display_name FROM players WHERE is_active = TRUE ORDER BY display_name")
+  players <- safe_query(con, "SELECT player_id, display_name FROM players WHERE is_active = TRUE ORDER BY display_name", default = data.frame())
   choices <- setNames(players$player_id, players$display_name)
   return(choices)
 }
@@ -869,12 +876,12 @@ get_format_choices <- function(con) {
   if (is.null(con) || !dbIsValid(con)) {
     return(c("Database unavailable" = ""))
   }
-  formats <- dbGetQuery(con, "
+  formats <- safe_query(con, "
     SELECT format_id, display_name
     FROM formats
     WHERE is_active = TRUE
     ORDER BY release_date DESC NULLS LAST
-  ")
+  ", default = data.frame())
   if (nrow(formats) == 0) {
     return(c("No formats configured" = ""))
   }
@@ -942,6 +949,23 @@ observeEvent(input$clear_community_filter, {
   session$sendCustomMessage("setPillToggle", list(inputId = "meta_min_entries", value = "5"))
   notify("Community filter cleared", type = "message", duration = 2)
 })
+
+# Format event type for display
+format_event_type <- function(et) {
+  if (is.na(et)) return("Unknown")
+  switch(et,
+    "locals" = "Locals",
+    "evo_cup" = "Evo Cup",
+    "store_championship" = "Store Championship",
+    "regional" = "Regional",
+    "regionals" = "Regionals",
+    "online" = "Online",
+    "regulation_battle" = "Regulation Battle",
+    "release_event" = "Release Event",
+    "other" = "Other",
+    et
+  )
+}
 
 #' Build Parameterized SQL Filters
 #'

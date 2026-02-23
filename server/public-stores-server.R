@@ -461,18 +461,6 @@ output$store_detail_modal <- renderUI({
     ORDER BY day_of_week, start_time
   ", params = list(store_id))
 
-  # Format event type
-  format_event_type <- function(et) {
-    if (is.na(et)) return("Unknown")
-    switch(et,
-           "locals" = "Locals",
-           "evo_cup" = "Evo Cup",
-           "store_championship" = "Store Championship",
-           "regional" = "Regional",
-           "online" = "Online",
-           et)
-  }
-
   # Determine if this is an online store
 
   is_online_store <- !is.null(store$is_online) && !is.na(store$is_online) && store$is_online == TRUE

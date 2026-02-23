@@ -118,21 +118,6 @@ output$admin_tournament_list <- renderReactable({
     return(reactable(data.frame(Message = "No tournaments found")))
   }
 
-  # Format event type
-  format_event_type <- function(type) {
-    type_labels <- c(
-      "locals" = "Locals",
-      "online" = "Online",
-      "evo_cup" = "Evo Cup",
-      "store_championship" = "Store Champ",
-      "regionals" = "Regionals",
-      "regulation_battle" = "Reg Battle",
-      "release_event" = "Release",
-      "other" = "Other"
-    )
-    type_labels[type] %||% type
-  }
-
   # Prepare display data
   display_data <- data.frame(
     ID = data$tournament_id,

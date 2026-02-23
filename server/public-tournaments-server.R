@@ -78,20 +78,7 @@ output$tournament_history <- renderReactable({
   }
 
   # Format event type nicely
-  result$Type <- sapply(result$Type, function(et) {
-    if (is.na(et)) return("Unknown")
-    switch(et,
-           "locals" = "Locals",
-           "evo_cup" = "Evo Cup",
-           "store_championship" = "Store Champ",
-           "regional" = "Regional",
-           "regionals" = "Regionals",
-           "online" = "Online",
-           "regulation_battle" = "Reg Battle",
-           "release_event" = "Release Event",
-           "other" = "Other",
-           et)
-  })
+  result$Type <- sapply(result$Type, format_event_type)
 
   reactable(
     result,
@@ -167,13 +154,7 @@ output$tournament_detail_modal <- renderUI({
   ", params = list(tournament_id), default = data.frame())
 
   # Format event type
-  event_type_display <- switch(tournament$event_type,
-                                "locals" = "Locals",
-                                "evo_cup" = "Evo Cup",
-                                "store_championship" = "Store Championship",
-                                "regional" = "Regional",
-                                "online" = "Online",
-                                tournament$event_type)
+  event_type_display <- format_event_type(tournament$event_type)
 
   # Update URL for deep linking
   update_url_for_tournament(session, tournament_id)
