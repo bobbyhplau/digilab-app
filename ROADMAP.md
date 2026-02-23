@@ -91,6 +91,8 @@ Upgrade from simple password auth to full user account system:
 |----|------|-------------|
 | DM6 | UI | Digivice footer watermark — subtle branding element |
 | DM8 | UI | Agumon achievement unlocked — celebrating pose (needs F10) |
+| DM10 | BRANDING | DigiLab logo refresh — incorporate Digivice SVG into sidebar logo and favicon |
+| DM11 | BRANDING | OG image update — new preview card with Digivice branding for Discord/chat link embeds |
 | DM-COMM | BRANDING | Commission custom Digimon SVG set — multi-character, multi-mood |
 
 See `docs/digimon-mascots.md` for full spec and art style guidelines.
