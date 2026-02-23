@@ -78,11 +78,13 @@ output$admin_tournament_list <- renderReactable({
 
   # Build scene filter
   scene_filter <- ""
+  query_params <- list()
   if (!show_all && !is.null(scene) && scene != "" && scene != "all") {
     if (scene == "online") {
       scene_filter <- "AND s.is_online = TRUE"
     } else {
-      scene_filter <- sprintf("AND s.scene_id = (SELECT scene_id FROM scenes WHERE slug = '%s')", scene)
+      scene_filter <- "AND s.scene_id = (SELECT scene_id FROM scenes WHERE slug = ?)"
+      query_params <- c(query_params, list(scene))
     }
   }
 
@@ -102,16 +104,15 @@ output$admin_tournament_list <- renderReactable({
     WHERE 1=1 %s
   ", scene_filter)
 
-  search_params <- list()
   if (nchar(search) > 0) {
     query <- paste0(query, " AND LOWER(s.name) LIKE LOWER(?)")
-    search_params <- list(paste0("%", search, "%"))
+    query_params <- c(query_params, list(paste0("%", search, "%")))
   }
 
   query <- paste0(query, " GROUP BY t.tournament_id, s.name, t.event_date, t.event_type, t.format, t.player_count, t.rounds
                           ORDER BY t.event_date DESC")
 
-  data <- dbGetQuery(rv$db_con, query, params = search_params)
+  data <- dbGetQuery(rv$db_con, query, params = query_params)
 
   if (nrow(data) == 0) {
     return(reactable(data.frame(Message = "No tournaments found")))

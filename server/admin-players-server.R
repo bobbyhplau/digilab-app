@@ -21,6 +21,7 @@ output$player_list <- renderReactable({
 
   # Build scene filter for players (players who have competed in scene)
   scene_filter <- ""
+  query_params <- list()
   if (!show_all && !is.null(scene) && scene != "" && scene != "all") {
     if (scene == "online") {
       scene_filter <- "
@@ -32,22 +33,24 @@ output$player_list <- renderReactable({
         )
       "
     } else {
-      scene_filter <- sprintf("
+      scene_filter <- "
         AND EXISTS (
           SELECT 1 FROM results r2
           JOIN tournaments t2 ON r2.tournament_id = t2.tournament_id
           JOIN stores s2 ON t2.store_id = s2.store_id
           WHERE r2.player_id = p.player_id
-            AND s2.scene_id = (SELECT scene_id FROM scenes WHERE slug = '%s')
+            AND s2.scene_id = (SELECT scene_id FROM scenes WHERE slug = ?)
         )
-      ", scene)
+      "
+      query_params <- c(query_params, list(scene))
     }
   }
 
   # Build search filter
   search_filter <- ""
   if (nchar(search_term) > 0) {
-    search_filter <- sprintf(" AND LOWER(p.display_name) LIKE LOWER('%%%s%%')", search_term)
+    search_filter <- " AND LOWER(p.display_name) LIKE LOWER(?)"
+    query_params <- c(query_params, list(paste0("%", search_term, "%")))
   }
 
   query <- sprintf("
@@ -64,7 +67,7 @@ output$player_list <- renderReactable({
     ORDER BY p.display_name
   ", scene_filter, search_filter)
 
-  data <- dbGetQuery(rv$db_con, query)
+  data <- dbGetQuery(rv$db_con, query, params = query_params)
 
   if (nrow(data) == 0) {
     return(admin_empty_state("No players found", "// add players via tournament entry", "people"))

@@ -429,23 +429,3 @@ observeEvent(input$geolocation_result, {
 # Scene Filter Helper
 # -----------------------------------------------------------------------------
 
-#' Build SQL WHERE clause fragment for scene filtering
-#' @param scene_slug The current scene slug
-#' @param store_alias SQL alias for stores table (default "s")
-#' @return SQL fragment string or empty string if no filter needed
-build_scene_filter <- function(scene_slug, store_alias = "s") {
-  if (is.null(scene_slug) || scene_slug == "" || scene_slug == "all") {
-    return("")
-  }
-
-  # Handle "online" specially
-  if (scene_slug == "online") {
-    return(sprintf("AND %s.is_online = TRUE", store_alias))
-  }
-
-  # Filter by scene_id via store's scene
-  sprintf(
-    "AND %s.scene_id = (SELECT scene_id FROM scenes WHERE slug = '%s')",
-    store_alias, scene_slug
-  )
-}

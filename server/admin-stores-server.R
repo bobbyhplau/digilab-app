@@ -247,11 +247,13 @@ output$admin_store_list <- renderReactable({
 
   # Build scene filter
   scene_filter <- ""
+  scene_params <- list()
   if (!show_all && !is.null(scene) && scene != "" && scene != "all") {
     if (scene == "online") {
       scene_filter <- "AND s.is_online = TRUE"
     } else {
-      scene_filter <- sprintf("AND s.scene_id = (SELECT scene_id FROM scenes WHERE slug = '%s')", scene)
+      scene_filter <- "AND s.scene_id = (SELECT scene_id FROM scenes WHERE slug = ?)"
+      scene_params <- list(scene)
     }
   }
 
@@ -268,7 +270,7 @@ output$admin_store_list <- renderReactable({
       CASE WHEN s.is_online = FALSE AND COUNT(ss.schedule_id) = 0 THEN 0 ELSE 1 END,
       CASE WHEN s.zip_code IS NULL OR s.zip_code = '' THEN 0 ELSE 1 END,
       s.name
-  ", scene_filter))
+  ", scene_filter), params = scene_params)
 
   if (nrow(data) == 0) {
     data <- data.frame(Message = "No stores yet")
@@ -369,11 +371,13 @@ observeEvent(input$admin_store_list__reactable__selected, {
 
   # Build scene filter
   scene_filter <- ""
+  scene_params <- list()
   if (!show_all && !is.null(scene) && scene != "" && scene != "all") {
     if (scene == "online") {
       scene_filter <- "AND s.is_online = TRUE"
     } else {
-      scene_filter <- sprintf("AND s.scene_id = (SELECT scene_id FROM scenes WHERE slug = '%s')", scene)
+      scene_filter <- "AND s.scene_id = (SELECT scene_id FROM scenes WHERE slug = ?)"
+      scene_params <- list(scene)
     }
   }
 
@@ -382,7 +386,7 @@ observeEvent(input$admin_store_list__reactable__selected, {
     FROM stores s
     WHERE s.is_active = TRUE %s
     ORDER BY s.name
-  ", scene_filter))
+  ", scene_filter), params = scene_params)
 
   if (selected_idx > nrow(data)) return()
 
