@@ -374,6 +374,6 @@ See `ARCHITECTURE.md` > CSS Architecture for full documentation.
 
 ## Current Version
 
-**v0.28.0** - Content Updates, Error Tracking & Admin UX (FAQ/About/For Organizers rewrites, Sentry integration, full admin UX audit)
+**v1.0.0** - Public Launch (performance optimizations, PWA, mascot polish, security hardening, responsive grids)
 
 See `CHANGELOG.md` for full version history and `ROADMAP.md` for upcoming features.

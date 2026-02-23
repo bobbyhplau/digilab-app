@@ -2,36 +2,10 @@
 
 This document outlines the planned features, improvements, and bug fixes for the tournament tracker.
 
-**Current Version:** v0.29.0
-**Target:** v1.0 Public Launch
+**Current Version:** v1.0.0
 **Cadence:** ~1 milestone per week
 
 ---
-
-## v0.30 - Mobile & Polish
-
-| ID | Type | Status | Description |
-|----|------|--------|-------------|
-| MOB1 | REVIEW | ✅ Done | Full mobile UX audit — layout breakpoints, column hiding, tap targets, value box fonts |
-| ADM1 | UX | ✅ Done | Edit tournaments flow — reuse grid entry, paste-from-spreadsheet, and player matching from Enter Results |
-| ADM2 | REVIEW | ✅ Done | Enter Results & Submit Results tabs UX review — shared grid migration, OCR validation, parity polish |
-| DM3 | UI | ✅ Done | Agumon in disconnect overlay — bounce animation in reconnect UI |
-| DM9 | UI | ✅ Done | Agumon in loading spinner — centered inside the circular loading gate |
-| DM7 | UI | ✅ Done | Agumon 404/not found state — modal with mascot for bad deep link URLs |
-| DM10 | BRANDING | ✅ Done | DigiLab logo refresh — Digivice SVG in logo and icon files |
-| DM11 | BRANDING | ✅ Done | OG image update — Digivice watermark branding for Discord/chat link embeds |
-
----
-
-## v1.0 - Public Launch
-
-| ID | Type | Status | Description |
-|----|------|--------|-------------|
-| X1 | IMPROVEMENT | | Replace BETA badge with version badge ("v1.0") — keep the visual element, update text |
-| PWA1 | FEATURE | ✅ Done | PWA manifest + service worker — installable app, offline Agumon screen, Digivice icons |
-| F2c | UX | | "Report an error" link in modals → directs to Discord #feedback channel |
-| FORM1 | UX | ✅ Done | Link to Google feedback form in footer/help (already linked via `LINKS$contact`) |
-| LAUNCH1 | OPS | | Final review pass — verify all tabs, modals, admin flows, mobile experience |
 
 ---
 
@@ -75,7 +49,7 @@ See `docs/digimon-mascots.md` for full spec and art style guidelines.
 
 | ID | Type | Description |
 |----|------|-------------|
-| MR17 | PERFORMANCE | Profile with `shinyloadtest` and size Posit Connect tier |
+| MR17 | PERFORMANCE | ~~Profile with `shinyloadtest` and size Posit Connect tier~~ (Done in v1.0 — see profiling report) |
 
 ---
 
@@ -152,13 +126,22 @@ The React PoC on `explore/react-rewrite` branch serves as a reference for future
 
 ## Completed
 
-### v0.30.0 (in progress) - Mobile & Polish
+### v1.0.0 - Public Launch
+- Version badge: BETA → v1.0, clickable DigiLab header navigates to dashboard
+- Performance: lazy admin UI (renderUI behind auth gate), bindCache on Players/Meta/Tournaments/Stores tabs
+- Profiling: shinycannon load tests (1/5/10/25 users), profvis analysis, architecture docs
+- Responsive grids: Top Decks and Rising Stars show 4/6/8 items by screen size
+- Rising Stars expanded from top 4 to top 6 (up to 8 on large screens)
+- "Report an error" Discord links in 4 modal footers
+- Code review fixes: public submit server hardened (safe_query/safe_execute wrappers, transaction safety), XSS fix in scene map, next_id() helper replacing MAX+1 pattern, shared format_event_type() helper, dashboard value boxes respect filters
+- PWA (PWA1): installable app with Digivice icons, offline Agumon fallback page, service worker, favicon
+
+### v0.30.0 - Mobile & Polish
 - Agumon mascot: loading spinner (DM9), disconnect overlay (DM3), 404 not-found modal (DM7)
 - Digivice branding: logo/icon refresh (DM10), OG image with watermark (DM11)
 - Mobile UX audit (MOB1): admin layout breakpoints, column hiding, tap targets, value box fonts, admin-results col-md fixes
 - Edit tournaments grid (ADM1): shared grid module, step-transition UX, paste-from-spreadsheet, inline player matching, update/insert/delete diff save
 - Enter/Submit Results parity (ADM2): migrated public submit to shared grid, member # column, selectize deck dropdown, OCR quality validation, blur player matching, summary bar format, admin validation + form reset
-- PWA (PWA1): installable app with Digivice icons, offline Agumon fallback page, service worker, favicon
 - Security audit: parameterized all SQL queries with user-controllable values (scene filters, search terms)
 
 ### v0.29.0 - Admin Auth & Automation

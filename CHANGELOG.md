@@ -5,7 +5,7 @@ All notable changes to DigiLab will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased] - Mascot, Branding & Mobile Polish
+## [1.0.0] - 2026-02-23 - Public Launch
 
 ### Added
 - **Enter/Submit Results Parity (ADM2)**: Migrated public Upload Results review grid to shared grid module from Enter Results
@@ -28,21 +28,42 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Digivice OG Image (DM11)**: New 1200x630 Open Graph image (`www/og-image.svg` / `og-image.png`) with large Digivice watermark behind DigiLab text
 - **Digivice Logo Refresh (DM10)**: Updated `docs/digilab-logo.svg` and `docs/digilab-icon.svg` with Digivice icon
 - **Mobile Column Hiding**: Stores table hides City, Avg Event Size, Avg Rating on mobile; admin tournaments table hides Type, Format, Rounds
+- **Performance Profiling**: Load tested with shinycannon (1/5/10/25 concurrent users), profiled with profvis
+- **Lazy Admin UI**: Admin views (`renderUI`) only generated when user authenticates as admin — reduces initial page weight for public visitors
+- **Extended bindCache**: Added `bindCache()` to Players, Meta, Tournaments, and Stores tab outputs for cross-session caching
+- **Responsive Top Decks & Rising Stars**: Dashboard grids show 4/6/8 items based on screen size (CSS nth-child breakpoints at 1600px/991px/640px)
+- **Rising Stars Top 6**: Expanded from 4 to 6 players (up to 8 on large screens)
+- **"Report an Error" Links**: Discord link in player, meta, tournament, and store modal footers
+- **Clickable DigiLab Header**: App title navigates back to Dashboard
+- **`next_id()` Helper**: Atomic ID generation replacing `SELECT MAX(id) + 1` pattern
+- **`format_event_type()` Shared Helper**: Centralized event type display formatting (was duplicated 4x)
 
 ### Changed
+- **Version Badge**: BETA badge replaced with "v1.0" version indicator
+- **Sentry Version Tag**: Now reads from `APP_VERSION` variable instead of hardcoded string
+- **Dashboard Value Boxes**: `total_stores_val` and `total_decks_val` now respect format/event type/scene filters and use `bindCache()`
+- **Dashboard Filters**: `build_dashboard_filters()` and `build_community_filters()` refactored to delegate to shared `build_filters_param()`
 - **OG Meta Tags**: Updated to reference `og-image.png` with dimensions, Twitter card upgraded to `summary_large_image`
 - **Admin Layout Breakpoints (MOB1)**: All 8 admin and dashboard `layout_columns` calls now use `breakpoints()` for proper mobile stacking
 - **Admin Results Mobile (MOB1)**: All `col-md-X` classes now include `col-12` prefix for mobile-first stacking
 - **Tab Bar Tap Targets (MOB1)**: Increased mobile tab bar item padding and added `min-width: 44px` / `min-height: 44px` for WCAG compliance
 - **Value Box Font Floor (MOB1)**: Bumped `.vb-label` and `.vb-subtitle` minimum font sizes at 576px breakpoint from 0.55/0.6rem to 0.65rem
 
+### Security
+- **Public Submit Server Hardened**: All 28 raw `dbGetQuery`/`dbExecute` calls migrated to `safe_query()`/`safe_execute()` wrappers
+- **Transaction Safety**: Tournament and match history submissions wrapped in `BEGIN TRANSACTION`/`COMMIT`/`ROLLBACK`
+- **ID Race Condition Fix**: Replaced `SELECT MAX(id) + 1` with `next_id()` helper in submit and admin-results servers
+- **XSS Fix**: Scene map popup HTML now uses `htmltools::htmlEscape()` on user-facing names
+
 ### Fixed
 - **Agumon SVG Scope Bug**: `agumonSvg` variable was scoped inside `$(document).ready()`, causing `ReferenceError` in disconnect overlay IIFE — hoisted to outer scope
 - **Agumon SVG Color/Size Swap**: `agumon_svg()` sprintf args were in wrong order (`size, size, color` instead of `color, size, size`), putting color value into height attribute
+- **Tournament Modal Store Link**: Removed clickable store name (was navigating away from modal context)
 
 ### Removed
 - Duplicate `www/digilab-logo.svg` (original lives in `docs/`)
 - `.loading-character` CSS class and `character-jump` animation (replaced by Agumon in loading gate)
+- 4 duplicated `format_event_type()` implementations (now shared from `shared-server.R`)
 
 ## [0.29.0] - 2026-02-22 - Admin Auth & Automation
 

@@ -4,6 +4,37 @@ This log tracks development decisions, blockers, and technical notes for DigiLab
 
 ---
 
+## 2026-02-23: v1.0 Performance Optimizations & Launch
+
+### Context
+Load tested with shinycannon at 1, 5, 10, and 25 concurrent users. At 10+ users, response times degraded significantly — admin UI rendering was happening for all users (even non-admins), and public tab outputs had no cross-session caching.
+
+### Performance Changes
+1. **Lazy Admin UI**: Wrapped all admin tab UI in `renderUI()` behind `req(rv$is_admin)` gates. Non-admin users no longer generate admin DOM elements, reducing initial page weight.
+2. **Extended bindCache**: Added `bindCache()` to Players, Meta, Tournaments, and Stores tab outputs (tables, modals, charts). Dashboard already had caching from v0.21.1.
+3. **Dashboard value box fixes**: `total_stores_val` and `total_decks_val` weren't respecting filters or `data_refresh` — fixed to use `build_dashboard_filters()` + `bindCache()`.
+
+### Pre-Launch Polish
+- BETA badge → v1.0 version indicator
+- Clickable DigiLab header navigates to Dashboard
+- "Report an error" Discord links in 4 modal footers
+- Rising Stars expanded to top 6, responsive grids (4/6/8 items by screen size)
+- Removed clickable store name in tournament modal (was confusing navigation)
+
+### Code Review Fixes (7 items)
+- **CRITICAL**: Migrated all 28 raw `dbGetQuery`/`dbExecute` in public-submit-server to `safe_query()`/`safe_execute()`
+- **CRITICAL**: Added `BEGIN TRANSACTION`/`COMMIT`/`ROLLBACK` around both submission handlers
+- **IMPORTANT**: Created `next_id()` helper, replaced `SELECT MAX(id) + 1` pattern in submit-server and admin-results-server
+- **IMPORTANT**: XSS fix — `htmltools::htmlEscape()` on scene map popup HTML
+- **IMPORTANT**: Dashboard value boxes now respect filters + data_refresh + bindCache
+- **IMPORTANT**: Refactored `build_dashboard_filters()` to delegate to `build_filters_param()` (was duplicated logic)
+- **IMPORTANT**: Extracted shared `format_event_type()` helper, removed 4 duplicate implementations
+
+### Key Decision
+- Responsive grid breakpoints set at 1600px (not standard 1200px) to account for the ~250-300px sidebar eating viewport width. CSS `nth-child` hides extra items at smaller breakpoints rather than using JavaScript screen detection.
+
+---
+
 ## 2026-02-23: Enter/Submit Results Parity (ADM2)
 
 ### Problem
