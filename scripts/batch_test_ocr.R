@@ -364,11 +364,13 @@ compare_to_expected <- function(parsed, expected) {
     for (j in seq_len(nrow(parsed_match))) {
       row <- parsed_match[j, ]
       score <- 0
-      if (tolower(trimws(row$username)) == tolower(trimws(exp_row$username))) score <- score + 1
+      u1 <- tolower(trimws(row$username))
+      u2 <- tolower(trimws(exp_row$username))
+      if (!is.na(u1) && !is.na(u2) && u1 == u2) score <- score + 1
       # Strip leading zeros for member number comparison
-      parsed_mem <- gsub("^0+", "", tolower(trimws(row$member_number)))
-      exp_mem <- gsub("^0+", "", tolower(trimws(exp_row$member_number)))
-      if (parsed_mem == exp_mem) score <- score + 1
+      parsed_mem <- if (!is.na(row$member_number)) gsub("^0+", "", tolower(trimws(row$member_number))) else ""
+      exp_mem <- if (!is.na(exp_row$member_number)) gsub("^0+", "", tolower(trimws(exp_row$member_number))) else ""
+      if (nchar(parsed_mem) > 0 && nchar(exp_mem) > 0 && parsed_mem == exp_mem) score <- score + 1
       if (score > best_score) {
         best_score <- score
         best_row <- row
@@ -377,12 +379,14 @@ compare_to_expected <- function(parsed, expected) {
 
     rank_correct <- rank_correct + 1
 
-    u_match <- tolower(trimws(best_row$username)) == tolower(trimws(exp_row$username))
+    bu <- tolower(trimws(best_row$username))
+    eu <- tolower(trimws(exp_row$username))
+    u_match <- !is.na(bu) && !is.na(eu) && bu == eu
     if (u_match) username_correct <- username_correct + 1
 
-    parsed_mem <- gsub("^0+", "", tolower(trimws(best_row$member_number)))
-    exp_mem <- gsub("^0+", "", tolower(trimws(exp_row$member_number)))
-    m_match <- parsed_mem == exp_mem
+    parsed_mem <- if (!is.na(best_row$member_number)) gsub("^0+", "", tolower(trimws(best_row$member_number))) else ""
+    exp_mem <- if (!is.na(exp_row$member_number)) gsub("^0+", "", tolower(trimws(exp_row$member_number))) else ""
+    m_match <- nchar(parsed_mem) > 0 && nchar(exp_mem) > 0 && parsed_mem == exp_mem
     if (m_match) member_correct <- member_correct + 1
 
     p_match <- as.integer(best_row$points) == as.integer(exp_row$points)

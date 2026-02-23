@@ -444,14 +444,25 @@ parse_standings_layout <- function(annotations, image_width, image_height,
     "my", "events", "event", "search", "decks", "others",
     "store", "match", "history", "results",
     "bandai", "akiyoshi", "animation", "reserved", "rights",
-    "all", "©", "toei"
+    "all", "©", "toei",
+    # App title and page headers
+    "ranking", "cardgame", "ranki", "ng",
+    # OCR misreads of CARD/GAME
+    "eard", "bamb",
+    # Navigation elements
+    "+",
+    # Copyright/footer fragments
+    "co", "ltd", "hongo", "bunkyo-ku", "bunkyo",
+    "tokyo", "inc"
   )
 
-  # Also filter the B-star logo and copyright-like text
+  # Also filter the B-star logo variants and copyright-like text
   is_noise <- tolower(ann$text) %in% noise_patterns |
-    grepl("^B⭑", ann$text) |
+    grepl("^B[\\x{2B50}\\x{2736}\\x{2606}\\x{2605}\\x{2731}⭑✶★☆X]+$", ann$text, perl = TRUE) |
+    grepl("^BXXX", ann$text) |
     grepl("^©", ann$text) |
-    grepl("^\\.$", ann$text)  # Standalone periods
+    grepl("^\\.$", ann$text) |  # Standalone periods
+    grepl("^[^A-Za-z0-9]$", ann$text)  # Single non-alphanumeric characters (%, <, (, etc.)
 
   n_before <- nrow(ann)
   ann <- ann[!is_noise, ]
@@ -650,15 +661,30 @@ parse_standings_layout <- function(annotations, image_width, image_height,
 
     # --- Extract points ---
     points <- NA_integer_
+    max_possible_points <- total_rounds * 3L
     if (nrow(points_texts) > 0) {
       for (pt in seq_len(nrow(points_texts))) {
-        cleaned <- gsub("[^0-9]", "", points_texts$text[pt])
+        raw_text <- points_texts$text[pt]
+        # Skip decimal values (OMW% values like "55.5" that leaked into points column)
+        if (grepl("\\.", raw_text)) next
+        cleaned <- gsub("[^0-9]", "", raw_text)
         if (nchar(cleaned) > 0) {
           val <- suppressWarnings(as.integer(cleaned))
-          if (!is.na(val) && val >= 0 && val <= 99) {
-            points <- val
-            if (verbose) message("[LAYOUT]   Points: ", points)
-            break
+          if (!is.na(val) && val >= 0) {
+            # If value exceeds max possible points, try truncating trailing digits
+            # (GCV sometimes merges "6" with adjacent "0" from OMW% "60.3%")
+            if (val > max_possible_points && nchar(cleaned) > 1) {
+              truncated <- suppressWarnings(as.integer(substr(cleaned, 1, nchar(cleaned) - 1)))
+              if (!is.na(truncated) && truncated >= 0 && truncated <= max_possible_points) {
+                if (verbose) message("[LAYOUT]   Points truncated: ", val, " -> ", truncated)
+                val <- truncated
+              }
+            }
+            if (val >= 0 && val <= max_possible_points) {
+              points <- val
+              if (verbose) message("[LAYOUT]   Points: ", points)
+              break
+            }
           }
         }
       }
@@ -682,7 +708,8 @@ parse_standings_layout <- function(annotations, image_width, image_height,
       placement = ranking,
       username = username,
       member_number = member_number,
-      points = points
+      points = points,
+      y_position = row_y_center
     )
 
     if (verbose) {
@@ -698,14 +725,61 @@ parse_standings_layout <- function(annotations, image_width, image_height,
     return(empty_result)
   }
 
+  # --- Step 9a: Filter suspicious noise rows ---
+  # Remove rows that look like garbled text: 3+ words in username AND no member number
+  n_before_noise <- length(results)
+  results <- Filter(function(x) {
+    if (is.na(x$username)) return(TRUE)
+    word_count <- length(strsplit(x$username, "\\s+")[[1]])
+    # Keep if has member number, or username is 1-2 words
+    !is.na(x$member_number) || word_count <= 2
+  }, results)
+
+  if (length(results) < n_before_noise && verbose) {
+    message("[LAYOUT] Removed ", n_before_noise - length(results), " suspicious noise rows")
+  }
+
   # --- Build result data frame ---
   result_df <- data.frame(
     placement = sapply(results, function(x) if (is.na(x$placement)) NA_integer_ else as.integer(x$placement)),
     username = sapply(results, function(x) if (is.na(x$username)) NA_character_ else as.character(x$username)),
     member_number = sapply(results, function(x) if (is.na(x$member_number)) NA_character_ else as.character(x$member_number)),
     points = sapply(results, function(x) if (is.na(x$points)) 0L else as.integer(x$points)),
+    y_position = sapply(results, function(x) x$y_position),
     stringsAsFactors = FALSE
   )
+
+  # --- Step 9b: Infer missing top ranks (medal icons) ---
+  # GCV often fails to detect numbers inside gold/silver/bronze medal icons
+  # for ranks 1-3. Infer these from Y-position ordering.
+  result_df <- result_df[order(result_df$y_position), ]
+
+  if (any(is.na(result_df$placement))) {
+    current_rank <- 1L
+    inferred_count <- 0L
+
+    for (i in seq_len(nrow(result_df))) {
+      if (is.na(result_df$placement[i])) {
+        result_df$placement[i] <- current_rank
+        inferred_count <- inferred_count + 1L
+        if (verbose) {
+          message("[LAYOUT] Inferred rank ", current_rank, " for '",
+                  result_df$username[i], "' (y=", round(result_df$y_position[i], 1), "%)")
+        }
+        current_rank <- current_rank + 1L
+      } else {
+        # Jump to the next rank after this detected one
+        current_rank <- result_df$placement[i] + 1L
+      }
+    }
+
+    if (inferred_count > 0 && verbose) {
+      message("[LAYOUT] Inferred ", inferred_count, " missing placements from Y-position")
+    }
+  }
+
+  # Remove temporary y_position column
+  result_df$y_position <- NULL
 
   player_count <- nrow(result_df)
 
