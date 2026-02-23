@@ -249,9 +249,9 @@ render_grid_ui <- function(grid_data, record_format, is_release, deck_choices,
     } else {
       current_deck <- if (!is.na(row$deck_id)) as.character(row$deck_id) else ""
       deck_col <- div(
-        selectInput(paste0(prefix, "deck_", i), NULL,
-                    choices = deck_choices, selected = current_deck,
-                    selectize = FALSE)
+        selectizeInput(paste0(prefix, "deck_", i), NULL,
+                       choices = deck_choices, selected = current_deck,
+                       options = list(placeholder = "Search deck..."))
       )
 
       if (record_format == "points") {
