@@ -153,6 +153,11 @@ observeEvent(input$nav_admin_players, {
   rv$current_nav <- "admin_players"
 })
 
+observeEvent(input$nav_admin_users, {
+  nav_select("main_content", "admin_users")
+  rv$current_nav <- "admin_users"
+})
+
 # Admin modal navigation (for mobile access)
 observeEvent(input$modal_admin_results, {
   removeModal()
@@ -183,6 +188,11 @@ observeEvent(input$modal_admin_formats, {
   removeModal()
   nav_select("main_content", "admin_formats")
   rv$current_nav <- "admin_formats"
+})
+observeEvent(input$modal_admin_users, {
+  removeModal()
+  nav_select("main_content", "admin_users")
+  rv$current_nav <- "admin_users"
 })
 
 # Content pages (footer navigation)
