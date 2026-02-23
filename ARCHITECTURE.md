@@ -48,14 +48,40 @@ server/
 | `admin-*` | Admin tabs (requires `rv$is_admin` or `rv$is_superadmin`) | `admin-decks-server.R` |
 | `shared-*` | Shared utilities used by multiple modules | `shared-server.R` |
 
+### Lazy Admin Loading
+
+Admin modules use a two-stage lazy loading pattern to reduce startup overhead for non-admin sessions:
+
+1. **UI stage:** Admin view files (`views/admin-*.R`) are NOT sourced at app startup. Instead, `nav_panel_hidden` panels contain `uiOutput()` placeholders.
+2. **Server stage:** When `rv$is_admin` becomes TRUE, an `observeEvent` sources both the admin view files and server modules, then renders the UI into the placeholders via `renderUI()`.
+
+```r
+# In app.R UI definition — lightweight placeholders
+nav_panel_hidden(value = "admin_results", uiOutput("admin_results_ui")),
+
+# In app.R server — lazy-loaded on auth
+observeEvent(rv$is_admin, {
+  if (rv$is_admin && !admin_modules_loaded()) {
+    source("views/admin-results-ui.R", local = TRUE)   # defines admin_results_ui
+    output$admin_results_ui <- renderUI(admin_results_ui)
+    source("server/admin-results-server.R", local = TRUE)
+    # ... repeat for all 8 admin modules
+    admin_modules_loaded(TRUE)
+  }
+}, ignoreInit = TRUE)
+```
+
+This means ~99% of sessions (non-admin visitors) skip all admin UI construction and server module registration.
+
 ### Adding a New Server Module
 
 1. Create file: `server/{prefix}-{name}-server.R`
-2. Add `source()` call in `app.R` (after reactive values, before UI render)
-3. Module has access to `input`, `output`, `session`, `rv` via `local = TRUE`
+2. For **public** modules: Add `source()` call in `app.R` (after reactive values, before UI render)
+3. For **admin** modules: Add `source()` inside the `observeEvent(rv$is_admin, ...)` block, along with the corresponding view source and `renderUI`
+4. Module has access to `input`, `output`, `session`, `rv` via `local = TRUE`
 
 ```r
-# In app.R
+# In app.R — public module
 source("server/public-newfeature-server.R", local = TRUE)
 ```
 
@@ -439,6 +465,20 @@ core_metrics <- reactive({
 ```
 
 Downstream outputs read from these batch reactives instead of running their own queries.
+
+### Output Caching (bindCache)
+
+All major public tab outputs use `bindCache()` to avoid redundant computation across sessions:
+
+| Tab | Outputs Cached | Cache Keys |
+|-----|---------------|------------|
+| Dashboard | 14 outputs (charts, tables, value boxes) | format, event_type, scene, community, dark_mode, data_refresh |
+| Players | `player_standings` | format, search, min_events, scene, community, data_refresh |
+| Meta | `archetype_stats` | format, search, min_entries, scene, community, data_refresh |
+| Tournaments | `tournament_history` | format, event_type, search, scene, community, data_refresh |
+| Stores | `store_list`, `stores_cards_content`, `online_stores_section`, `stores_map` | scene, community, dark_mode (map only), data_refresh |
+
+**Key pattern:** Always include `rv$data_refresh` as a cache key — this reactive value increments whenever admin operations modify data, busting the cache. Include `input$dark_mode` for any output that renders differently in light/dark mode (charts, maps).
 
 ### Community vs Format Filters (v0.23+)
 

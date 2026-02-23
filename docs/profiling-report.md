@@ -149,6 +149,38 @@ For v1.0 launch targeting 75-100 concurrent peak users:
 
 ---
 
+## Implemented Optimizations
+
+The following optimizations from this report have been implemented:
+
+### 1. Multiple worker processes (Posit Connect config)
+- Upgraded to $20 tier (8GB RAM, 2 CPU)
+- Configured: 4 max workers, 25% load factor, 8 max connections per worker, 15 min timeouts
+
+### 3. Lazy admin UI loading
+- Admin view files (`views/admin-*.R`) are no longer sourced at startup for every session
+- Admin UI is now rendered server-side via `uiOutput()` placeholders only after admin authentication
+- Combined with existing lazy server module loading — non-admin sessions skip all admin code
+- Commit: `perf: lazy-load admin UI views behind authentication gate`
+
+### 5. Extended bindCache
+- Added `bindCache()` to 7 outputs across all public tabs (previously only Dashboard had caching):
+  - Players: `player_standings` (format, search, min_events, scene, community)
+  - Meta: `archetype_stats` (format, search, min_entries, scene, community)
+  - Tournaments: `tournament_history` (format, event_type, search, scene, community)
+  - Stores: `store_list`, `stores_cards_content`, `online_stores_section`, `stores_map`
+- Total bindCache calls: 14 (dashboard) + 7 (other tabs) = 21
+- Commit: `perf: add bindCache to Players, Meta, Tournaments, and Stores tabs`
+
+### Not yet implemented
+- Connection pooling (`pool` package) — deferred until traffic data shows need
+- Pre-render static UI elements — deferred
+- Startup query batching — deferred
+- Async queries — deferred
+- CDN for static assets — deferred
+
+---
+
 ## Files
 
 | File | Description |
