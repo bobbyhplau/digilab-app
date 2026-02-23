@@ -218,7 +218,7 @@ For development guidelines, see [CLAUDE.md](CLAUDE.md).
 ## Support
 
 - **Issues:** [GitHub Issues](https://github.com/lopezmichael/digimon-tcg-standings/issues)
-- **Support:** [Ko-fi](https://ko-fi.com/digilab)
+- **Support:** [Ko-fi](https://ko-fi.com/atomshell)
 
 ## License
 

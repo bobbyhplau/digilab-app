@@ -345,7 +345,7 @@ EVENT_TYPES <- c(
 # External links (single source of truth)
 LINKS <- list(
   discord = "https://discord.gg/ABcjha7bHk",
-  kofi    = "https://ko-fi.com/digilab",
+  kofi    = "https://ko-fi.com/atomshell",
   github  = "https://github.com/lopezmichael/digimon-tcg-standings",
   contact = "https://forms.gle/shc6cGjBFNjqvkSw9"
 )
