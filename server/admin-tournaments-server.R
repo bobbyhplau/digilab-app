@@ -620,6 +620,256 @@ observeEvent(input$edit_grid_cancel, {
   rv$edit_grid_tournament_id <- NULL
 })
 
+# =============================================================================
+# Edit Grid: Interactivity (delete, player matching, paste, deck requests)
+# =============================================================================
+
+# Delete row handler
+observeEvent(input$edit_delete_row, {
+  req(rv$edit_grid_data)
+  row_idx <- as.integer(input$edit_delete_row)
+  if (is.null(row_idx) || row_idx < 1 || row_idx > nrow(rv$edit_grid_data)) return()
+
+  rv$edit_grid_data <- sync_grid_inputs(input, rv$edit_grid_data, rv$edit_record_format %||% "points", "edit_")
+  grid <- rv$edit_grid_data
+
+  # Track deleted result_ids for DB deletion on save
+  deleted_result_id <- grid$result_id[row_idx]
+  if (!is.na(deleted_result_id)) {
+    rv$edit_deleted_result_ids <- c(rv$edit_deleted_result_ids, deleted_result_id)
+  }
+
+  # Remove the row
+  grid <- grid[-row_idx, ]
+
+  # Append blank row
+  blank_row <- data.frame(
+    placement = nrow(grid) + 1,
+    player_name = "", points = 0L, wins = 0L, losses = 0L, ties = 0L,
+    deck_id = NA_integer_, match_status = "", matched_player_id = NA_integer_,
+    matched_member_number = NA_character_, result_id = NA_integer_,
+    stringsAsFactors = FALSE
+  )
+  grid <- rbind(grid, blank_row)
+  grid$placement <- seq_len(nrow(grid))
+
+  # Shift match indices
+  new_matches <- list()
+  for (j in seq_len(nrow(grid))) {
+    old_idx <- if (j < row_idx) j else j + 1
+    if (!is.null(rv$edit_player_matches[[as.character(old_idx)]])) {
+      new_matches[[as.character(j)]] <- rv$edit_player_matches[[as.character(old_idx)]]
+    }
+  }
+  rv$edit_player_matches <- new_matches
+  rv$edit_grid_data <- grid
+  notify(paste0("Row removed. Players renumbered 1-", nrow(grid), "."), type = "message", duration = 3)
+})
+
+# Attach blur handlers for edit grid
+observe({
+  req(rv$edit_grid_data)
+  shinyjs::runjs("
+    $(document).off('blur.editGrid').on('blur.editGrid', 'input[id^=\"edit_player_\"]', function() {
+      var id = $(this).attr('id');
+      var rowNum = parseInt(id.replace('edit_player_', ''));
+      if (!isNaN(rowNum)) {
+        Shiny.setInputValue('edit_player_blur', {row: rowNum, name: $(this).val(), ts: Date.now()}, {priority: 'event'});
+      }
+    });
+  ")
+})
+
+observeEvent(input$edit_player_blur, {
+  req(rv$db_con, rv$edit_grid_data)
+
+  info <- input$edit_player_blur
+  row_num <- info$row
+  name <- trimws(info$name)
+
+  if (is.null(row_num) || is.na(row_num)) return()
+  if (row_num < 1 || row_num > nrow(rv$edit_grid_data)) return()
+
+  rv$edit_grid_data <- sync_grid_inputs(input, rv$edit_grid_data, rv$edit_record_format %||% "points", "edit_")
+
+  if (nchar(name) == 0) {
+    rv$edit_player_matches[[as.character(row_num)]] <- NULL
+    rv$edit_grid_data$match_status[row_num] <- ""
+    rv$edit_grid_data$matched_player_id[row_num] <- NA_integer_
+    rv$edit_grid_data$matched_member_number[row_num] <- NA_character_
+    return()
+  }
+
+  match_info <- match_player(name, rv$db_con)
+  rv$edit_player_matches[[as.character(row_num)]] <- match_info
+  rv$edit_grid_data$match_status[row_num] <- match_info$status
+  if (match_info$status == "matched") {
+    rv$edit_grid_data$matched_player_id[row_num] <- match_info$player_id
+    rv$edit_grid_data$matched_member_number[row_num] <- match_info$member_number
+  } else {
+    rv$edit_grid_data$matched_player_id[row_num] <- NA_integer_
+    rv$edit_grid_data$matched_member_number[row_num] <- NA_character_
+  }
+})
+
+# Paste from spreadsheet modal
+observeEvent(input$edit_paste_btn, {
+  showModal(modalDialog(
+    title = tagList(bsicons::bs_icon("clipboard"), " Paste from Spreadsheet"),
+    tagList(
+      p(class = "text-muted", "Paste data with one player per line. Columns separated by tabs (from a spreadsheet) or 2+ spaces."),
+      p(class = "text-muted small mb-2", "Supported formats:"),
+      tags$div(
+        class = "bg-body-secondary rounded p-2 mb-3",
+        style = "font-family: monospace; font-size: 0.8rem; white-space: pre-line;",
+        tags$div(class = "fw-bold mb-1", "Names only:"),
+        tags$div(class = "text-muted mb-2", "PlayerOne\nPlayerTwo"),
+        tags$div(class = "fw-bold mb-1", "Names + Points:"),
+        tags$div(class = "text-muted mb-2", "PlayerOne\t9\nPlayerTwo\t7"),
+        tags$div(class = "fw-bold mb-1", "Names + W/L/T:"),
+        tags$div(class = "text-muted", "PlayerOne\t3\t0\t0\nPlayerTwo\t2\t1\t1")
+      ),
+      tags$textarea(id = "edit_paste_data", class = "form-control", rows = "10",
+                    placeholder = "Paste data here...")
+    ),
+    footer = tagList(
+      actionButton("edit_paste_apply", "Fill Grid", class = "btn-primary", icon = icon("table")),
+      modalButton("Cancel")
+    ),
+    size = "l",
+    easyClose = TRUE
+  ))
+})
+
+observeEvent(input$edit_paste_apply, {
+  req(rv$edit_grid_data)
+
+  paste_text <- input$edit_paste_data
+  if (is.null(paste_text) || nchar(trimws(paste_text)) == 0) {
+    notify("No data to paste", type = "warning")
+    return()
+  }
+
+  rv$edit_grid_data <- sync_grid_inputs(input, rv$edit_grid_data, rv$edit_record_format %||% "points", "edit_")
+  grid <- rv$edit_grid_data
+
+  all_decks <- dbGetQuery(rv$db_con, "
+    SELECT archetype_id, archetype_name FROM deck_archetypes WHERE is_active = TRUE
+  ")
+
+  parsed <- parse_paste_data(paste_text, all_decks)
+
+  if (length(parsed) == 0) {
+    notify("No valid lines found", type = "warning")
+    return()
+  }
+
+  fill_count <- 0L
+  for (idx in seq_along(parsed)) {
+    if (idx > nrow(grid)) break
+    p <- parsed[[idx]]
+    grid$player_name[idx] <- p$name
+    grid$points[idx] <- p$points
+    grid$wins[idx] <- p$wins
+    grid$losses[idx] <- p$losses
+    grid$ties[idx] <- p$ties
+    if (!is.na(p$deck_id)) grid$deck_id[idx] <- p$deck_id
+    fill_count <- fill_count + 1L
+  }
+
+  removeModal()
+  notify(sprintf("Filled %d rows from pasted data", fill_count), type = "message")
+
+  for (idx in seq_len(fill_count)) {
+    match_info <- match_player(grid$player_name[idx], rv$db_con)
+    if (!is.null(match_info)) {
+      rv$edit_player_matches[[as.character(idx)]] <- match_info
+      grid$match_status[idx] <- match_info$status
+      if (match_info$status == "matched") {
+        grid$matched_player_id[idx] <- match_info$player_id
+        grid$matched_member_number[idx] <- match_info$member_number
+      }
+    }
+  }
+  rv$edit_grid_data <- grid
+})
+
+# Deck request watcher for edit grid
+observe({
+  req(rv$edit_grid_data)
+  grid <- rv$edit_grid_data
+
+  lapply(seq_len(nrow(grid)), function(i) {
+    observeEvent(input[[paste0("edit_deck_", i)]], {
+      if (!is.null(input[[paste0("edit_deck_", i)]]) &&
+          input[[paste0("edit_deck_", i)]] == "__REQUEST_NEW__") {
+        rv$admin_deck_request_row <- i
+        showModal(modalDialog(
+          title = tagList(bsicons::bs_icon("collection-fill"), " Request New Deck"),
+          textInput("editgrid_deck_request_name", "Deck Name", placeholder = "e.g., Blue Flare"),
+          layout_columns(
+            col_widths = c(6, 6),
+            selectInput("editgrid_deck_request_color", "Primary Color",
+                        choices = c("Red", "Blue", "Yellow", "Green", "Purple", "Black", "White")),
+            selectInput("editgrid_deck_request_color2", "Secondary Color (optional)",
+                        choices = c("None" = "", "Red", "Blue", "Yellow", "Green", "Purple", "Black", "White"))
+          ),
+          textInput("editgrid_deck_request_card_id", "Card ID (optional)",
+                    placeholder = "e.g., BT1-001"),
+          footer = tagList(
+            modalButton("Cancel"),
+            actionButton("edit_deck_request_submit", "Submit Request", class = "btn-primary")
+          )
+        ))
+      }
+    }, ignoreInit = TRUE)
+  })
+})
+
+observeEvent(input$edit_deck_request_submit, {
+  req(rv$db_con)
+
+  deck_name <- trimws(input$editgrid_deck_request_name)
+  if (nchar(deck_name) == 0) {
+    notify("Please enter a deck name", type = "error")
+    return()
+  }
+
+  primary_color <- input$editgrid_deck_request_color
+  secondary_color <- if (!is.null(input$editgrid_deck_request_color2) && input$editgrid_deck_request_color2 != "") {
+    input$editgrid_deck_request_color2
+  } else NA_character_
+
+  card_id <- if (!is.null(input$editgrid_deck_request_card_id) && trimws(input$editgrid_deck_request_card_id) != "") {
+    trimws(input$editgrid_deck_request_card_id)
+  } else NA_character_
+
+  existing <- dbGetQuery(rv$db_con, "
+    SELECT request_id FROM deck_requests
+    WHERE LOWER(deck_name) = LOWER(?) AND status = 'pending'
+  ", params = list(deck_name))
+
+  if (nrow(existing) > 0) {
+    notify(sprintf("A pending request for '%s' already exists", deck_name), type = "warning")
+  } else {
+    max_id <- dbGetQuery(rv$db_con, "SELECT COALESCE(MAX(request_id), 0) as max_id FROM deck_requests")$max_id
+    new_id <- max_id + 1
+
+    dbExecute(rv$db_con, "
+      INSERT INTO deck_requests (request_id, deck_name, primary_color, secondary_color, display_card_id, status)
+      VALUES (?, ?, ?, ?, ?, 'pending')
+    ", params = list(new_id, deck_name, primary_color, secondary_color, card_id))
+
+    notify(sprintf("Deck request submitted: %s", deck_name), type = "message")
+  }
+
+  removeModal()
+
+  # Force grid re-render
+  rv$edit_grid_data <- sync_grid_inputs(input, rv$edit_grid_data, rv$edit_record_format %||% "points", "edit_")
+  rv$edit_grid_data <- rv$edit_grid_data
+})
+
 # Results modal summary
 output$results_modal_summary <- renderUI({
   req(rv$db_con, rv$modal_tournament_id)
