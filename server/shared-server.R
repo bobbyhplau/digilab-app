@@ -25,6 +25,14 @@ observe({
       message("[startup] Could not check/populate ratings cache: ", e$message)
     })
 
+    # Check if admin_users table needs bootstrap (first-ever setup)
+    admin_count <- safe_query(rv$db_con,
+      "SELECT COUNT(*) as n FROM admin_users",
+      default = data.frame(n = 0))
+    if (nrow(admin_count) > 0 && admin_count$n[1] == 0) {
+      rv$needs_bootstrap <- TRUE
+    }
+
     # Hide loading screen - data is ready after cache check
     session$sendCustomMessage("hideLoading", list())
   }
@@ -52,6 +60,12 @@ onStop(function() {
 # ---------------------------------------------------------------------------
 # Navigation
 # ---------------------------------------------------------------------------
+
+observeEvent(input$header_home_click, {
+  nav_select("main_content", "dashboard")
+  rv$current_nav <- "dashboard"
+  session$sendCustomMessage("updateSidebarNav", "nav_dashboard")
+})
 
 observeEvent(input$nav_dashboard, {
   nav_select("main_content", "dashboard")
@@ -145,6 +159,16 @@ observeEvent(input$nav_admin_players, {
   rv$current_nav <- "admin_players"
 })
 
+observeEvent(input$nav_admin_users, {
+  nav_select("main_content", "admin_users")
+  rv$current_nav <- "admin_users"
+})
+
+observeEvent(input$nav_admin_scenes, {
+  nav_select("main_content", "admin_scenes")
+  rv$current_nav <- "admin_scenes"
+})
+
 # Admin modal navigation (for mobile access)
 observeEvent(input$modal_admin_results, {
   removeModal()
@@ -176,6 +200,16 @@ observeEvent(input$modal_admin_formats, {
   nav_select("main_content", "admin_formats")
   rv$current_nav <- "admin_formats"
 })
+observeEvent(input$modal_admin_users, {
+  removeModal()
+  nav_select("main_content", "admin_users")
+  rv$current_nav <- "admin_users"
+})
+observeEvent(input$modal_admin_scenes, {
+  removeModal()
+  nav_select("main_content", "admin_scenes")
+  rv$current_nav <- "admin_scenes"
+})
 
 # Content pages (footer navigation)
 observeEvent(input$nav_about, {
@@ -197,49 +231,106 @@ observeEvent(input$nav_for_tos, {
 observeEvent(input$about_to_for_tos, {
   nav_select("main_content", "for_tos")
   rv$current_nav <- "for_tos"
+  session$sendCustomMessage("updateSidebarNav", "nav_for_tos")
 })
 
 observeEvent(input$faq_to_for_tos, {
   nav_select("main_content", "for_tos")
   rv$current_nav <- "for_tos"
-})
-
-observeEvent(input$faq_to_about, {
-  nav_select("main_content", "about")
-  rv$current_nav <- "about"
+  session$sendCustomMessage("updateSidebarNav", "nav_for_tos")
 })
 
 # FAQ → Upload Results
 observeEvent(input$faq_to_upload, {
   nav_select("main_content", "submit")
   rv$current_nav <- "submit"
+  session$sendCustomMessage("updateSidebarNav", "nav_submit")
 })
 observeEvent(input$faq_to_upload2, {
   nav_select("main_content", "submit")
   rv$current_nav <- "submit"
+  session$sendCustomMessage("updateSidebarNav", "nav_submit")
+})
+observeEvent(input$faq_to_upload3, {
+  nav_select("main_content", "submit")
+  rv$current_nav <- "submit"
+  session$sendCustomMessage("updateSidebarNav", "nav_submit")
+})
+
+# FAQ → For Organizers (multiple links on the page)
+observeEvent(input$faq_to_for_tos_new_scene, {
+  nav_select("main_content", "for_tos")
+  rv$current_nav <- "for_tos"
+  session$sendCustomMessage("updateSidebarNav", "nav_for_tos")
+})
+observeEvent(input$faq_to_for_tos2, {
+  nav_select("main_content", "for_tos")
+  rv$current_nav <- "for_tos"
+  session$sendCustomMessage("updateSidebarNav", "nav_for_tos")
 })
 
 # For Organizers → Upload Results (multiple links on the page)
 observeEvent(input$tos_to_upload, {
   nav_select("main_content", "submit")
   rv$current_nav <- "submit"
+  session$sendCustomMessage("updateSidebarNav", "nav_submit")
 })
 observeEvent(input$tos_to_upload_btn, {
   nav_select("main_content", "submit")
   rv$current_nav <- "submit"
+  session$sendCustomMessage("updateSidebarNav", "nav_submit")
 })
 observeEvent(input$tos_to_upload2, {
   nav_select("main_content", "submit")
   rv$current_nav <- "submit"
+  session$sendCustomMessage("updateSidebarNav", "nav_submit")
 })
 observeEvent(input$tos_to_upload3, {
   nav_select("main_content", "submit")
   rv$current_nav <- "submit"
+  session$sendCustomMessage("updateSidebarNav", "nav_submit")
+})
+
+# ---------------------------------------------------------------------------
+# FAQ Navigation from Info Icons (Rating/Score column headers)
+# ---------------------------------------------------------------------------
+
+observeEvent(input$goto_faq_rating, {
+  nav_select("main_content", "faq")
+  rv$current_nav <- "faq"
+  session$sendCustomMessage("updateSidebarNav", "nav_faq")
+  # Open the competitive-rating accordion panel after a delay
+  shinyjs::delay(300, {
+    shinyjs::runjs("
+      var panel = document.querySelector('#faq_ratings [data-value=\"competitive-rating\"] .accordion-button.collapsed');
+      if (panel) panel.click();
+    ")
+  })
+})
+
+observeEvent(input$goto_faq_score, {
+  nav_select("main_content", "faq")
+  rv$current_nav <- "faq"
+  session$sendCustomMessage("updateSidebarNav", "nav_faq")
+  # Open the achievement-score accordion panel after a delay
+  shinyjs::delay(300, {
+    shinyjs::runjs("
+      var panel = document.querySelector('#faq_ratings [data-value=\"achievement-score\"] .accordion-button.collapsed');
+      if (panel) panel.click();
+    ")
+  })
 })
 
 # ---------------------------------------------------------------------------
 # About Page Stats
 # ---------------------------------------------------------------------------
+
+output$about_scene_count <- renderText({
+  req(rv$db_con)
+  count <- safe_query(rv$db_con, "SELECT COUNT(*) as n FROM scenes WHERE slug != 'all'",
+                      default = data.frame(n = 0))$n
+  as.character(count)
+})
 
 output$about_store_count <- renderText({
   req(rv$db_con)
@@ -256,12 +347,6 @@ output$about_player_count <- renderText({
 output$about_tournament_count <- renderText({
   req(rv$db_con)
   count <- dbGetQuery(rv$db_con, "SELECT COUNT(*) FROM tournaments")[[1]]
-  as.character(count)
-})
-
-output$about_result_count <- renderText({
-  req(rv$db_con)
-  count <- dbGetQuery(rv$db_con, "SELECT COUNT(*) FROM results")[[1]]
   as.character(count)
 })
 
@@ -282,10 +367,60 @@ outputOptions(output, "has_active_tournament", suspendWhenHidden = FALSE)
 # Login modal
 observeEvent(input$admin_login_link, {
   if (rv$is_admin) {
-    # Already logged in - show admin nav + logout
-    role_label <- if (rv$is_superadmin) "super admin" else "admin"
+    # Already logged in - show account info, change password, nav (mobile)
+    role_label <- if (rv$is_superadmin) "Super Admin" else "Scene Admin"
+    admin_name <- rv$admin_user$display_name
 
-    # Build admin nav links
+    # Get scene name for display
+    scene_display <- "All Scenes"
+    if (!is.null(rv$admin_user$scene_id)) {
+      scene_row <- safe_query(rv$db_con,
+        "SELECT display_name FROM scenes WHERE scene_id = ?",
+        params = list(rv$admin_user$scene_id),
+        default = data.frame())
+      if (nrow(scene_row) > 0) scene_display <- scene_row$display_name[1]
+    }
+
+    # Account info section (visible on desktop and mobile)
+    account_info <- div(
+      class = "admin-account-info",
+      div(class = "admin-account-row",
+        span(class = "admin-account-label", "Username"),
+        span(class = "admin-account-value", rv$admin_user$username)
+      ),
+      div(class = "admin-account-row",
+        span(class = "admin-account-label", "Role"),
+        span(class = "admin-account-value", role_label)
+      ),
+      div(class = "admin-account-row",
+        span(class = "admin-account-label", "Scene"),
+        span(class = "admin-account-value", scene_display)
+      )
+    )
+
+    # Change password section (collapsible)
+    change_password_section <- div(
+      tags$a(
+        class = "admin-change-pw-toggle",
+        `data-bs-toggle` = "collapse",
+        href = "#change_password_panel",
+        role = "button",
+        `aria-expanded` = "false",
+        bsicons::bs_icon("key"), " Change Password ",
+        bsicons::bs_icon("chevron-down", class = "admin-chevron-icon")
+      ),
+      div(
+        id = "change_password_panel",
+        class = "collapse admin-change-password mt-2",
+        passwordInput("change_current_password", "Current Password"),
+        passwordInput("change_new_password", "New Password"),
+        passwordInput("change_confirm_password", "Confirm New Password"),
+        actionButton("change_password_btn", "Update Password",
+                     class = "btn-primary btn-sm mt-1")
+      )
+    )
+
+    # Mobile nav links (hidden on desktop)
     admin_links <- tagList(
       actionLink("modal_admin_results",
                  tagList(bsicons::bs_icon("pencil-square"), " Enter Results"),
@@ -296,8 +431,8 @@ observeEvent(input$admin_login_link, {
       actionLink("modal_admin_players",
                  tagList(bsicons::bs_icon("people"), " Edit Players"),
                  class = "admin-modal-link"),
-      actionLink("modal_admin_decks",
-                 tagList(bsicons::bs_icon("collection"), " Edit Decks"),
+      actionLink("modal_admin_stores",
+                 tagList(bsicons::bs_icon("shop"), " Edit Stores"),
                  class = "admin-modal-link")
     )
 
@@ -307,19 +442,30 @@ observeEvent(input$admin_login_link, {
       superadmin_links <- tagList(
         tags$hr(class = "my-2"),
         tags$div(class = "admin-modal-section", "Super Admin"),
-        actionLink("modal_admin_stores",
-                   tagList(bsicons::bs_icon("shop"), " Edit Stores"),
+        actionLink("modal_admin_decks",
+                   tagList(bsicons::bs_icon("collection"), " Edit Decks"),
                    class = "admin-modal-link"),
         actionLink("modal_admin_formats",
                    tagList(bsicons::bs_icon("calendar3"), " Edit Formats"),
+                   class = "admin-modal-link"),
+        actionLink("modal_admin_users",
+                   tagList(bsicons::bs_icon("person-gear"), " Manage Admins"),
+                   class = "admin-modal-link"),
+        actionLink("modal_admin_scenes",
+                   tagList(bsicons::bs_icon("globe2"), " Manage Scenes"),
                    class = "admin-modal-link")
       )
     }
 
     showModal(modalDialog(
-      title = paste0("Admin (", role_label, ")"),
+      title = "Account",
+      account_info,
+      tags$hr(class = "my-3"),
+      change_password_section,
       div(
         class = "admin-modal-nav",
+        tags$hr(class = "my-3"),
+        tags$div(class = "admin-modal-section", "Navigation"),
         admin_links,
         superadmin_links
       ),
@@ -328,18 +474,29 @@ observeEvent(input$admin_login_link, {
         modalButton("Close")
       )
     ))
-  } else if (is.null(ADMIN_PASSWORD) && is.null(SUPERADMIN_PASSWORD)) {
-    # Admin login disabled
+  } else if (rv$needs_bootstrap) {
+    # First-time setup - create super admin
     showModal(modalDialog(
-      title = "Admin Login Disabled",
-      "Admin login is not configured. Set the ADMIN_PASSWORD environment variable to enable.",
-      footer = modalButton("Close")
+      title = "Create Super Admin",
+      tags$p(class = "text-muted", "No admin accounts exist yet. Create the first super admin account."),
+      textInput("bootstrap_username", "Username", placeholder = "e.g., michael"),
+      textInput("bootstrap_display_name", "Display Name", placeholder = "e.g., Michael"),
+      tags$div(
+        passwordInput("bootstrap_password", "Password"),
+        style = "margin-bottom: 0.5rem;"
+      ),
+      passwordInput("bootstrap_confirm", "Confirm Password"),
+      footer = tagList(
+        actionButton("bootstrap_btn", "Create Account", class = "btn-primary"),
+        modalButton("Cancel")
+      )
     ))
   } else {
-    # Show login form
+    # Normal login form
     showModal(modalDialog(
       title = "Admin Login",
-      passwordInput("admin_password", "Password"),
+      textInput("login_username", "Username"),
+      passwordInput("login_password", "Password"),
       footer = tagList(
         actionButton("login_btn", "Login", class = "btn-primary"),
         modalButton("Cancel")
@@ -350,21 +507,55 @@ observeEvent(input$admin_login_link, {
 
 # Handle login
 observeEvent(input$login_btn, {
-  pw <- input$admin_password
+  username <- trimws(input$login_username)
+  password <- input$login_password
 
-  if (!is.null(SUPERADMIN_PASSWORD) && pw == SUPERADMIN_PASSWORD) {
-    rv$is_admin <- TRUE
-    rv$is_superadmin <- TRUE
-    removeModal()
-    showNotification("Logged in as super admin", type = "message")
-  } else if (!is.null(ADMIN_PASSWORD) && pw == ADMIN_PASSWORD) {
-    rv$is_admin <- TRUE
-    rv$is_superadmin <- FALSE
-    removeModal()
-    showNotification("Logged in as admin", type = "message")
-  } else {
-    showNotification("Invalid password", type = "error")
+  if (nchar(username) == 0 || nchar(password) == 0) {
+    notify("Please enter username and password", type = "warning")
     return()
+  }
+
+  # Look up user
+  user <- safe_query(rv$db_con,
+    "SELECT user_id, username, password_hash, display_name, role, scene_id
+     FROM admin_users WHERE username = ? AND is_active = TRUE",
+    params = list(username),
+    default = data.frame())
+
+  if (nrow(user) == 0) {
+    notify("Invalid username or password", type = "error")
+    return()
+  }
+
+  # Verify password
+  if (!bcrypt::checkpw(password, user$password_hash[1])) {
+    notify("Invalid username or password", type = "error")
+    return()
+  }
+
+  # Success - set reactive state
+  rv$is_admin <- TRUE
+  rv$is_superadmin <- (user$role[1] == "super_admin")
+  rv$admin_user <- list(
+    user_id = user$user_id[1],
+    username = user$username[1],
+    display_name = user$display_name[1],
+    role = user$role[1],
+    scene_id = if (is.na(user$scene_id[1])) NULL else user$scene_id[1]
+  )
+
+  removeModal()
+  notify(paste0("Welcome, ", user$display_name[1], "!"), type = "message")
+
+  # Force scene for scene admins
+  if (rv$admin_user$role == "scene_admin" && !is.null(rv$admin_user$scene_id)) {
+    scene_slug <- safe_query(rv$db_con,
+      "SELECT slug FROM scenes WHERE scene_id = ?",
+      params = list(rv$admin_user$scene_id),
+      default = data.frame())
+    if (nrow(scene_slug) > 0) {
+      updateSelectInput(session, "scene_selector", selected = scene_slug$slug[1])
+    }
   }
 
   # Update dropdowns with data
@@ -372,21 +563,174 @@ observeEvent(input$login_btn, {
                     choices = get_store_choices(rv$db_con, include_none = TRUE))
 })
 
+# Handle bootstrap (first super admin creation)
+observeEvent(input$bootstrap_btn, {
+  username <- trimws(input$bootstrap_username)
+  display_name <- trimws(input$bootstrap_display_name)
+  password <- input$bootstrap_password
+  confirm <- input$bootstrap_confirm
+
+  # Validation
+  if (nchar(username) < 3) {
+    notify("Username must be at least 3 characters", type = "warning")
+    return()
+  }
+  if (nchar(display_name) == 0) {
+    notify("Display name is required", type = "warning")
+    return()
+  }
+  if (nchar(password) < 8) {
+    notify("Password must be at least 8 characters", type = "warning")
+    return()
+  }
+  if (password != confirm) {
+    notify("Passwords do not match", type = "error")
+    return()
+  }
+
+  # Double-check table is still empty
+  admin_count <- safe_query(rv$db_con,
+    "SELECT COUNT(*) as n FROM admin_users",
+    default = data.frame(n = 0))
+  if (admin_count$n[1] > 0) {
+    rv$needs_bootstrap <- FALSE
+    notify("Admin accounts already exist. Please log in.", type = "warning")
+    removeModal()
+    return()
+  }
+
+  # Create super admin
+  hash <- bcrypt::hashpw(password)
+  max_id <- safe_query(rv$db_con,
+    "SELECT COALESCE(MAX(user_id), 0) as max_id FROM admin_users",
+    default = data.frame(max_id = 0))
+  new_id <- max_id$max_id[1] + 1
+
+  result <- safe_execute(rv$db_con,
+    "INSERT INTO admin_users (user_id, username, password_hash, display_name, role, scene_id)
+     VALUES (?, ?, ?, ?, 'super_admin', NULL)",
+    params = list(new_id, username, hash, display_name))
+
+  if (result > 0) {
+    rv$needs_bootstrap <- FALSE
+    rv$is_admin <- TRUE
+    rv$is_superadmin <- TRUE
+    rv$admin_user <- list(
+      user_id = new_id,
+      username = username,
+      display_name = display_name,
+      role = "super_admin",
+      scene_id = NULL
+    )
+    removeModal()
+    notify(paste0("Super admin account created. Welcome, ", display_name, "!"), type = "message")
+
+    # Update dropdowns with data
+    updateSelectInput(session, "tournament_store",
+                      choices = get_store_choices(rv$db_con, include_none = TRUE))
+  } else {
+    notify("Failed to create account. Please try again.", type = "error")
+  }
+})
+
 # Handle logout
 observeEvent(input$logout_btn, {
   rv$is_admin <- FALSE
   rv$is_superadmin <- FALSE
+  rv$admin_user <- NULL
   rv$active_tournament_id <- NULL
   removeModal()
-  showNotification("Logged out", type = "message")
-  # Navigate back to dashboard
+  notify("Logged out", type = "message")
   nav_select("main_content", "dashboard")
   rv$current_nav <- "dashboard"
+})
+
+# Handle change password
+observeEvent(input$change_password_btn, {
+  req(rv$is_admin, rv$admin_user)
+
+  current_pw <- input$change_current_password
+  new_pw <- input$change_new_password
+  confirm_pw <- input$change_confirm_password
+
+  if (nchar(current_pw) == 0) {
+    notify("Please enter your current password", type = "warning")
+    return()
+  }
+  if (nchar(new_pw) < 8) {
+    notify("New password must be at least 8 characters", type = "warning")
+    return()
+  }
+  if (new_pw != confirm_pw) {
+    notify("New passwords do not match", type = "error")
+    return()
+  }
+
+  # Verify current password
+  user <- safe_query(rv$db_con,
+    "SELECT password_hash FROM admin_users WHERE user_id = ?",
+    params = list(rv$admin_user$user_id),
+    default = data.frame())
+
+  if (nrow(user) == 0) {
+    notify("Account not found", type = "error")
+    return()
+  }
+
+  if (!bcrypt::checkpw(current_pw, user$password_hash[1])) {
+    notify("Current password is incorrect", type = "error")
+    return()
+  }
+
+  # Update password (DuckDB: DELETE + INSERT)
+  old <- safe_query(rv$db_con,
+    "SELECT * FROM admin_users WHERE user_id = ?",
+    params = list(rv$admin_user$user_id),
+    default = data.frame())
+
+  new_hash <- bcrypt::hashpw(new_pw)
+  safe_execute(rv$db_con,
+    "DELETE FROM admin_users WHERE user_id = ?",
+    params = list(rv$admin_user$user_id))
+  safe_execute(rv$db_con,
+    "INSERT INTO admin_users (user_id, username, password_hash, display_name, role, scene_id, is_active, created_at)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
+    params = list(old$user_id[1], old$username[1], new_hash, old$display_name[1],
+                  old$role[1],
+                  if (is.na(old$scene_id[1])) NA_integer_ else old$scene_id[1],
+                  old$is_active[1], old$created_at[1]))
+
+  notify("Password updated successfully", type = "message")
+  removeModal()
 })
 
 # ---------------------------------------------------------------------------
 # Helper Functions
 # ---------------------------------------------------------------------------
+
+#' Track a custom GA4 event
+#' @param event_name GA4 event name (e.g., "tab_visit", "modal_open")
+#' @param ... Named parameters to include as event params
+track_event <- function(event_name, ...) {
+  params <- list(...)
+  tryCatch(
+    session$sendCustomMessage("trackEvent", list(event = event_name, params = params)),
+    error = function(e) NULL
+  )
+}
+
+#' Build Sentry context tags from current session state
+#' @return Named list of tags for sentryR::capture_exception()
+sentry_context_tags <- function() {
+  tags <- list()
+  tryCatch({
+    if (!is.null(rv$current_nav)) tags$active_tab <- rv$current_nav
+    if (!is.null(rv$current_scene)) tags$scene <- rv$current_scene
+    if (!is.null(rv$is_admin) && rv$is_admin) tags$is_admin <- "true"
+    if (!is.null(rv$community_filter)) tags$community <- rv$community_filter
+  }, error = function(e) NULL)
+  tags
+}
 
 #' Safe Database Query Wrapper
 #'
@@ -425,6 +769,14 @@ safe_query <- function(db_con, query, params = NULL, default = data.frame()) {
     # Log the error with truncated query
     query_preview <- substr(gsub("\\s+", " ", query), 1, 200)
     message("[safe_query] Error: ", msg, " | Query: ", query_preview)
+
+    # Send to Sentry if enabled (with context tags)
+    if (sentry_enabled) {
+      tryCatch(
+        sentryR::capture_exception(e, tags = sentry_context_tags()),
+        error = function(se) NULL
+      )
+    }
 
     # Attempt reconnection if connection is invalid
     if (!DBI::dbIsValid(db_con)) {
@@ -478,13 +830,27 @@ safe_execute <- function(db_con, query, params = NULL) {
   }, error = function(e) {
     message("[safe_execute] Error: ", conditionMessage(e))
     message("[safe_execute] Query: ", substr(gsub("\\s+", " ", query), 1, 200))
+    # Send to Sentry if enabled (with context tags)
+    if (sentry_enabled) {
+      tryCatch(
+        sentryR::capture_exception(e, tags = sentry_context_tags()),
+        error = function(se) NULL
+      )
+    }
     0  # Return 0 rows affected on error
   })
 }
 
+# Generate next ID for a table (atomic MAX+1)
+next_id <- function(con, table, id_column) {
+  result <- safe_query(con, sprintf("SELECT COALESCE(MAX(%s), 0) + 1 as next_id FROM %s", id_column, table),
+                       default = data.frame(next_id = 1))
+  result$next_id[1]
+}
+
 get_store_choices <- function(con, include_none = FALSE) {
   if (is.null(con) || !dbIsValid(con)) return(c("Loading..." = ""))
-  stores <- dbGetQuery(con, "SELECT store_id, name FROM stores WHERE is_active = TRUE ORDER BY name")
+  stores <- safe_query(con, "SELECT store_id, name FROM stores WHERE is_active = TRUE ORDER BY name", default = data.frame())
   choices <- setNames(stores$store_id, stores$name)
   if (include_none) {
     choices <- c("Select a store..." = "", choices)
@@ -494,14 +860,14 @@ get_store_choices <- function(con, include_none = FALSE) {
 
 get_archetype_choices <- function(con) {
   if (is.null(con) || !dbIsValid(con)) return(c("Loading..." = ""))
-  archetypes <- dbGetQuery(con, "SELECT archetype_id, archetype_name FROM deck_archetypes WHERE is_active = TRUE ORDER BY archetype_name")
+  archetypes <- safe_query(con, "SELECT archetype_id, archetype_name FROM deck_archetypes WHERE is_active = TRUE ORDER BY archetype_name", default = data.frame())
   choices <- setNames(archetypes$archetype_id, archetypes$archetype_name)
   return(choices)
 }
 
 get_player_choices <- function(con) {
   if (is.null(con) || !dbIsValid(con)) return(character(0))
-  players <- dbGetQuery(con, "SELECT player_id, display_name FROM players WHERE is_active = TRUE ORDER BY display_name")
+  players <- safe_query(con, "SELECT player_id, display_name FROM players WHERE is_active = TRUE ORDER BY display_name", default = data.frame())
   choices <- setNames(players$player_id, players$display_name)
   return(choices)
 }
@@ -510,12 +876,12 @@ get_format_choices <- function(con) {
   if (is.null(con) || !dbIsValid(con)) {
     return(c("Database unavailable" = ""))
   }
-  formats <- dbGetQuery(con, "
+  formats <- safe_query(con, "
     SELECT format_id, display_name
     FROM formats
     WHERE is_active = TRUE
     ORDER BY release_date DESC NULLS LAST
-  ")
+  ", default = data.frame())
   if (nrow(formats) == 0) {
     return(c("No formats configured" = ""))
   }
@@ -581,8 +947,25 @@ observeEvent(input$clear_community_filter, {
   # Reset filters back to defaults (5+) when clearing community filter
   session$sendCustomMessage("setPillToggle", list(inputId = "players_min_events", value = "5"))
   session$sendCustomMessage("setPillToggle", list(inputId = "meta_min_entries", value = "5"))
-  showNotification("Community filter cleared", type = "message", duration = 2)
+  notify("Community filter cleared", type = "message", duration = 2)
 })
+
+# Format event type for display
+format_event_type <- function(et) {
+  if (is.na(et)) return("Unknown")
+  switch(et,
+    "locals" = "Locals",
+    "evo_cup" = "Evo Cup",
+    "store_championship" = "Store Championship",
+    "regional" = "Regional",
+    "regionals" = "Regionals",
+    "online" = "Online",
+    "regulation_battle" = "Regulation Battle",
+    "release_event" = "Release Event",
+    "other" = "Other",
+    et
+  )
+}
 
 #' Build Parameterized SQL Filters
 #'

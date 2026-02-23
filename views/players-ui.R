@@ -28,6 +28,7 @@ players_ui <- tagList(
                       width = "140px",
                       selectize = FALSE)
         ),
+        span(class = "title-strip-pill-label", "Min Events:"),
         div(
           class = "pill-toggle",
           `data-input-id` = "players_min_events",
@@ -46,6 +47,18 @@ players_ui <- tagList(
   # Historical rating indicator (shown when viewing past format)
   uiOutput("historical_rating_badge"),
 
+  # Help text
+  div(class = "page-help-text",
+    div(class = "info-hint-box text-center",
+      bsicons::bs_icon("info-circle", class = "info-hint-icon"),
+      "Player leaderboard ranked by ",
+      actionLink("goto_faq_rating", "Competitive Rating", class = "info-hint-link"),
+      " and ",
+      actionLink("goto_faq_score", "Achievement Score", class = "info-hint-link"),
+      ". Click any player to see their full tournament history and stats."
+    )
+  ),
+
   card(
     card_header(
       class = "d-flex justify-content-between align-items-center",
@@ -53,6 +66,10 @@ players_ui <- tagList(
       span(class = "small text-muted", "Click a row for player profile")
     ),
     card_body(
+      div(
+        id = "player_standings_skeleton",
+        skeleton_table(rows = 8)
+      ),
       reactableOutput("player_standings")
     )
   ),

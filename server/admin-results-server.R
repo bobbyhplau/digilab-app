@@ -8,23 +8,6 @@ rv$admin_record_format <- "points"
 rv$admin_player_matches <- list()
 rv$admin_deck_request_row <- NULL
 
-# Initialize blank grid data frame
-init_admin_grid <- function(player_count) {
-  data.frame(
-    placement = seq_len(player_count),
-    player_name = rep("", player_count),
-    points = rep(0L, player_count),
-    wins = rep(0L, player_count),
-    losses = rep(0L, player_count),
-    ties = rep(0L, player_count),
-    deck_id = rep(NA_integer_, player_count),
-    match_status = rep("", player_count),
-    matched_player_id = rep(NA_integer_, player_count),
-    matched_member_number = rep(NA_character_, player_count),
-    stringsAsFactors = FALSE
-  )
-}
-
 # Wizard step management
 observe({
   if (rv$wizard_step == 1) {
@@ -71,6 +54,7 @@ output$active_tournament_info <- renderText({
 
 # Create tournament
 observeEvent(input$create_tournament, {
+  clear_all_field_errors(session)
   req(rv$is_admin, rv$db_con)
 
   store_id <- input$tournament_store
@@ -82,29 +66,48 @@ observeEvent(input$create_tournament, {
 
   # Validation
   if (is.null(store_id) || nchar(trimws(store_id)) == 0) {
-    showNotification("Please select a store", type = "error")
+    show_field_error(session, "tournament_store")
+    notify("Please select a store", type = "error")
     return()
   }
 
   store_id <- as.integer(store_id)
   if (is.na(store_id)) {
-    showNotification("Invalid store selection", type = "error")
+    show_field_error(session, "tournament_store")
+    notify("Invalid store selection", type = "error")
     return()
   }
 
   # Date validation
   if (is.null(input$tournament_date) || is.na(input$tournament_date)) {
-    showNotification("Please select a tournament date", type = "error")
+    show_field_error(session, "tournament_date")
+    notify("Please select a tournament date", type = "error")
     return()
   }
 
   if (is.null(player_count) || is.na(player_count) || player_count < 2) {
-    showNotification("Player count must be at least 2", type = "error")
+    show_field_error(session, "tournament_players")
+    notify("Player count must be at least 2", type = "error")
     return()
   }
 
   if (is.null(rounds) || is.na(rounds) || rounds < 1) {
-    showNotification("Rounds must be at least 1", type = "error")
+    show_field_error(session, "tournament_rounds")
+    notify("Rounds must be at least 1", type = "error")
+    return()
+  }
+
+  # Event type validation
+  if (is.null(event_type) || nchar(trimws(event_type)) == 0) {
+    show_field_error(session, "tournament_type")
+    notify("Please select an event type", type = "error")
+    return()
+  }
+
+  # Format validation
+  if (is.null(format) || nchar(trimws(format)) == 0) {
+    show_field_error(session, "tournament_format")
+    notify("Please select a format", type = "error")
     return()
   }
 
@@ -136,14 +139,22 @@ observeEvent(input$create_tournament, {
     })
 
     # Show modal and return (don't create)
-    shinyjs::runjs("$('#duplicate_tournament_modal').modal('show');")
+    showModal(modalDialog(
+      title = "Possible Duplicate Tournament",
+      uiOutput("duplicate_tournament_message"),
+      footer = tagList(
+        actionButton("edit_existing_tournament", "View/Edit Existing", class = "btn-outline-primary"),
+        actionButton("create_anyway", "Create Anyway", class = "btn-warning"),
+        modalButton("Cancel")
+      ),
+      easyClose = TRUE
+    ))
     return()
   }
 
   tryCatch({
     # Get next ID
-    max_id <- dbGetQuery(rv$db_con, "SELECT COALESCE(MAX(tournament_id), 0) as max_id FROM tournaments")$max_id
-    new_id <- max_id + 1
+    new_id <- next_id(rv$db_con, "tournaments", "tournament_id")
 
     dbExecute(rv$db_con, "
       INSERT INTO tournaments (tournament_id, store_id, event_date, event_type, format, player_count, rounds)
@@ -153,14 +164,14 @@ observeEvent(input$create_tournament, {
     rv$active_tournament_id <- new_id
     rv$current_results <- data.frame()
 
-    showNotification("Tournament created!", type = "message")
+    notify("Tournament created!", type = "message")
     rv$wizard_step <- 2
     rv$admin_record_format <- input$admin_record_format %||% "points"
-    rv$admin_grid_data <- init_admin_grid(player_count)
+    rv$admin_grid_data <- init_grid_data(player_count)
     rv$admin_player_matches <- list()
 
   }, error = function(e) {
-    showNotification(paste("Error:", e$message), type = "error")
+    notify(paste("Error:", e$message), type = "error")
   })
 })
 
@@ -194,7 +205,28 @@ observeEvent(input$clear_tournament, {
     )
   })
 
-  shinyjs::runjs("$('#start_over_modal').modal('show');")
+  showModal(modalDialog(
+    title = "Start Over?",
+    tagList(
+      p("What would you like to do?"),
+      uiOutput("start_over_message")
+    ),
+    footer = tagList(
+      div(
+        class = "d-flex flex-column gap-2 align-items-stretch w-100",
+        actionButton("clear_results_only", "Clear Results",
+                     class = "btn-warning w-100",
+                     icon = icon("eraser")),
+        tags$small(class = "text-muted text-center", "Remove entered results but keep the tournament for re-entry."),
+        actionButton("delete_tournament_confirm", "Delete Tournament",
+                     class = "btn-danger w-100",
+                     icon = icon("trash")),
+        uiOutput("delete_tournament_warning"),
+        modalButton("Cancel")
+      )
+    ),
+    easyClose = TRUE
+  ))
 })
 
 # Clear results only - keep tournament, remove results
@@ -210,7 +242,7 @@ observeEvent(input$clear_results_only, {
     # Re-initialize grid with blank rows
     player_count <- dbGetQuery(rv$db_con, "SELECT player_count FROM tournaments WHERE tournament_id = ?",
                                params = list(rv$active_tournament_id))$player_count
-    rv$admin_grid_data <- init_admin_grid(player_count)
+    rv$admin_grid_data <- init_grid_data(player_count)
     rv$admin_player_matches <- list()
     rv$results_refresh <- (rv$results_refresh %||% 0) + 1
 
@@ -218,11 +250,11 @@ observeEvent(input$clear_results_only, {
     recalculate_ratings_cache(rv$db_con)
     rv$data_refresh <- (rv$data_refresh %||% 0) + 1
 
-    shinyjs::runjs("$('#start_over_modal').modal('hide');")
-    showNotification("Results cleared. Tournament kept for re-entry.", type = "message")
+    removeModal()
+    notify("Results cleared. Tournament kept for re-entry.", type = "message")
 
   }, error = function(e) {
-    showNotification(paste("Error:", e$message), type = "error")
+    notify(paste("Error:", e$message), type = "error")
   })
 })
 
@@ -248,8 +280,8 @@ observeEvent(input$delete_tournament_confirm, {
     rv$admin_player_matches <- list()
     rv$wizard_step <- 1
 
-    shinyjs::runjs("$('#start_over_modal').modal('hide');")
-    showNotification("Tournament deleted.", type = "message")
+    removeModal()
+    notify("Tournament deleted.", type = "message")
 
     # Recalculate ratings cache
     recalculate_ratings_cache(rv$db_con)
@@ -258,7 +290,7 @@ observeEvent(input$delete_tournament_confirm, {
     rv$data_refresh <- (rv$data_refresh %||% 0) + 1
 
   }, error = function(e) {
-    showNotification(paste("Error:", e$message), type = "error")
+    notify(paste("Error:", e$message), type = "error")
   })
 })
 
@@ -286,7 +318,7 @@ observeEvent(input$wizard_back, {
 # Handle "View/Edit Existing" button from duplicate modal
 observeEvent(input$edit_existing_tournament, {
   req(rv$duplicate_tournament)
-  shinyjs::runjs("$('#duplicate_tournament_modal').modal('hide');")
+  removeModal()
 
   # Store the tournament ID so Edit Tournaments can select it
   rv$navigate_to_tournament_id <- rv$duplicate_tournament$tournament_id
@@ -299,7 +331,7 @@ observeEvent(input$edit_existing_tournament, {
 
 # Handle "Create Anyway" button from duplicate modal
 observeEvent(input$create_anyway, {
-  shinyjs::runjs("$('#duplicate_tournament_modal').modal('hide');")
+  removeModal()
 
   # Get form values again
   store_id <- as.integer(input$tournament_store)
@@ -310,8 +342,7 @@ observeEvent(input$create_anyway, {
   rounds <- input$tournament_rounds
 
   tryCatch({
-    max_id <- dbGetQuery(rv$db_con, "SELECT COALESCE(MAX(tournament_id), 0) as max_id FROM tournaments")$max_id
-    new_id <- max_id + 1
+    new_id <- next_id(rv$db_con, "tournaments", "tournament_id")
 
     dbExecute(rv$db_con, "
       INSERT INTO tournaments (tournament_id, store_id, event_date, event_type, format, player_count, rounds)
@@ -322,14 +353,14 @@ observeEvent(input$create_anyway, {
     rv$current_results <- data.frame()
     rv$duplicate_tournament <- NULL
 
-    showNotification("Tournament created!", type = "message")
+    notify("Tournament created!", type = "message")
     rv$wizard_step <- 2
     rv$admin_record_format <- input$admin_record_format %||% "points"
-    rv$admin_grid_data <- init_admin_grid(player_count)
+    rv$admin_grid_data <- init_grid_data(player_count)
     rv$admin_player_matches <- list()
 
   }, error = function(e) {
-    showNotification(paste("Error:", e$message), type = "error")
+    notify(paste("Error:", e$message), type = "error")
   })
 })
 
@@ -338,7 +369,7 @@ output$tournament_summary_bar <- renderUI({
   req(rv$active_tournament_id, rv$db_con)
 
   info <- dbGetQuery(rv$db_con, "
-    SELECT s.name as store_name, t.event_date, t.event_type, t.player_count
+    SELECT s.name as store_name, t.event_date, t.event_type, t.format, t.player_count
     FROM tournaments t
     JOIN stores s ON t.store_id = s.store_id
     WHERE t.tournament_id = ?
@@ -354,6 +385,10 @@ output$tournament_summary_bar <- renderUI({
     span(class = "summary-item", format(as.Date(info$event_date), "%b %d, %Y")),
     span(class = "summary-divider", "|"),
     span(class = "summary-item", info$event_type),
+    if (!is.null(info$format) && !is.na(info$format) && nchar(info$format) > 0) tagList(
+      span(class = "summary-divider", "|"),
+      span(class = "summary-item", info$format)
+    ),
     span(class = "summary-divider", "|"),
     span(class = "summary-item", sprintf("%d players", info$player_count))
   )
@@ -362,15 +397,6 @@ output$tournament_summary_bar <- renderUI({
 # =============================================================================
 # Admin Grid: Helper Functions
 # =============================================================================
-
-# Ordinal helper (1st, 2nd, 3rd, etc.)
-admin_ordinal <- function(n) {
-  suffix <- c("th", "st", "nd", "rd", rep("th", 6))
-  if (n %% 100 >= 11 && n %% 100 <= 13) {
-    return(paste0(n, "th"))
-  }
-  return(paste0(n, suffix[(n %% 10) + 1]))
-}
 
 output$admin_record_format_badge <- renderUI({
   format <- rv$admin_record_format %||% "points"
@@ -396,7 +422,7 @@ output$admin_grid_table <- renderUI({
   grid <- rv$admin_grid_data
   record_format <- rv$admin_record_format %||% "points"
 
-  # Check if release event (hide deck column)
+  # Check if release event
   is_release <- FALSE
   if (!is.null(rv$active_tournament_id) && !is.null(rv$db_con) && dbIsValid(rv$db_con)) {
     t_info <- dbGetQuery(rv$db_con, "SELECT event_type FROM tournaments WHERE tournament_id = ?",
@@ -404,194 +430,20 @@ output$admin_grid_table <- renderUI({
     if (nrow(t_info) > 0) is_release <- t_info$event_type[1] == "release_event"
   }
 
-  # Build deck choices
-  decks <- dbGetQuery(rv$db_con, "
-    SELECT archetype_id, archetype_name FROM deck_archetypes
-    WHERE is_active = TRUE ORDER BY archetype_name
-  ")
-
-  pending_requests <- dbGetQuery(rv$db_con, "
-    SELECT request_id, deck_name FROM deck_requests
-    WHERE status = 'pending' ORDER BY deck_name
-  ")
-
-  deck_choices <- c("Unknown" = "")
-  deck_choices <- c(deck_choices, "\U2795 Request new deck..." = "__REQUEST_NEW__")
-  if (nrow(pending_requests) > 0) {
-    pending_choices <- setNames(
-      paste0("pending_", pending_requests$request_id),
-      paste0("Pending: ", pending_requests$deck_name)
-    )
-    deck_choices <- c(deck_choices, pending_choices)
-  }
-  deck_choices <- c(deck_choices, setNames(decks$archetype_id, decks$archetype_name))
-
-  # Column widths depend on format and release event
-  if (is_release) {
-    if (record_format == "points") {
-      col_widths <- c(1, 1, 8, 2)
-    } else {
-      col_widths <- c(1, 1, 6, 2, 1, 1)
-    }
-  } else {
-    if (record_format == "points") {
-      col_widths <- c(1, 1, 4, 2, 4)
-    } else {
-      col_widths <- c(1, 1, 3, 1, 1, 1, 4)
-    }
-  }
-
-  # Header row
-  if (is_release) {
-    if (record_format == "points") {
-      header <- layout_columns(col_widths = col_widths, class = "results-header-row",
-                               div(""), div("#"), div("Player"), div("Pts"))
-    } else {
-      header <- layout_columns(col_widths = col_widths, class = "results-header-row",
-                               div(""), div("#"), div("Player"), div("W"), div("L"), div("T"))
-    }
-  } else {
-    if (record_format == "points") {
-      header <- layout_columns(col_widths = col_widths, class = "results-header-row",
-                               div(""), div("#"), div("Player"), div("Pts"), div("Deck"))
-    } else {
-      header <- layout_columns(col_widths = col_widths, class = "results-header-row",
-                               div(""), div("#"), div("Player"), div("W"), div("L"), div("T"), div("Deck"))
-    }
-  }
-
-  # Release event info notice
-  release_notice <- if (is_release) {
-    div(class = "alert alert-info py-2 px-3 mb-3",
-        bsicons::bs_icon("info-circle"),
-        " Release event \u2014 deck archetype auto-set to UNKNOWN.")
-  } else NULL
-
-  # Data rows
-  rows <- lapply(seq_len(nrow(grid)), function(i) {
-    row <- grid[i, ]
-    place_class <- if (i == 1) "place-1st" else if (i == 2) "place-2nd" else if (i == 3) "place-3rd" else ""
-
-    # Player match badge
-    match_badge <- if (!is.null(rv$admin_player_matches[[as.character(i)]])) {
-      m <- rv$admin_player_matches[[as.character(i)]]
-      if (m$status == "matched") {
-        member_text <- if (!is.na(m$member_number) && nchar(m$member_number) > 0) {
-          paste0("#", m$member_number)
-        } else {
-          "(no member #)"
-        }
-        div(class = "player-match-indicator matched",
-            bsicons::bs_icon("check-circle-fill"),
-            span(class = "match-label", paste0("Matched ", member_text)))
-      } else if (m$status == "new") {
-        div(class = "player-match-indicator new",
-            bsicons::bs_icon("person-plus-fill"),
-            span(class = "match-label", "New player"))
-      } else NULL
-    } else NULL
-
-    # Delete button
-    delete_btn <- div(
-      class = "upload-result-delete",
-      htmltools::tags$button(
-        onclick = sprintf("Shiny.setInputValue('admin_delete_row', %d, {priority: 'event'})", i),
-        class = "btn btn-sm btn-outline-danger p-0 result-action-btn",
-        title = "Remove row",
-        shiny::icon("xmark")
-      )
-    )
-
-    # Placement column
-    placement_col <- div(
-      class = "upload-result-placement",
-      span(class = paste("placement-badge", place_class), admin_ordinal(row$placement)),
-      match_badge
-    )
-
-    # Player name input
-    player_col <- div(
-      textInput(paste0("admin_player_", i), NULL, value = row$player_name)
-    )
-
-    # Build row based on format and release event
-    if (is_release) {
-      if (record_format == "points") {
-        pts_col <- div(numericInput(paste0("admin_pts_", i), NULL, value = row$points, min = 0, max = 99))
-        layout_columns(col_widths = col_widths, class = "upload-result-row",
-                       delete_btn, placement_col, player_col, pts_col)
-      } else {
-        w_col <- div(numericInput(paste0("admin_w_", i), NULL, value = row$wins, min = 0))
-        l_col <- div(numericInput(paste0("admin_l_", i), NULL, value = row$losses, min = 0))
-        t_col <- div(numericInput(paste0("admin_t_", i), NULL, value = row$ties, min = 0))
-        layout_columns(col_widths = col_widths, class = "upload-result-row",
-                       delete_btn, placement_col, player_col, w_col, l_col, t_col)
-      }
-    } else {
-      current_deck <- if (!is.na(row$deck_id)) as.character(row$deck_id) else ""
-      deck_col <- div(
-        selectInput(paste0("admin_deck_", i), NULL,
-                    choices = deck_choices, selected = current_deck,
-                    selectize = FALSE)
-      )
-
-      if (record_format == "points") {
-        pts_col <- div(numericInput(paste0("admin_pts_", i), NULL, value = row$points, min = 0, max = 99))
-        layout_columns(col_widths = col_widths, class = "upload-result-row",
-                       delete_btn, placement_col, player_col, pts_col, deck_col)
-      } else {
-        w_col <- div(numericInput(paste0("admin_w_", i), NULL, value = row$wins, min = 0))
-        l_col <- div(numericInput(paste0("admin_l_", i), NULL, value = row$losses, min = 0))
-        t_col <- div(numericInput(paste0("admin_t_", i), NULL, value = row$ties, min = 0))
-        layout_columns(col_widths = col_widths, class = "upload-result-row",
-                       delete_btn, placement_col, player_col, w_col, l_col, t_col, deck_col)
-      }
-    }
-  })
-
-  tagList(release_notice, header, rows)
+  deck_choices <- build_deck_choices(rv$db_con)
+  render_grid_ui(grid, record_format, is_release, deck_choices, rv$admin_player_matches, "admin_")
 })
 
 # =============================================================================
 # Admin Grid: Input Sync & Row Management
 # =============================================================================
 
-# Sync current grid input values back to reactive data frame
-sync_admin_grid_inputs <- function() {
-  grid <- rv$admin_grid_data
-  if (is.null(grid) || nrow(grid) == 0) return()
-  record_format <- rv$admin_record_format %||% "points"
-
-  for (i in seq_len(nrow(grid))) {
-    player_val <- input[[paste0("admin_player_", i)]]
-    if (!is.null(player_val)) grid$player_name[i] <- player_val
-
-    if (record_format == "points") {
-      pts_val <- input[[paste0("admin_pts_", i)]]
-      if (!is.null(pts_val) && !is.na(pts_val)) grid$points[i] <- as.integer(pts_val)
-    } else {
-      w_val <- input[[paste0("admin_w_", i)]]
-      if (!is.null(w_val) && !is.na(w_val)) grid$wins[i] <- as.integer(w_val)
-      l_val <- input[[paste0("admin_l_", i)]]
-      if (!is.null(l_val) && !is.na(l_val)) grid$losses[i] <- as.integer(l_val)
-      t_val <- input[[paste0("admin_t_", i)]]
-      if (!is.null(t_val) && !is.na(t_val)) grid$ties[i] <- as.integer(t_val)
-    }
-
-    deck_val <- input[[paste0("admin_deck_", i)]]
-    if (!is.null(deck_val) && nchar(deck_val) > 0 && deck_val != "__REQUEST_NEW__" && !grepl("^pending_", deck_val)) {
-      grid$deck_id[i] <- as.integer(deck_val)
-    }
-  }
-  rv$admin_grid_data <- grid
-}
-
 observeEvent(input$admin_delete_row, {
   req(rv$admin_grid_data)
   row_idx <- as.integer(input$admin_delete_row)
   if (is.null(row_idx) || row_idx < 1 || row_idx > nrow(rv$admin_grid_data)) return()
 
-  sync_admin_grid_inputs()
+  rv$admin_grid_data <- sync_grid_inputs(input, rv$admin_grid_data, rv$admin_record_format %||% "points", "admin_")
   grid <- rv$admin_grid_data
 
   # Remove the row
@@ -601,11 +453,13 @@ observeEvent(input$admin_delete_row, {
   blank_row <- data.frame(
     placement = nrow(grid) + 1,
     player_name = "",
+    member_number = "",
     points = 0L, wins = 0L, losses = 0L, ties = 0L,
     deck_id = NA_integer_,
     match_status = "",
     matched_player_id = NA_integer_,
     matched_member_number = NA_character_,
+    result_id = NA_integer_,
     stringsAsFactors = FALSE
   )
   grid <- rbind(grid, blank_row)
@@ -623,7 +477,7 @@ observeEvent(input$admin_delete_row, {
   }
   rv$admin_player_matches <- new_matches
   rv$admin_grid_data <- grid
-  showNotification(paste0("Row removed. Players renumbered 1-", nrow(grid), "."), type = "message", duration = 3)
+  notify(paste0("Row removed. Players renumbered 1-", nrow(grid), "."), type = "message", duration = 3)
 })
 
 # =============================================================================
@@ -655,7 +509,7 @@ observeEvent(input$admin_player_blur, {
   if (row_num < 1 || row_num > nrow(rv$admin_grid_data)) return()
 
   # Sync all inputs before modifying reactive (re-render preserves all typed values)
-  sync_admin_grid_inputs()
+  rv$admin_grid_data <- sync_grid_inputs(input, rv$admin_grid_data, rv$admin_record_format %||% "points", "admin_")
 
   if (nchar(name) == 0) {
     rv$admin_player_matches[[as.character(row_num)]] <- NULL
@@ -665,25 +519,13 @@ observeEvent(input$admin_player_blur, {
     return()
   }
 
-  # Exact match (case-insensitive)
-  player <- dbGetQuery(rv$db_con, "
-    SELECT player_id, display_name, member_number
-    FROM players WHERE LOWER(display_name) = LOWER(?)
-    LIMIT 1
-  ", params = list(name))
-
-  if (nrow(player) > 0) {
-    rv$admin_player_matches[[as.character(row_num)]] <- list(
-      status = "matched",
-      player_id = player$player_id,
-      member_number = player$member_number
-    )
-    rv$admin_grid_data$match_status[row_num] <- "matched"
-    rv$admin_grid_data$matched_player_id[row_num] <- player$player_id
-    rv$admin_grid_data$matched_member_number[row_num] <- player$member_number
+  match_info <- match_player(name, rv$db_con)
+  rv$admin_player_matches[[as.character(row_num)]] <- match_info
+  rv$admin_grid_data$match_status[row_num] <- match_info$status
+  if (match_info$status == "matched") {
+    rv$admin_grid_data$matched_player_id[row_num] <- match_info$player_id
+    rv$admin_grid_data$matched_member_number[row_num] <- match_info$member_number
   } else {
-    rv$admin_player_matches[[as.character(row_num)]] <- list(status = "new")
-    rv$admin_grid_data$match_status[row_num] <- "new"
     rv$admin_grid_data$matched_player_id[row_num] <- NA_integer_
     rv$admin_grid_data$matched_member_number[row_num] <- NA_character_
   }
@@ -694,7 +536,36 @@ observeEvent(input$admin_player_blur, {
 # =============================================================================
 
 observeEvent(input$admin_paste_btn, {
-  shinyjs::runjs("$('#paste_spreadsheet_modal').modal('show');")
+  showModal(modalDialog(
+    title = tagList(bsicons::bs_icon("clipboard"), " Paste from Spreadsheet"),
+    tagList(
+      p(class = "text-muted", "Paste data with one player per line. Columns separated by tabs (from a spreadsheet) or 2+ spaces."),
+      p(class = "text-muted small mb-2", "Supported formats:"),
+      tags$div(
+        class = "bg-body-secondary rounded p-2 mb-3",
+        style = "font-family: monospace; font-size: 0.8rem; white-space: pre-line;",
+        tags$div(class = "fw-bold mb-1", "Names only:"),
+        tags$div(class = "text-muted mb-2", "PlayerOne\nPlayerTwo\nPlayerThree"),
+        tags$div(class = "fw-bold mb-1", "Names + Points:"),
+        tags$div(class = "text-muted mb-2", "PlayerOne\t9\nPlayerTwo\t7\nPlayerThree\t6"),
+        tags$div(class = "fw-bold mb-1", "Names + Points + Deck:"),
+        tags$div(class = "text-muted mb-2", "PlayerOne\t9\tBlue Flare\nPlayerTwo\t7\tRed Hybrid\nPlayerThree\t6\tUNKNOWN"),
+        tags$div(class = "fw-bold mb-1", "Names + W/L/T:"),
+        tags$div(class = "text-muted mb-2", "PlayerOne\t3\t0\t0\nPlayerTwo\t2\t1\t1\nPlayerThree\t2\t2\t0"),
+        tags$div(class = "fw-bold mb-1", "Names + W/L/T + Deck:"),
+        tags$div(class = "text-muted", "PlayerOne\t3\t0\t0\tBlue Flare\nPlayerTwo\t2\t1\t1\tRed Hybrid")
+      ),
+      p(class = "text-muted small", "Deck names must match existing archetypes exactly (case-insensitive). Unrecognized decks default to Unknown."),
+      tags$textarea(id = "paste_data", class = "form-control", rows = "10",
+                    placeholder = "Paste data here...")
+    ),
+    footer = tagList(
+      actionButton("paste_apply", "Fill Grid", class = "btn-primary", icon = icon("table")),
+      modalButton("Cancel")
+    ),
+    size = "l",
+    easyClose = TRUE
+  ))
 })
 
 observeEvent(input$paste_apply, {
@@ -702,79 +573,23 @@ observeEvent(input$paste_apply, {
 
   paste_text <- input$paste_data
   if (is.null(paste_text) || nchar(trimws(paste_text)) == 0) {
-    showNotification("No data to paste", type = "warning")
+    notify("No data to paste", type = "warning")
     return()
   }
 
-  lines <- strsplit(paste_text, "\n")[[1]]
-  lines <- lines[nchar(trimws(lines)) > 0]
-
-  if (length(lines) == 0) {
-    showNotification("No valid lines found", type = "warning")
-    return()
-  }
-
-  sync_admin_grid_inputs()
+  rv$admin_grid_data <- sync_grid_inputs(input, rv$admin_grid_data, rv$admin_record_format %||% "points", "admin_")
   grid <- rv$admin_grid_data
 
-  # Look up all deck archetypes for name matching
+  # Parse pasted data using shared helper
   all_decks <- dbGetQuery(rv$db_con, "
-    SELECT archetype_id, archetype_name FROM deck_archetypes
-    WHERE is_active = TRUE
+    SELECT archetype_id, archetype_name FROM deck_archetypes WHERE is_active = TRUE
   ")
+  parsed <- parse_paste_data(paste_text, all_decks)
 
-  # Parse each line
-  parsed <- lapply(lines, function(line) {
-    parts <- strsplit(line, "\t")[[1]]
-    if (length(parts) == 1) {
-      parts <- strsplit(trimws(line), "\\s{2,}")[[1]]
-    }
-    parts <- trimws(parts)
-
-    name <- parts[1]
-    pts <- 0L; w <- 0L; l <- 0L; t_val <- 0L; deck_name <- ""
-
-    if (length(parts) == 2) {
-      # Name + Points
-      pts <- suppressWarnings(as.integer(parts[2]))
-      if (is.na(pts)) pts <- 0L
-    } else if (length(parts) == 3) {
-      # Name + Points + Deck
-      pts <- suppressWarnings(as.integer(parts[2]))
-      if (is.na(pts)) pts <- 0L
-      deck_name <- parts[3]
-    } else if (length(parts) == 4) {
-      # Name + W + L + T
-      w <- suppressWarnings(as.integer(parts[2]))
-      l <- suppressWarnings(as.integer(parts[3]))
-      t_val <- suppressWarnings(as.integer(parts[4]))
-      if (is.na(w)) w <- 0L
-      if (is.na(l)) l <- 0L
-      if (is.na(t_val)) t_val <- 0L
-      pts <- w * 3L + t_val
-    } else if (length(parts) >= 5) {
-      # Name + W + L + T + Deck
-      w <- suppressWarnings(as.integer(parts[2]))
-      l <- suppressWarnings(as.integer(parts[3]))
-      t_val <- suppressWarnings(as.integer(parts[4]))
-      if (is.na(w)) w <- 0L
-      if (is.na(l)) l <- 0L
-      if (is.na(t_val)) t_val <- 0L
-      pts <- w * 3L + t_val
-      deck_name <- parts[5]
-    }
-
-    # Match deck name to archetype
-    deck_id <- NA_integer_
-    if (nchar(deck_name) > 0) {
-      match_idx <- which(tolower(all_decks$archetype_name) == tolower(deck_name))
-      if (length(match_idx) > 0) {
-        deck_id <- all_decks$archetype_id[match_idx[1]]
-      }
-    }
-
-    list(name = name, points = pts, wins = w, losses = l, ties = t_val, deck_id = deck_id)
-  })
+  if (length(parsed) == 0) {
+    notify("No valid lines found", type = "warning")
+    return()
+  }
 
   fill_count <- 0L
   for (idx in seq_along(parsed)) {
@@ -790,32 +605,21 @@ observeEvent(input$paste_apply, {
   }
 
   # Close modal and clear textarea
-  shinyjs::runjs("$('#paste_spreadsheet_modal').modal('hide');")
-  shinyjs::runjs("$('#paste_data').val('');")
-  showNotification(sprintf("Filled %d rows from pasted data", fill_count), type = "message")
+  removeModal()
+  notify(sprintf("Filled %d rows from pasted data", fill_count), type = "message")
 
   # Trigger player match lookup for all filled rows
   for (idx in seq_len(fill_count)) {
     name <- trimws(grid$player_name[idx])
     if (nchar(name) == 0) next
 
-    player <- dbGetQuery(rv$db_con, "
-      SELECT player_id, display_name, member_number
-      FROM players WHERE LOWER(display_name) = LOWER(?)
-      LIMIT 1
-    ", params = list(name))
-
-    if (nrow(player) > 0) {
-      rv$admin_player_matches[[as.character(idx)]] <- list(
-        status = "matched", player_id = player$player_id,
-        member_number = player$member_number
-      )
-      grid$match_status[idx] <- "matched"
-      grid$matched_player_id[idx] <- player$player_id
-      grid$matched_member_number[idx] <- player$member_number
+    match_info <- match_player(name, rv$db_con)
+    rv$admin_player_matches[[as.character(idx)]] <- match_info
+    grid$match_status[idx] <- match_info$status
+    if (match_info$status == "matched") {
+      grid$matched_player_id[idx] <- match_info$player_id
+      grid$matched_member_number[idx] <- match_info$member_number
     } else {
-      rv$admin_player_matches[[as.character(idx)]] <- list(status = "new")
-      grid$match_status[idx] <- "new"
       grid$matched_player_id[idx] <- NA_integer_
       grid$matched_member_number[idx] <- NA_character_
     }
@@ -863,7 +667,7 @@ observeEvent(input$admin_deck_request_submit, {
 
   deck_name <- trimws(input$admin_deck_request_name)
   if (nchar(deck_name) == 0) {
-    showNotification("Please enter a deck name", type = "error")
+    notify("Please enter a deck name", type = "error")
     return()
   }
 
@@ -883,24 +687,22 @@ observeEvent(input$admin_deck_request_submit, {
   ", params = list(deck_name))
 
   if (nrow(existing) > 0) {
-    showNotification(sprintf("A pending request for '%s' already exists", deck_name), type = "warning")
+    notify(sprintf("A pending request for '%s' already exists", deck_name), type = "warning")
   } else {
-    max_id <- dbGetQuery(rv$db_con, "SELECT COALESCE(MAX(request_id), 0) as max_id FROM deck_requests")$max_id
-    new_id <- max_id + 1
+    new_id <- next_id(rv$db_con, "deck_requests", "request_id")
 
     dbExecute(rv$db_con, "
       INSERT INTO deck_requests (request_id, deck_name, primary_color, secondary_color, display_card_id, status)
       VALUES (?, ?, ?, ?, ?, 'pending')
     ", params = list(new_id, deck_name, primary_color, secondary_color, card_id))
 
-    showNotification(sprintf("Deck request submitted: %s", deck_name), type = "message")
+    notify(sprintf("Deck request submitted: %s", deck_name), type = "message")
   }
 
   removeModal()
 
   # Force grid re-render to update deck dropdowns
-  sync_admin_grid_inputs()
-  rv$admin_grid_data <- rv$admin_grid_data
+  rv$admin_grid_data <- sync_grid_inputs(input, rv$admin_grid_data, rv$admin_record_format %||% "points", "admin_")
 })
 
 # =============================================================================
@@ -910,7 +712,7 @@ observeEvent(input$admin_deck_request_submit, {
 observeEvent(input$admin_submit_results, {
   req(rv$is_admin, rv$db_con, rv$active_tournament_id)
 
-  sync_admin_grid_inputs()
+  rv$admin_grid_data <- sync_grid_inputs(input, rv$admin_grid_data, rv$admin_record_format %||% "points", "admin_")
   grid <- rv$admin_grid_data
   record_format <- rv$admin_record_format %||% "points"
 
@@ -920,7 +722,7 @@ observeEvent(input$admin_submit_results, {
   ", params = list(rv$active_tournament_id))
 
   if (nrow(tournament) == 0) {
-    showNotification("Tournament not found", type = "error")
+    notify("Tournament not found", type = "error")
     return()
   }
 
@@ -931,7 +733,7 @@ observeEvent(input$admin_submit_results, {
   filled_rows <- grid[nchar(trimws(grid$player_name)) > 0, ]
 
   if (nrow(filled_rows) == 0) {
-    showNotification("No results to submit. Enter at least one player name.", type = "warning")
+    notify("No results to submit. Enter at least one player name.", type = "warning")
     return()
   }
 
@@ -940,13 +742,13 @@ observeEvent(input$admin_submit_results, {
   unknown_id <- if (nrow(unknown_row) > 0) unknown_row$archetype_id[1] else NA_integer_
 
   if (is_release && is.na(unknown_id)) {
-    showNotification("UNKNOWN archetype not found in database", type = "error")
+    notify("UNKNOWN archetype not found in database", type = "error")
     return()
   }
 
   tryCatch({
     result_count <- 0L
-    max_result_id <- dbGetQuery(rv$db_con, "SELECT COALESCE(MAX(result_id), 0) as max_id FROM results")$max_id
+    max_result_id <- next_id(rv$db_con, "results", "result_id") - 1
 
     for (idx in seq_len(nrow(filled_rows))) {
       row <- filled_rows[idx, ]
@@ -960,8 +762,7 @@ observeEvent(input$admin_submit_results, {
       if (nrow(player) > 0) {
         player_id <- player$player_id
       } else {
-        max_pid <- dbGetQuery(rv$db_con, "SELECT COALESCE(MAX(player_id), 0) as max_id FROM players")$max_id
-        player_id <- max_pid + 1
+        player_id <- next_id(rv$db_con, "players", "player_id")
         dbExecute(rv$db_con, "INSERT INTO players (player_id, display_name) VALUES (?, ?)",
                   params = list(player_id, name))
       }
@@ -1011,7 +812,7 @@ observeEvent(input$admin_submit_results, {
     recalculate_ratings_cache(rv$db_con)
     rv$data_refresh <- (rv$data_refresh %||% 0) + 1
 
-    showNotification(sprintf("Tournament submitted! %d results recorded.", result_count),
+    notify(sprintf("Tournament submitted! %d results recorded.", result_count),
                      type = "message", duration = 5)
 
     # Reset to Step 1
@@ -1021,7 +822,16 @@ observeEvent(input$admin_submit_results, {
     rv$admin_grid_data <- NULL
     rv$admin_player_matches <- list()
 
+    # Clear Step 1 form fields
+    updateSelectInput(session, "tournament_store", selected = "")
+    updateDateInput(session, "tournament_date", value = NA)
+    updateSelectInput(session, "tournament_type", selected = "")
+    updateSelectInput(session, "tournament_format", selected = "")
+    updateNumericInput(session, "tournament_players", value = 8)
+    updateNumericInput(session, "tournament_rounds", value = 3)
+    updateRadioButtons(session, "admin_record_format", selected = "points")
+
   }, error = function(e) {
-    showNotification(paste("Error submitting results:", e$message), type = "error")
+    notify(paste("Error submitting results:", e$message), type = "error")
   })
 })

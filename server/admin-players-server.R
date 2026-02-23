@@ -2,6 +2,9 @@
 # Admin: Edit Players Server Logic
 # =============================================================================
 
+# Debounce admin search input (300ms)
+player_search_debounced <- reactive(input$player_search) |> debounce(300)
+
 # Player list
 output$player_list <- renderReactable({
   if (is.null(rv$db_con) || !dbIsValid(rv$db_con)) return(NULL)
@@ -12,12 +15,13 @@ output$player_list <- renderReactable({
   input$confirm_merge_players
   input$admin_players_show_all_scenes
 
-  search_term <- input$player_search %||% ""
+  search_term <- player_search_debounced() %||% ""
   scene <- rv$current_scene
   show_all <- isTRUE(input$admin_players_show_all_scenes) && isTRUE(rv$is_superadmin)
 
   # Build scene filter for players (players who have competed in scene)
   scene_filter <- ""
+  query_params <- list()
   if (!show_all && !is.null(scene) && scene != "" && scene != "all") {
     if (scene == "online") {
       scene_filter <- "
@@ -29,22 +33,24 @@ output$player_list <- renderReactable({
         )
       "
     } else {
-      scene_filter <- sprintf("
+      scene_filter <- "
         AND EXISTS (
           SELECT 1 FROM results r2
           JOIN tournaments t2 ON r2.tournament_id = t2.tournament_id
           JOIN stores s2 ON t2.store_id = s2.store_id
           WHERE r2.player_id = p.player_id
-            AND s2.scene_id = (SELECT scene_id FROM scenes WHERE slug = '%s')
+            AND s2.scene_id = (SELECT scene_id FROM scenes WHERE slug = ?)
         )
-      ", scene)
+      "
+      query_params <- c(query_params, list(scene))
     }
   }
 
   # Build search filter
   search_filter <- ""
   if (nchar(search_term) > 0) {
-    search_filter <- sprintf(" AND LOWER(p.display_name) LIKE LOWER('%%%s%%')", search_term)
+    search_filter <- " AND LOWER(p.display_name) LIKE LOWER(?)"
+    query_params <- c(query_params, list(paste0("%", search_term, "%")))
   }
 
   query <- sprintf("
@@ -61,15 +67,22 @@ output$player_list <- renderReactable({
     ORDER BY p.display_name
   ", scene_filter, search_filter)
 
-  data <- dbGetQuery(rv$db_con, query)
+  data <- dbGetQuery(rv$db_con, query, params = query_params)
 
   if (nrow(data) == 0) {
-    return(reactable(data.frame(Message = "No players found"), compact = TRUE))
+    return(admin_empty_state("No players found", "// add players via tournament entry", "people"))
   }
 
   reactable(data, compact = TRUE, striped = TRUE,
-    selection = "single",
-    onClick = "select",
+    highlight = TRUE,
+    onClick = JS("function(rowInfo, column) {
+      if (rowInfo) {
+        Shiny.setInputValue('player_list_clicked', {
+          player_id: rowInfo.row['player_id'],
+          nonce: Math.random()
+        }, {priority: 'event'});
+      }
+    }"),
     rowStyle = list(cursor = "pointer"),
     defaultPageSize = 20,
     showPageSizeOptions = TRUE,
@@ -85,65 +98,20 @@ output$player_list <- renderReactable({
 })
 
 # Handle player selection for editing
-observeEvent(input$player_list__reactable__selected, {
+observeEvent(input$player_list_clicked, {
   req(rv$db_con)
-  selected_idx <- input$player_list__reactable__selected
+  player_id <- input$player_list_clicked$player_id
 
-  if (is.null(selected_idx) || length(selected_idx) == 0) {
-    return()
-  }
+  if (is.null(player_id)) return()
 
-  # Get player data with search filter and scene filter applied (same as table)
-  search_term <- input$player_search %||% ""
-  scene <- rv$current_scene
-  show_all <- isTRUE(input$admin_players_show_all_scenes) && isTRUE(rv$is_superadmin)
+  # Look up player directly by ID
+  player <- dbGetQuery(rv$db_con, "
+    SELECT player_id, display_name FROM players WHERE player_id = ?
+  ", params = list(as.integer(player_id)))
 
-  # Build scene filter for players (players who have competed in scene)
-  scene_filter <- ""
-  if (!show_all && !is.null(scene) && scene != "" && scene != "all") {
-    if (scene == "online") {
-      scene_filter <- "
-        AND EXISTS (
-          SELECT 1 FROM results r2
-          JOIN tournaments t2 ON r2.tournament_id = t2.tournament_id
-          JOIN stores s2 ON t2.store_id = s2.store_id
-          WHERE r2.player_id = p.player_id AND s2.is_online = TRUE
-        )
-      "
-    } else {
-      scene_filter <- sprintf("
-        AND EXISTS (
-          SELECT 1 FROM results r2
-          JOIN tournaments t2 ON r2.tournament_id = t2.tournament_id
-          JOIN stores s2 ON t2.store_id = s2.store_id
-          WHERE r2.player_id = p.player_id
-            AND s2.scene_id = (SELECT scene_id FROM scenes WHERE slug = '%s')
-        )
-      ", scene)
-    }
-  }
-
-  # Build search filter
-  search_filter <- ""
-  if (nchar(search_term) > 0) {
-    search_filter <- sprintf(" AND LOWER(p.display_name) LIKE LOWER('%%%s%%')", search_term)
-  }
-
-  query <- sprintf("
-    SELECT p.player_id, p.display_name
-    FROM players p
-    WHERE 1=1 %s %s
-    ORDER BY p.display_name
-  ", scene_filter, search_filter)
-
-  data <- dbGetQuery(rv$db_con, query)
-
-  if (selected_idx > nrow(data)) return()
-
-  player <- data[selected_idx, ]
+  if (nrow(player) == 0) return()
 
   # Populate form for editing
-
   updateTextInput(session, "editing_player_id", value = as.character(player$player_id))
   updateTextInput(session, "player_display_name", value = player$display_name)
 
@@ -151,7 +119,7 @@ observeEvent(input$player_list__reactable__selected, {
   shinyjs::show("update_player")
   shinyjs::show("delete_player")
 
-  showNotification(sprintf("Editing: %s", player$display_name), type = "message", duration = 2)
+  notify(sprintf("Editing: %s", player$display_name), type = "message", duration = 2)
 })
 
 # Player stats info
@@ -213,16 +181,20 @@ observeEvent(input$cancel_edit_player, {
 observeEvent(input$update_player, {
   req(rv$is_admin, rv$db_con, input$editing_player_id)
 
+  clear_all_field_errors(session)
+
   player_id <- as.integer(input$editing_player_id)
   new_name <- trimws(input$player_display_name)
 
   if (nchar(new_name) == 0) {
-    showNotification("Please enter a player name", type = "error")
+    show_field_error(session, "player_display_name")
+    notify("Please enter a player name", type = "error")
     return()
   }
 
   if (nchar(new_name) < 2) {
-    showNotification("Player name must be at least 2 characters", type = "error")
+    show_field_error(session, "player_display_name")
+    notify("Player name must be at least 2 characters", type = "error")
     return()
   }
 
@@ -233,7 +205,7 @@ observeEvent(input$update_player, {
   ", params = list(new_name, player_id))
 
   if (nrow(existing) > 0) {
-    showNotification(sprintf("A player named '%s' already exists", new_name), type = "error")
+    notify(sprintf("A player named '%s' already exists", new_name), type = "error")
     return()
   }
 
@@ -244,7 +216,7 @@ observeEvent(input$update_player, {
       WHERE player_id = ?
     ", params = list(new_name, player_id))
 
-    showNotification(sprintf("Updated player: %s", new_name), type = "message")
+    notify(sprintf("Updated player: %s", new_name), type = "message")
 
     # Clear form and reset
     updateTextInput(session, "editing_player_id", value = "")
@@ -257,7 +229,7 @@ observeEvent(input$update_player, {
     rv$data_refresh <- (rv$data_refresh %||% 0) + 1
 
   }, error = function(e) {
-    showNotification(paste("Error:", e$message), type = "error")
+    notify(paste("Error:", e$message), type = "error")
   })
 })
 
@@ -283,15 +255,20 @@ observeEvent(input$delete_player, {
                        params = list(player_id))
 
   if (rv$can_delete_player) {
-    output$delete_player_message <- renderUI({
+    showModal(modalDialog(
+      title = "Confirm Delete",
       div(
         p(sprintf("Are you sure you want to delete '%s'?", player$display_name)),
         p(class = "text-danger", "This action cannot be undone.")
-      )
-    })
-    shinyjs::runjs("$('#delete_player_modal').modal('show');")
+      ),
+      footer = tagList(
+        actionButton("confirm_delete_player", "Delete", class = "btn-danger"),
+        modalButton("Cancel")
+      ),
+      easyClose = TRUE
+    ))
   } else {
-    showNotification(
+    notify(
       sprintf("Cannot delete: player has %d result(s). Use 'Merge Players' to combine with another player.",
               rv$player_result_count),
       type = "error",
@@ -311,17 +288,17 @@ observeEvent(input$confirm_delete_player, {
   ", params = list(player_id))$cnt
 
   if (count > 0) {
-    shinyjs::runjs("$('#delete_player_modal').modal('hide');")
-    showNotification(sprintf("Cannot delete: player has %d result(s)", count), type = "error")
+    removeModal()
+    notify(sprintf("Cannot delete: player has %d result(s)", count), type = "error")
     return()
   }
 
   tryCatch({
     dbExecute(rv$db_con, "DELETE FROM players WHERE player_id = ?",
               params = list(player_id))
-    showNotification("Player deleted", type = "message")
+    notify("Player deleted", type = "message")
 
-    shinyjs::runjs("$('#delete_player_modal').modal('hide');")
+    removeModal()
 
     # Clear form
     updateTextInput(session, "editing_player_id", value = "")
@@ -334,7 +311,7 @@ observeEvent(input$confirm_delete_player, {
     rv$data_refresh <- (rv$data_refresh %||% 0) + 1
 
   }, error = function(e) {
-    showNotification(paste("Error:", e$message), type = "error")
+    notify(paste("Error:", e$message), type = "error")
   })
 })
 
@@ -344,7 +321,25 @@ observeEvent(input$confirm_delete_player, {
 
 # Show merge modal
 observeEvent(input$show_merge_modal, {
-  shinyjs::runjs("$('#merge_player_modal').modal('show');")
+  showModal(modalDialog(
+    title = tagList(bsicons::bs_icon("arrow-left-right"), " Merge Players"),
+    p("Merge two player records (e.g., fix a typo by combining duplicate entries)."),
+    p(class = "text-muted small", "All results from the source player will be moved to the target player, then the source player will be deleted."),
+    hr(),
+    selectizeInput("merge_source_player", "Source Player (will be deleted)",
+                   choices = NULL,
+                   options = list(placeholder = "Select player to merge FROM...")),
+    selectizeInput("merge_target_player", "Target Player (will keep)",
+                   choices = NULL,
+                   options = list(placeholder = "Select player to merge INTO...")),
+    uiOutput("merge_preview"),
+    footer = tagList(
+      actionButton("confirm_merge_players", "Merge Players", class = "btn-warning"),
+      modalButton("Cancel")
+    ),
+    size = "m",
+    easyClose = TRUE
+  ))
 })
 
 # Update merge dropdowns when they're shown
@@ -405,16 +400,20 @@ output$merge_preview <- renderUI({
 observeEvent(input$confirm_merge_players, {
   req(rv$is_admin, rv$db_con)
 
+  clear_all_field_errors(session)
+
   source_id <- as.integer(input$merge_source_player)
   target_id <- as.integer(input$merge_target_player)
 
   if (is.na(source_id) || is.na(target_id)) {
-    showNotification("Please select both source and target players", type = "error")
+    show_field_error(session, "merge_source_player")
+    show_field_error(session, "merge_target_player")
+    notify("Please select both source and target players", type = "error")
     return()
   }
 
   if (source_id == target_id) {
-    showNotification("Source and target players cannot be the same", type = "error")
+    notify("Source and target players cannot be the same", type = "error")
     return()
   }
 
@@ -435,7 +434,7 @@ observeEvent(input$confirm_merge_players, {
           SELECT r2.tournament_id FROM results r2 WHERE r2.player_id = ?
         )
       ", params = list(source_id, target_id))
-      showNotification(
+      notify(
         sprintf("Note: %d conflicting result(s) removed from source player", nrow(conflicts)),
         type = "warning", duration = 5
       )
@@ -469,9 +468,9 @@ observeEvent(input$confirm_merge_players, {
     dbExecute(rv$db_con, "DELETE FROM players WHERE player_id = ?",
               params = list(source_id))
 
-    showNotification("Players merged successfully", type = "message")
+    notify("Players merged successfully", type = "message")
 
-    shinyjs::runjs("$('#merge_player_modal').modal('hide');")
+    removeModal()
 
     # Reset dropdowns
     updateSelectizeInput(session, "merge_source_player", selected = "")
@@ -481,7 +480,7 @@ observeEvent(input$confirm_merge_players, {
     rv$data_refresh <- (rv$data_refresh %||% 0) + 1
 
   }, error = function(e) {
-    showNotification(paste("Error:", e$message), type = "error")
+    notify(paste("Error:", e$message), type = "error")
   })
 })
 

@@ -77,12 +77,7 @@ submit_ui <- tagList(
                 layout_columns(
                   col_widths = c(4, 4, 2, 2),
                   selectInput("submit_event_type", "Event Type",
-                              choices = c("Select..." = "",
-                                          "Locals" = "locals",
-                                          "Evo Cup" = "evo_cup",
-                                          "Store Championship" = "store_championship",
-                                          "Regional" = "regional",
-                                          "Online" = "online"),
+                              choices = c("Select..." = "", EVENT_TYPES),
                               selectize = FALSE),
                   selectInput("submit_format", "Format",
                               choices = c("Loading..." = ""),
@@ -156,13 +151,30 @@ submit_ui <- tagList(
               )
             ),
 
+            # Player matching explanation
+            div(
+              class = "text-muted small mb-3",
+              bsicons::bs_icon("people", class = "me-1"),
+              "Players are matched by member number first, then by username. ",
+              tags$strong("Matched"), " = existing player in database. ",
+              tags$strong("New"), " = will be created on submit."
+            ),
+
             # Match summary badges - prominent
             uiOutput("submit_match_summary"),
 
             # Results card
             card(
               class = "mt-3",
-              card_header("Player Results"),
+              card_header(
+                class = "d-flex justify-content-between align-items-center",
+                div(
+                  class = "d-flex align-items-center gap-2",
+                  span("Player Results"),
+                  span(class = "badge bg-info", "Points mode")
+                ),
+                uiOutput("submit_filled_count", inline = TRUE)
+              ),
               card_body(
                 uiOutput("submit_results_table")
               )

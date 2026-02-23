@@ -9,6 +9,12 @@ admin_players_ui <- tagList(
                  class = "btn-outline-warning",
                  icon = icon("code-merge"))
   ),
+  div(class = "page-help-text",
+    div(class = "info-hint-box",
+      bsicons::bs_icon("info-circle", class = "info-hint-icon"),
+      "Select a player to edit their display name. Players are created automatically when tournament results are submitted."
+    )
+  ),
   # Scene filter indicator and override toggle for superadmins
   conditionalPanel(
     condition = "output.is_superadmin == true",
@@ -21,7 +27,7 @@ admin_players_ui <- tagList(
   div(
     class = "admin-panel",
     layout_columns(
-      col_widths = c(5, 7),
+      col_widths = breakpoints(sm = c(12, 12), md = c(5, 7)),
       card(
         card_header(
           class = "d-flex justify-content-between align-items-center",
@@ -72,69 +78,6 @@ admin_players_ui <- tagList(
         ),
         card_body(
           reactableOutput("player_list")
-        )
-      )
-    )
-  ),
-
-  # Delete confirmation modal
-  tags$div(
-    id = "delete_player_modal",
-    class = "modal fade",
-    tabindex = "-1",
-    tags$div(
-      class = "modal-dialog",
-      tags$div(
-        class = "modal-content",
-        tags$div(
-          class = "modal-header",
-          tags$h5(class = "modal-title", "Confirm Delete"),
-          tags$button(type = "button", class = "btn-close", `data-bs-dismiss` = "modal")
-        ),
-        tags$div(
-          class = "modal-body",
-          uiOutput("delete_player_message")
-        ),
-        tags$div(
-          class = "modal-footer",
-          tags$button(type = "button", class = "btn btn-secondary", `data-bs-dismiss` = "modal", "Cancel"),
-          actionButton("confirm_delete_player", "Delete", class = "btn-danger")
-        )
-      )
-    )
-  ),
-
-  # Merge players modal
-  tags$div(
-    id = "merge_player_modal",
-    class = "modal fade",
-    tabindex = "-1",
-    tags$div(
-      class = "modal-dialog",
-      tags$div(
-        class = "modal-content",
-        tags$div(
-          class = "modal-header modal-header-digital",
-          tags$h5(class = "modal-title", bsicons::bs_icon("arrow-left-right"), " Merge Players"),
-          tags$button(type = "button", class = "btn-close", `data-bs-dismiss` = "modal")
-        ),
-        tags$div(
-          class = "modal-body",
-          p("Merge two player records (e.g., fix a typo by combining duplicate entries)."),
-          p(class = "text-muted small", "All results from the source player will be moved to the target player, then the source player will be deleted."),
-          hr(),
-          selectizeInput("merge_source_player", "Source Player (will be deleted)",
-                         choices = NULL,
-                         options = list(placeholder = "Select player to merge FROM...")),
-          selectizeInput("merge_target_player", "Target Player (will keep)",
-                         choices = NULL,
-                         options = list(placeholder = "Select player to merge INTO...")),
-          uiOutput("merge_preview")
-        ),
-        tags$div(
-          class = "modal-footer",
-          tags$button(type = "button", class = "btn btn-secondary", `data-bs-dismiss` = "modal", "Cancel"),
-          actionButton("confirm_merge_players", "Merge Players", class = "btn-warning")
         )
       )
     )

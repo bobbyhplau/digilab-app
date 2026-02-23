@@ -11,6 +11,13 @@ rv$submit_parsed_count <- 0
 rv$submit_total_players <- 0
 rv$deck_request_row <- NULL
 rv$submit_refresh_trigger <- NULL
+rv$ocr_pending_combined <- NULL
+rv$ocr_pending_total_players <- NULL
+rv$ocr_pending_total_rounds <- NULL
+rv$ocr_pending_parsed_count <- NULL
+rv$submit_grid_data <- NULL
+rv$submit_player_matches <- list()
+rv$submit_ocr_row_indices <- NULL
 
 # Populate store dropdown
 observe({
@@ -118,179 +125,54 @@ output$submit_screenshot_preview <- renderUI({
   )
 })
 
-# Process OCR when button clicked
-observeEvent(input$submit_process_ocr, {
-  req(rv$submit_uploaded_files)
-
-  files <- rv$submit_uploaded_files
-  total_rounds <- input$submit_rounds
-  total_players <- input$submit_players
-
-  # Validate required fields first
-  if (is.null(input$submit_store) || input$submit_store == "") {
-    showNotification("Please select a store", type = "error")
-    return()
-  }
-  if (is.na(input$submit_date)) {
-    showNotification("Please select a date", type = "error")
-    return()
-  }
-  if (is.null(input$submit_event_type) || input$submit_event_type == "") {
-    showNotification("Please select an event type", type = "error")
-    return()
-  }
-  if (is.null(input$submit_format) || input$submit_format == "") {
-    showNotification("Please select a format", type = "error")
-    return()
-  }
-  if (is.null(total_players) || total_players < 2) {
-    showNotification("Please enter the total number of players", type = "error")
-    return()
+# Helper: Complete OCR processing after validation
+# Handles rank validation, padding, player matching, and step 2 transition
+complete_ocr_processing <- function(combined, total_players, total_rounds, parsed_count) {
+  # Rank-based validation against declared player count
+  max_rank <- if (nrow(combined) > 0 && any(!is.na(combined$placement))) {
+    max(combined$placement, na.rm = TRUE)
+  } else {
+    0
   }
 
-  # Show processing modal with blue theme
-  showModal(modalDialog(
-    div(
-      class = "text-center py-4",
-      div(class = "processing-spinner mb-3"),
-      h5(class = "text-primary", "Processing Screenshots"),
-      p(class = "text-muted mb-0", id = "ocr_status_text", "Extracting player data..."),
-      tags$small(class = "text-muted", paste(nrow(files), "file(s) to process"))
-    ),
-    title = NULL,
-    footer = NULL,
-    easyClose = FALSE,
-    size = "s"
-  ))
-
-  all_results <- list()
-  ocr_errors <- c()
-  ocr_texts <- c()
-
-  for (i in seq_len(nrow(files))) {
-    file_path <- files$datapath[i]
-    file_name <- files$name[i]
-
-    message("[SUBMIT] Processing file ", i, ": ", file_name)
-    message("[SUBMIT] File path: ", file_path)
-    message("[SUBMIT] File exists: ", file.exists(file_path))
-
-    # Call OCR
-    ocr_text <- tryCatch({
-      gcv_detect_text(file_path, verbose = TRUE)
-    }, error = function(e) {
-      ocr_errors <<- c(ocr_errors, paste(file_name, ":", e$message))
-      message("[SUBMIT] OCR error for ", file_name, ": ", e$message)
-      NULL
-    })
-
-    if (!is.null(ocr_text) && ocr_text != "") {
-      ocr_texts <- c(ocr_texts, paste0("File ", i, ": ", nchar(ocr_text), " chars"))
-
-      # Parse results
-      parsed <- tryCatch({
-        parse_tournament_standings(ocr_text, total_rounds, verbose = TRUE)
-      }, error = function(e) {
-        ocr_errors <<- c(ocr_errors, paste("Parse error:", e$message))
-        message("[SUBMIT] Parse error: ", e$message)
-        data.frame()
-      })
-
-      if (nrow(parsed) > 0) {
-        all_results[[length(all_results) + 1]] <- parsed
-        message("[SUBMIT] Parsed ", nrow(parsed), " results from ", file_name)
-      } else {
-        message("[SUBMIT] No results parsed from ", file_name)
-      }
-    } else {
-      message("[SUBMIT] No OCR text returned for ", file_name)
-      if (is.null(ocr_text)) {
-        ocr_errors <- c(ocr_errors, paste(file_name, ": OCR returned NULL (check API key)"))
-      } else {
-        ocr_errors <- c(ocr_errors, paste(file_name, ": OCR returned empty text"))
-      }
-    }
+  if (max_rank > total_players) {
+    # Screenshots show more players than declared — auto-correct upward
+    message("[SUBMIT] Auto-correcting player count: ", total_players, " -> ", max_rank,
+            " (screenshots show rank ", max_rank, ")")
+    total_players <- max_rank
   }
-
-  removeModal()
-
-  if (length(all_results) == 0) {
-    error_detail <- if (length(ocr_errors) > 0) {
-      paste("\n\nDetails:", paste(ocr_errors, collapse = "\n"))
-    } else if (length(ocr_texts) > 0) {
-      paste("\n\nOCR extracted text but parsing failed. Check R console for debug output.")
-    } else {
-      "\n\nNo text was extracted. Check that GOOGLE_CLOUD_VISION_API_KEY is set in .env"
-    }
-    showNotification(
-      paste0("Could not extract player data from screenshots.", error_detail),
-      type = "error",
-      duration = 10
-    )
-    return()
-  }
-
-  # Combine results from all screenshots
-  combined <- do.call(rbind, all_results)
-
-  # Smart deduplication for overlapping screenshots
-  if (nrow(combined) > 1) {
-    original_count <- nrow(combined)
-
-    if (any(!is.na(combined$member_number) & combined$member_number != "")) {
-      has_member <- !is.na(combined$member_number) & combined$member_number != ""
-      with_member <- combined[has_member, ]
-      without_member <- combined[!has_member, ]
-
-      with_member <- with_member[!duplicated(with_member$member_number), ]
-
-      if (nrow(without_member) > 0) {
-        without_member$username_lower <- tolower(without_member$username)
-        without_member <- without_member[!duplicated(without_member$username_lower), ]
-        without_member$username_lower <- NULL
-      }
-
-      combined <- rbind(with_member, without_member)
-    } else {
-      combined$username_lower <- tolower(combined$username)
-      combined <- combined[!duplicated(combined$username_lower), ]
-      combined$username_lower <- NULL
-    }
-
-    deduped_count <- nrow(combined)
-    if (original_count != deduped_count) {
-      message("[SUBMIT] Deduplication: ", original_count, " -> ", deduped_count, " players")
-    }
-  }
-
-  # Sort by placement
-  combined <- combined[order(combined$placement), ]
-
-  # Track how many were parsed from OCR
-  parsed_count <- nrow(combined)
 
   # Enforce exactly total_players rows
   if (nrow(combined) > total_players) {
     # Truncate to declared count (keep top N after sort by placement)
     combined <- combined[1:total_players, ]
   } else if (nrow(combined) < total_players) {
-    # Pad with blank rows to reach total_players
-    for (p in (nrow(combined) + 1):total_players) {
-      blank_row <- data.frame(
-        placement = p,
-        username = "",
-        member_number = "",
-        points = 0,
-        wins = 0,
-        losses = total_rounds,
-        ties = 0,
-        stringsAsFactors = FALSE
-      )
-      combined <- rbind(combined, blank_row)
+    # Pad with blank rows for missing ranks
+    existing_ranks <- combined$placement
+    for (p in seq_len(total_players)) {
+      if (!(p %in% existing_ranks)) {
+        blank_row <- data.frame(
+          placement = p,
+          username = "",
+          member_number = "",
+          points = 0,
+          wins = 0,
+          losses = total_rounds,
+          ties = 0,
+          stringsAsFactors = FALSE
+        )
+        combined <- rbind(combined, blank_row)
+      }
     }
   }
 
-  # Re-assign placements sequentially (1 to N)
+  # Re-sort after adding blank rows
+  combined <- combined[order(combined$placement), ]
+
+  # Preserve original ranking before sequential re-assignment
+  combined$original_rank <- combined$placement
+
+  # Re-assign placements sequentially (1 to N) for the review UI
   combined$placement <- seq_len(nrow(combined))
 
   # Add deck column
@@ -326,9 +208,34 @@ observeEvent(input$submit_process_ocr, {
         }
       }
 
-      # Clear GUEST IDs so they don't get stored (they're not real member numbers)
+      # GUEST IDs aren't real member numbers — try to find this player by username
       if (is_guest_id) {
         combined$member_number[i] <- ""
+
+        # Look up by username to find their real member number
+        if (!is.null(username) && !is.na(username) && nchar(username) > 0) {
+          guest_lookup <- safe_query(rv$db_con, "
+            SELECT player_id, display_name, member_number FROM players
+            WHERE LOWER(display_name) = LOWER(?)
+            LIMIT 1
+          ", params = list(username))
+
+          if (nrow(guest_lookup) > 0) {
+            combined$matched_player_id[i] <- guest_lookup$player_id[1]
+            combined$matched_player_name[i] <- guest_lookup$display_name[1]
+
+            # If the DB has their real member number, pre-fill it
+            if (!is.na(guest_lookup$member_number[1]) && nchar(guest_lookup$member_number[1]) > 0) {
+              combined$member_number[i] <- guest_lookup$member_number[1]
+              combined$match_status[i] <- "matched"
+              message("[SUBMIT] GUEST '", username, "' matched to player with member number: ", guest_lookup$member_number[1])
+            } else {
+              combined$match_status[i] <- "matched"
+              message("[SUBMIT] GUEST '", username, "' matched to existing player (no member number)")
+            }
+            next
+          }
+        }
       }
 
       # Try to match by username
@@ -352,6 +259,26 @@ observeEvent(input$submit_process_ocr, {
   rv$submit_parsed_count <- parsed_count
   rv$submit_total_players <- total_players
 
+  # Convert OCR results to shared grid format
+  ocr_rows <- which(nchar(trimws(combined$username)) > 0)
+  rv$submit_grid_data <- ocr_to_grid_data(combined)
+  rv$submit_ocr_row_indices <- ocr_rows
+
+  # Build player matches list for shared grid badges
+  matches_list <- list()
+  for (i in seq_len(nrow(combined))) {
+    if (combined$match_status[i] %in% c("matched", "possible")) {
+      matches_list[[as.character(i)]] <- list(
+        status = "matched",
+        player_id = combined$matched_player_id[i],
+        member_number = if (!is.na(combined$member_number[i])) combined$member_number[i] else ""
+      )
+    } else if (nchar(trimws(combined$username[i])) > 0) {
+      matches_list[[as.character(i)]] <- list(status = "new")
+    }
+  }
+  rv$submit_player_matches <- matches_list
+
   # Switch to step 2
   shinyjs::hide("submit_wizard_step1")
   shinyjs::show("submit_wizard_step2")
@@ -360,23 +287,227 @@ observeEvent(input$submit_process_ocr, {
 
   # Show appropriate notification based on parsed vs expected
   if (parsed_count == total_players) {
-    showNotification(
+    notify(
       paste("All", total_players, "players found"),
       type = "message"
     )
   } else if (parsed_count < total_players) {
-    showNotification(
+    notify(
       paste("Parsed", parsed_count, "of", total_players, "players - fill in remaining manually"),
       type = "warning",
       duration = 8
     )
   } else {
-    showNotification(
+    notify(
       paste("Found", parsed_count, "players, showing top", total_players),
       type = "warning",
       duration = 8
     )
   }
+}
+
+# Process OCR when button clicked
+observeEvent(input$submit_process_ocr, {
+  req(rv$submit_uploaded_files)
+
+  files <- rv$submit_uploaded_files
+  total_rounds <- input$submit_rounds
+  total_players <- input$submit_players
+
+  # Validate required fields first
+  if (is.null(input$submit_store) || input$submit_store == "") {
+    notify("Please select a store", type = "error")
+    return()
+  }
+  if (is.na(input$submit_date)) {
+    notify("Please select a date", type = "error")
+    return()
+  }
+  if (is.null(input$submit_event_type) || input$submit_event_type == "") {
+    notify("Please select an event type", type = "error")
+    return()
+  }
+  if (is.null(input$submit_format) || input$submit_format == "") {
+    notify("Please select a format", type = "error")
+    return()
+  }
+  if (is.null(total_players) || total_players < 2) {
+    notify("Please enter the total number of players", type = "error")
+    return()
+  }
+
+  # Show processing modal with blue theme
+  showModal(modalDialog(
+    div(
+      class = "text-center py-4",
+      div(class = "processing-spinner mb-3"),
+      h5(class = "text-primary", "Processing Screenshots"),
+      p(class = "text-muted mb-0", id = "ocr_status_text", "Extracting player data..."),
+      tags$small(class = "text-muted", paste(nrow(files), "file(s) to process"))
+    ),
+    title = NULL,
+    footer = NULL,
+    easyClose = FALSE,
+    size = "s"
+  ))
+
+  all_results <- list()
+  ocr_errors <- c()
+  ocr_texts <- c()
+
+  for (i in seq_len(nrow(files))) {
+    file_path <- files$datapath[i]
+    file_name <- files$name[i]
+
+    # Call OCR
+    ocr_result <- tryCatch({
+      gcv_detect_text(file_path, verbose = TRUE)
+    }, error = function(e) {
+      ocr_errors <<- c(ocr_errors, paste(file_name, ":", e$message))
+      message("[SUBMIT] OCR error for ", file_name, ": ", e$message)
+      NULL
+    })
+
+    # Extract text from structured result (backward compatible with plain string)
+    ocr_text <- if (is.list(ocr_result)) ocr_result$text else ocr_result
+
+    if (!is.null(ocr_text) && ocr_text != "") {
+      ocr_texts <- c(ocr_texts, ocr_text)
+
+      # Parse results (layout-first with text fallback)
+      parsed <- tryCatch({
+        parse_standings(ocr_result, total_rounds, verbose = TRUE)
+      }, error = function(e) {
+        ocr_errors <<- c(ocr_errors, paste("Parse error:", e$message))
+        message("[SUBMIT] Parse error: ", e$message)
+        data.frame()
+      })
+
+      if (nrow(parsed) > 0) {
+        all_results[[length(all_results) + 1]] <- parsed
+        message("[SUBMIT] Parsed ", nrow(parsed), " results from ", file_name)
+      } else {
+        message("[SUBMIT] No results parsed from ", file_name)
+      }
+    } else {
+      message("[SUBMIT] No OCR text returned for ", file_name)
+      if (is.null(ocr_text)) {
+        ocr_errors <- c(ocr_errors, paste(file_name, ": OCR returned NULL (check API key)"))
+      } else {
+        ocr_errors <- c(ocr_errors, paste(file_name, ": OCR returned empty text"))
+      }
+    }
+  }
+
+  removeModal()
+
+  if (length(all_results) == 0) {
+    message("[SUBMIT] OCR failed - ocr_errors: ", paste(ocr_errors, collapse = "; "))
+    message("[SUBMIT] OCR failed - ocr_texts: ", paste(ocr_texts, collapse = "; "))
+    error_detail <- if (length(ocr_errors) > 0) {
+      paste("\n\nDetails:", paste(ocr_errors, collapse = "\n"))
+    } else if (length(ocr_texts) > 0) {
+      "\n\nWe extracted text from the image but couldn't identify player data. Make sure the screenshot shows the final standings with placements and usernames visible."
+    } else {
+      "\n\nCould not read the screenshots. Make sure the image is clear and shows the Bandai TCG+ standings screen. If this keeps happening, try a different screenshot or contact us."
+    }
+    notify(
+      paste0("Could not extract player data from screenshots.", error_detail),
+      type = "error",
+      duration = 10
+    )
+    return()
+  }
+
+  # Combine results from all screenshots
+  combined <- do.call(rbind, all_results)
+
+  # Smart deduplication for overlapping screenshots
+  if (nrow(combined) > 1) {
+    original_count <- nrow(combined)
+
+    if (any(!is.na(combined$member_number) & combined$member_number != "")) {
+      has_member <- !is.na(combined$member_number) & combined$member_number != ""
+
+      # Separate GUEST IDs from real member numbers
+      is_guest <- has_member & grepl("^GUEST\\d+$", combined$member_number, ignore.case = TRUE)
+      has_real_member <- has_member & !is_guest
+
+      with_real_member <- combined[has_real_member, ]
+      with_guest <- combined[is_guest, ]
+      without_member <- combined[!has_member, ]
+
+      # Dedup real member numbers
+      with_real_member <- with_real_member[!duplicated(with_real_member$member_number), ]
+
+      # Dedup GUEST players by username (case-insensitive) since they share GUEST99999
+      if (nrow(with_guest) > 0) {
+        with_guest$username_lower <- tolower(with_guest$username)
+        with_guest <- with_guest[!duplicated(with_guest$username_lower), ]
+        with_guest$username_lower <- NULL
+      }
+
+      # Dedup no-member players by username
+      if (nrow(without_member) > 0) {
+        without_member$username_lower <- tolower(without_member$username)
+        without_member <- without_member[!duplicated(without_member$username_lower), ]
+        without_member$username_lower <- NULL
+      }
+
+      combined <- rbind(with_real_member, with_guest, without_member)
+    } else {
+      combined$username_lower <- tolower(combined$username)
+      combined <- combined[!duplicated(combined$username_lower), ]
+      combined$username_lower <- NULL
+    }
+
+    deduped_count <- nrow(combined)
+    if (original_count != deduped_count) {
+      message("[SUBMIT] Deduplication: ", original_count, " -> ", deduped_count, " players")
+    }
+  }
+
+  # Sort by placement (contains real ranking numbers from layout parser)
+  combined <- combined[order(combined$placement), ]
+
+  # Track how many were parsed from OCR
+  parsed_count <- nrow(combined)
+
+  # Quality validation: warn if very few players found with no valid member numbers
+  has_valid_members <- any(!is.na(combined$member_number) & combined$member_number != "" &
+                           !grepl("^GUEST", combined$member_number, ignore.case = TRUE))
+
+  if (parsed_count < ceiling(total_players * 0.5) && !has_valid_members) {
+    # Store state for "proceed anyway" handler
+    rv$ocr_pending_combined <- combined
+    rv$ocr_pending_total_players <- total_players
+    rv$ocr_pending_total_rounds <- total_rounds
+    rv$ocr_pending_parsed_count <- parsed_count
+
+    showModal(modalDialog(
+      title = tagList(bsicons::bs_icon("exclamation-triangle-fill", class = "text-warning me-2"),
+                      "Low Confidence Results"),
+      div(
+        p(sprintf("Only %d of %d expected players could be read from the screenshot(s).",
+                  parsed_count, total_players)),
+        p("This might mean:"),
+        tags$ul(
+          tags$li("The screenshot doesn't show Bandai TCG+ standings"),
+          tags$li("The image is too blurry or cropped"),
+          tags$li("The standings span multiple pages (upload all screenshots)")
+        ),
+        p("You can proceed and fill in the rest manually, or go back and try different screenshots.")
+      ),
+      footer = tagList(
+        actionButton("ocr_proceed_anyway", "Proceed Anyway", class = "btn-warning"),
+        actionButton("ocr_reupload", "Re-upload Screenshots", class = "btn-primary")
+      ),
+      easyClose = FALSE
+    ))
+    return()
+  }
+
+  complete_ocr_processing(combined, total_players, total_rounds, parsed_count)
 })
 
 # Back button - return to step 1
@@ -385,6 +516,35 @@ observeEvent(input$submit_back, {
   shinyjs::show("submit_wizard_step1")
   shinyjs::removeClass("submit_step2_indicator", "active")
   shinyjs::addClass("submit_step1_indicator", "active")
+})
+
+# Handle "Proceed Anyway" from OCR quality warning
+observeEvent(input$ocr_proceed_anyway, {
+  removeModal()
+  combined <- rv$ocr_pending_combined
+  total_players <- rv$ocr_pending_total_players
+  total_rounds <- rv$ocr_pending_total_rounds
+  parsed_count <- rv$ocr_pending_parsed_count
+
+  # Clear pending state
+  rv$ocr_pending_combined <- NULL
+  rv$ocr_pending_total_players <- NULL
+  rv$ocr_pending_total_rounds <- NULL
+  rv$ocr_pending_parsed_count <- NULL
+
+  if (!is.null(combined)) {
+    complete_ocr_processing(combined, total_players, total_rounds, parsed_count)
+  }
+})
+
+# Handle "Re-upload" from OCR quality warning
+observeEvent(input$ocr_reupload, {
+  removeModal()
+  rv$ocr_pending_combined <- NULL
+  rv$ocr_pending_total_players <- NULL
+  rv$ocr_pending_total_rounds <- NULL
+  rv$ocr_pending_parsed_count <- NULL
+  # User stays on step 1 - they can upload new screenshots
 })
 
 # Render summary banner
@@ -412,6 +572,14 @@ output$submit_summary_banner <- renderUI({
         span(paste("Parsed", parsed_count, "of", total_players, "players")))
   }
 
+  # Get format display name
+  format_name <- ""
+  if (!is.null(input$submit_format) && input$submit_format != "") {
+    fmt <- safe_query(rv$db_con, "SELECT display_name FROM formats WHERE format_id = ?",
+                      params = list(input$submit_format))
+    if (nrow(fmt) > 0) format_name <- fmt$display_name[1]
+  }
+
   div(
     class = "tournament-summary-bar mb-3",
     div(
@@ -423,8 +591,11 @@ output$submit_summary_banner <- renderUI({
           bsicons::bs_icon("calendar"),
           span(format(input$submit_date, "%b %d, %Y"))),
       div(class = "summary-item",
+          bsicons::bs_icon("controller"),
+          span(input$submit_event_type)),
+      div(class = "summary-item",
           bsicons::bs_icon("tag"),
-          span(input$submit_format)),
+          span(format_name)),
       div(class = "summary-item",
           bsicons::bs_icon("people"),
           span(total_players, " players")),
@@ -469,253 +640,164 @@ output$submit_match_summary <- renderUI({
   )
 })
 
-# Helper function for ordinal placement (1st, 2nd, 3rd, etc.)
-ordinal <- function(n) {
-  suffix <- c("th", "st", "nd", "rd", rep("th", 6))
-  if (n %% 100 >= 11 && n %% 100 <= 13) {
-    return(paste0(n, "th"))
-  }
-  return(paste0(n, suffix[(n %% 10) + 1]))
-}
-
-# Helper: sync current input values back into rv$submit_ocr_results
-# Called before mutations (delete row) so user edits survive re-render
-sync_submit_inputs <- function() {
-  results <- rv$submit_ocr_results
-  if (is.null(results) || nrow(results) == 0) return()
-
-  for (i in seq_len(nrow(results))) {
-    # Player name
-    player_val <- input[[paste0("submit_player_", i)]]
-    if (!is.null(player_val)) results$username[i] <- player_val
-
-    # Member number
-    member_val <- input[[paste0("submit_member_", i)]]
-    if (!is.null(member_val)) results$member_number[i] <- member_val
-
-    # Points
-    points_val <- input[[paste0("submit_points_", i)]]
-    if (!is.null(points_val) && !is.na(points_val)) results$points[i] <- as.integer(points_val)
-  }
-
-  rv$submit_ocr_results <- results
-}
-
 # Handle delete row in upload results review
 observeEvent(input$submit_delete_row, {
-  req(rv$submit_ocr_results)
+  req(rv$submit_grid_data)
 
   row_idx <- as.integer(input$submit_delete_row)
-  results <- rv$submit_ocr_results
   total_players <- rv$submit_total_players
-  total_rounds <- input$submit_rounds
 
-  if (is.null(row_idx) || row_idx < 1 || row_idx > nrow(results)) return()
+  if (is.null(row_idx) || row_idx < 1 || row_idx > nrow(rv$submit_grid_data)) return()
 
-  # Sync current input values before mutation
-  sync_submit_inputs()
-  results <- rv$submit_ocr_results
+  # Sync current inputs
+  rv$submit_grid_data <- sync_grid_inputs(input, rv$submit_grid_data, "points", "submit_")
+  grid <- rv$submit_grid_data
 
-  # Remove the row
-  results <- results[-row_idx, ]
+  grid <- grid[-row_idx, ]
 
-  # Pad with blank row at bottom to maintain total_players count
-  if (nrow(results) < total_players) {
+  if (nrow(grid) < total_players) {
     blank_row <- data.frame(
-      placement = nrow(results) + 1,
-      username = "",
-      member_number = "",
-      points = 0,
-      wins = 0,
-      losses = if (!is.null(total_rounds) && !is.na(total_rounds)) total_rounds else 4,
-      ties = 0,
-      deck_id = NA_integer_,
+      placement = nrow(grid) + 1,
+      player_name = "", member_number = "",
+      points = 0L, wins = 0L, losses = 0L, ties = 0L,
+      deck_id = NA_integer_, match_status = "new",
       matched_player_id = NA_integer_,
-      match_status = "new",
-      matched_player_name = NA_character_,
+      matched_member_number = NA_character_,
+      result_id = NA_integer_,
       stringsAsFactors = FALSE
     )
-    results <- rbind(results, blank_row)
+    grid <- rbind(grid, blank_row)
   }
 
-  # Re-assign placements sequentially
-  results$placement <- seq_len(nrow(results))
+  grid$placement <- seq_len(nrow(grid))
 
-  # Update reactive value (triggers re-render)
-  rv$submit_ocr_results <- results
+  # Shift player matches
+  new_matches <- list()
+  for (j in seq_len(nrow(grid))) {
+    old_idx <- if (j < row_idx) j else j + 1
+    if (!is.null(rv$submit_player_matches[[as.character(old_idx)]])) {
+      new_matches[[as.character(j)]] <- rv$submit_player_matches[[as.character(old_idx)]]
+    }
+  }
+  rv$submit_player_matches <- new_matches
 
-  showNotification(
-    paste("Row removed. Players renumbered 1-", nrow(results), ".", sep = ""),
-    type = "message",
-    duration = 3
-  )
+  # Update OCR row indices (shift down after deleted row)
+  if (!is.null(rv$submit_ocr_row_indices)) {
+    rv$submit_ocr_row_indices <- setdiff(
+      ifelse(rv$submit_ocr_row_indices > row_idx,
+             rv$submit_ocr_row_indices - 1,
+             rv$submit_ocr_row_indices),
+      row_idx
+    )
+  }
+
+  rv$submit_grid_data <- grid
+
+  # Also update OCR results for submission handler
+  rv$submit_ocr_results <- rv$submit_ocr_results[-row_idx, ]
+  if (nrow(rv$submit_ocr_results) > 0) {
+    rv$submit_ocr_results$placement <- seq_len(nrow(rv$submit_ocr_results))
+  }
+
+  notify(paste0("Row removed. Players renumbered 1-", nrow(grid), "."), type = "message", duration = 3)
 })
 
-# Render results table using layout_columns
+# Render results table using shared grid module
 output$submit_results_table <- renderUI({
-  req(rv$submit_ocr_results)
+  req(rv$submit_grid_data)
 
   # Re-render when deck requests change
- rv$submit_refresh_trigger
+  rv$submit_refresh_trigger
 
-  results <- rv$submit_ocr_results
+  grid <- rv$submit_grid_data
+  deck_choices <- build_deck_choices(rv$db_con)
 
-  # Get deck choices
-  decks <- safe_query(rv$db_con, "
-    SELECT archetype_id, archetype_name FROM deck_archetypes
-    WHERE is_active = TRUE
-    ORDER BY archetype_name
-  ", default = data.frame(archetype_id = integer(), archetype_name = character()))
-
-  # Get pending deck requests
-  pending_requests <- safe_query(rv$db_con, "
-    SELECT request_id, deck_name FROM deck_requests
-    WHERE status = 'pending'
-    ORDER BY deck_name
-  ", default = data.frame(request_id = integer(), deck_name = character()))
-
-  # Build deck choices with request option and pending requests
-  deck_choices <- c("Unknown" = "")
-
-  # Add request new deck option at top
-
-  deck_choices <- c(deck_choices, "\U2795 Request new deck..." = "__REQUEST_NEW__")
-
-  # Add pending requests (if any)
-  if (nrow(pending_requests) > 0) {
-    pending_choices <- setNames(
-      paste0("pending_", pending_requests$request_id),
-      paste0("Pending: ", pending_requests$deck_name)
-    )
-    deck_choices <- c(deck_choices, pending_choices)
-  }
-
-  # Add separator and existing decks
-  deck_choices <- c(deck_choices, setNames(decks$archetype_id, decks$archetype_name))
-
-  tagList(
-    # Header row
-    layout_columns(
-      col_widths = c(1, 1, 3, 2, 2, 3),
-      class = "results-header-row",
-      div(""),
-      div("#"),
-      div("Player"),
-      div("Member #"),
-      div("Pts"),
-      div("Deck")
-    ),
-
-    # Data rows
-    lapply(seq_len(nrow(results)), function(i) {
-      row <- results[i, ]
-
-      # Placement class for coloring
-      place_class <- if (row$placement == 1) "place-1st"
-                     else if (row$placement == 2) "place-2nd"
-                     else if (row$placement == 3) "place-3rd"
-                     else ""
-
-      # Match indicator
-      match_indicator <- switch(row$match_status,
-        "matched" = div(
-          class = "player-match-indicator matched",
-          bsicons::bs_icon("check-circle-fill"),
-          span(class = "match-label", "Linked to:"),
-          span(class = "match-name", row$matched_player_name),
-          actionLink(paste0("reject_match_", i),
-                     bsicons::bs_icon("x-circle"),
-                     class = "reject-btn",
-                     title = "Reject match")
-        ),
-        "possible" = div(
-          class = "player-match-indicator possible",
-          bsicons::bs_icon("question-circle-fill"),
-          span(class = "match-label", "Possible:"),
-          span(class = "match-name", row$matched_player_name),
-          actionLink(paste0("reject_match_", i),
-                     bsicons::bs_icon("x-circle"),
-                     class = "reject-btn",
-                     title = "Reject match")
-        ),
-        div(
-          class = "player-match-indicator new",
-          bsicons::bs_icon("person-plus-fill"),
-          span(class = "match-label", "New player")
-        )
-      )
-
-      layout_columns(
-        col_widths = c(1, 1, 3, 2, 2, 3),
-        class = "upload-result-row",
-        # Delete button
-        div(
-          class = "upload-result-delete",
-          htmltools::tags$button(
-            onclick = sprintf("Shiny.setInputValue('submit_delete_row', %d, {priority: 'event'})", i),
-            class = "btn btn-sm btn-outline-danger p-0 result-action-btn",
-            title = "Remove row",
-            shiny::icon("xmark")
-          )
-        ),
-        # Placement + match status
-        div(
-          class = "upload-result-placement",
-          span(class = paste("placement-badge", place_class), ordinal(row$placement)),
-          match_indicator
-        ),
-        # Player name
-        div(
-          textInput(paste0("submit_player_", i), NULL,
-                    value = row$username)
-        ),
-        # Member number
-        div(
-          textInput(paste0("submit_member_", i), NULL,
-                    value = if (!is.na(row$member_number)) row$member_number else "",
-                    placeholder = "0000...")
-        ),
-        # Points
-        div(
-          numericInput(paste0("submit_points_", i), NULL,
-                       value = if (!is.na(row$points)) row$points else 0,
-                       min = 0, max = 99)
-        ),
-        # Deck
-        div(
-          selectInput(paste0("submit_deck_", i), NULL,
-                      choices = deck_choices,
-                      selectize = FALSE)
-        )
-      )
-    })
+  render_grid_ui(
+    grid_data = grid,
+    record_format = "points",
+    is_release = FALSE,
+    deck_choices = deck_choices,
+    player_matches = rv$submit_player_matches,
+    prefix = "submit_",
+    mode = "review",
+    ocr_rows = rv$submit_ocr_row_indices
   )
 })
 
-# Handle reject match buttons
-observe({
-  req(rv$submit_ocr_results)
-  results <- rv$submit_ocr_results
-
-  lapply(seq_len(nrow(results)), function(i) {
-    observeEvent(input[[paste0("reject_match_", i)]], {
-      rv$submit_ocr_results$match_status[i] <- "new"
-      rv$submit_ocr_results$matched_player_id[i] <- NA_integer_
-      rv$submit_ocr_results$matched_player_name[i] <- NA_character_
-      showNotification(paste("Match rejected - will create as new player"), type = "message")
-    }, ignoreInit = TRUE, once = TRUE)
-  })
+output$submit_filled_count <- renderUI({
+  req(rv$submit_grid_data)
+  grid <- rv$submit_grid_data
+  filled <- sum(nchar(trimws(grid$player_name)) > 0)
+  total <- nrow(grid)
+  span(class = "text-muted small", sprintf("Filled: %d/%d", filled, total))
 })
+
+
+# =============================================================================
+# Submit Grid: Paste from Spreadsheet
+# =============================================================================
+
+# =============================================================================
+# Submit Grid: Player Matching (blur-based)
+# =============================================================================
+
+# Attach blur handlers for submit grid player matching
+observe({
+  req(rv$submit_grid_data)
+  shinyjs::runjs("
+    $(document).off('blur.submitGrid').on('blur.submitGrid', 'input[id^=\"submit_player_\"]', function() {
+      var id = $(this).attr('id');
+      var rowNum = parseInt(id.replace('submit_player_', ''));
+      if (!isNaN(rowNum)) {
+        Shiny.setInputValue('submit_player_blur', {row: rowNum, name: $(this).val(), ts: Date.now()}, {priority: 'event'});
+      }
+    });
+  ")
+})
+
+observeEvent(input$submit_player_blur, {
+  req(rv$db_con, rv$submit_grid_data)
+
+  info <- input$submit_player_blur
+  row_num <- info$row
+  name <- trimws(info$name)
+
+  if (is.null(row_num) || is.na(row_num)) return()
+  if (row_num < 1 || row_num > nrow(rv$submit_grid_data)) return()
+
+  # Sync all inputs before modifying reactive
+  rv$submit_grid_data <- sync_grid_inputs(input, rv$submit_grid_data, "points", "submit_")
+
+  if (nchar(name) == 0) {
+    rv$submit_player_matches[[as.character(row_num)]] <- NULL
+    rv$submit_grid_data$match_status[row_num] <- ""
+    rv$submit_grid_data$matched_player_id[row_num] <- NA_integer_
+    rv$submit_grid_data$matched_member_number[row_num] <- NA_character_
+    return()
+  }
+
+  match_info <- match_player(name, rv$db_con)
+  rv$submit_player_matches[[as.character(row_num)]] <- match_info
+  rv$submit_grid_data$match_status[row_num] <- match_info$status
+  if (match_info$status == "matched") {
+    rv$submit_grid_data$matched_player_id[row_num] <- match_info$player_id
+    rv$submit_grid_data$matched_member_number[row_num] <- match_info$member_number
+  } else {
+    rv$submit_grid_data$matched_player_id[row_num] <- NA_integer_
+    rv$submit_grid_data$matched_member_number[row_num] <- NA_character_
+  }
+})
+
 
 # Track which row triggered the deck request modal
 rv$deck_request_row <- NULL
 
 # Handle deck dropdown selections - detect "Request new deck" option
 observe({
-  req(rv$submit_ocr_results)
-  results <- rv$submit_ocr_results
+  req(rv$submit_grid_data)
+  grid <- rv$submit_grid_data
 
-  lapply(seq_len(nrow(results)), function(i) {
+  lapply(seq_len(nrow(grid)), function(i) {
     observeEvent(input[[paste0("submit_deck_", i)]], {
       if (isTRUE(input[[paste0("submit_deck_", i)]] == "__REQUEST_NEW__")) {
         rv$deck_request_row <- i
@@ -753,7 +835,7 @@ observe({
           easyClose = TRUE
         ))
         # Reset dropdown to Unknown while modal is open
-        updateSelectInput(session, paste0("submit_deck_", i), selected = "")
+        updateSelectizeInput(session, paste0("submit_deck_", i), selected = "")
       }
     }, ignoreInit = TRUE)
   })
@@ -765,11 +847,11 @@ observeEvent(input$deck_request_submit, {
 
   # Validate required fields
   if (is.null(input$deck_request_name) || trimws(input$deck_request_name) == "") {
-    showNotification("Please enter a deck name", type = "error")
+    notify("Please enter a deck name", type = "error")
     return()
   }
   if (is.null(input$deck_request_color) || input$deck_request_color == "") {
-    showNotification("Please select a primary color", type = "error")
+    notify("Please select a primary color", type = "error")
     return()
   }
 
@@ -787,50 +869,49 @@ observeEvent(input$deck_request_submit, {
   }
 
   # Check if deck with this name already exists
-  existing <- dbGetQuery(rv$db_con, "
+  existing <- safe_query(rv$db_con, "
     SELECT archetype_id FROM deck_archetypes
     WHERE LOWER(archetype_name) = LOWER(?)
-  ", params = list(deck_name))
+  ", params = list(deck_name), default = data.frame())
 
   if (nrow(existing) > 0) {
-    showNotification(paste0("A deck named '", deck_name, "' already exists. Please select it from the dropdown."), type = "warning")
+    notify(paste0("A deck named '", deck_name, "' already exists. Please select it from the dropdown."), type = "warning")
     removeModal()
     return()
   }
 
   # Check if there's already a pending request with this name
-  pending <- dbGetQuery(rv$db_con, "
+  pending <- safe_query(rv$db_con, "
     SELECT request_id FROM deck_requests
     WHERE LOWER(deck_name) = LOWER(?) AND status = 'pending'
-  ", params = list(deck_name))
+  ", params = list(deck_name), default = data.frame())
 
   if (nrow(pending) > 0) {
-    showNotification(paste0("A request for '", deck_name, "' is already pending. You can select it from the dropdown."), type = "warning")
+    notify(paste0("A request for '", deck_name, "' is already pending. You can select it from the dropdown."), type = "warning")
     removeModal()
     return()
   }
 
   # Get next request_id
- max_id <- dbGetQuery(rv$db_con, "SELECT COALESCE(MAX(request_id), 0) as max_id FROM deck_requests")$max_id
-  request_id <- max_id + 1
+  request_id <- next_id(rv$db_con, "deck_requests", "request_id")
 
   # Insert the deck request
-  dbExecute(rv$db_con, "
+  safe_execute(rv$db_con, "
     INSERT INTO deck_requests (request_id, deck_name, primary_color, secondary_color, display_card_id, status)
     VALUES (?, ?, ?, ?, ?, 'pending')
   ", params = list(request_id, deck_name, primary_color, secondary_color, card_id))
 
   # Build updated deck choices with the new pending request
-  decks <- dbGetQuery(rv$db_con, "
+  decks <- safe_query(rv$db_con, "
     SELECT archetype_id, archetype_name FROM deck_archetypes
     WHERE is_active = TRUE
     ORDER BY archetype_name
-  ")
-  pending_requests <- dbGetQuery(rv$db_con, "
+  ", default = data.frame())
+  pending_requests <- safe_query(rv$db_con, "
     SELECT request_id, deck_name FROM deck_requests
     WHERE status = 'pending'
     ORDER BY deck_name
-  ")
+  ", default = data.frame())
 
   updated_choices <- c("Unknown" = "")
   updated_choices <- c(updated_choices, "\U2795 Request new deck..." = "__REQUEST_NEW__")
@@ -844,8 +925,8 @@ observeEvent(input$deck_request_submit, {
   updated_choices <- c(updated_choices, setNames(as.character(decks$archetype_id), decks$archetype_name))
 
   # Update all deck dropdowns with new choices, preserving existing selections
-  results <- rv$submit_ocr_results
-  for (i in seq_len(nrow(results))) {
+  grid <- rv$submit_grid_data
+  for (i in seq_len(nrow(grid))) {
     current_selection <- input[[paste0("submit_deck_", i)]]
     # For the row that triggered the request, select the new pending deck
     new_selection <- if (i == rv$deck_request_row) {
@@ -855,12 +936,12 @@ observeEvent(input$deck_request_submit, {
     } else {
       ""
     }
-    updateSelectInput(session, paste0("submit_deck_", i),
-                      choices = updated_choices,
-                      selected = new_selection)
+    updateSelectizeInput(session, paste0("submit_deck_", i),
+                         choices = updated_choices,
+                         selected = new_selection)
   }
 
-  showNotification(
+  notify(
     paste0("Deck request submitted: '", deck_name, "'. An admin will review it shortly."),
     type = "message"
   )
@@ -875,52 +956,69 @@ observeEvent(input$submit_tournament, {
 
   # Validate confirmation checkbox
   if (!isTRUE(input$submit_confirm)) {
-    showNotification("Please confirm the data is accurate before submitting.", type = "warning")
+    notify("Please confirm the data is accurate before submitting.", type = "warning")
     return()
   }
 
   # Validate required fields
   if (is.null(input$submit_store) || input$submit_store == "") {
-    showNotification("Please select a store", type = "error")
+    notify("Please select a store", type = "error")
     return()
   }
   if (is.na(input$submit_date)) {
-    showNotification("Please select a date", type = "error")
+    notify("Please select a date", type = "error")
     return()
   }
   if (is.null(input$submit_event_type) || input$submit_event_type == "") {
-    showNotification("Please select an event type", type = "error")
+    notify("Please select an event type", type = "error")
     return()
   }
   if (is.null(input$submit_format) || input$submit_format == "") {
-    showNotification("Please select a format", type = "error")
+    notify("Please select a format", type = "error")
     return()
   }
 
   results <- rv$submit_ocr_results
 
+  # Sync grid inputs back to OCR results for submission
+  if (!is.null(rv$submit_grid_data)) {
+    rv$submit_grid_data <- sync_grid_inputs(input, rv$submit_grid_data, "points", "submit_")
+    grid <- rv$submit_grid_data
+    for (i in seq_len(min(nrow(grid), nrow(results)))) {
+      results$username[i] <- grid$player_name[i]
+      results$member_number[i] <- grid$member_number[i]
+      results$points[i] <- grid$points[i]
+      results$matched_player_id[i] <- grid$matched_player_id[i]
+      results$match_status[i] <- grid$match_status[i]
+    }
+    rv$submit_ocr_results <- results
+    results <- rv$submit_ocr_results
+  }
+
   # Check for duplicate tournament
-  existing <- dbGetQuery(rv$db_con, "
+  existing <- safe_query(rv$db_con, "
     SELECT tournament_id FROM tournaments
     WHERE store_id = ? AND event_date = ? AND event_type = ?
   ", params = list(
     as.integer(input$submit_store),
     as.character(input$submit_date),
     input$submit_event_type
-  ))
+  ), default = data.frame())
 
   if (nrow(existing) > 0) {
-    showNotification("A tournament with this store, date, and event type already exists.",
+    notify("A tournament with this store, date, and event type already exists.",
                      type = "error")
     return()
   }
 
   tryCatch({
-    # Create tournament - must generate ID since DuckDB doesn't auto-increment
-    max_tournament_id <- dbGetQuery(rv$db_con, "SELECT COALESCE(MAX(tournament_id), 0) as max_id FROM tournaments")$max_id
-    tournament_id <- max_tournament_id + 1
+    # Begin transaction for atomic tournament + results insert
+    dbExecute(rv$db_con, "BEGIN TRANSACTION")
 
-    dbExecute(rv$db_con, "
+    # Create tournament - must generate ID since DuckDB doesn't auto-increment
+    tournament_id <- next_id(rv$db_con, "tournaments", "tournament_id")
+
+    safe_execute(rv$db_con, "
       INSERT INTO tournaments (tournament_id, store_id, event_date, event_type, format, player_count, rounds)
       VALUES (?, ?, ?, ?, ?, ?, ?)
     ", params = list(
@@ -938,19 +1036,15 @@ observeEvent(input$submit_tournament, {
     for (i in seq_len(nrow(results))) {
       row <- results[i, ]
 
-      # Get edited values
-      username <- input[[paste0("submit_player_", i)]]
-      if (is.null(username) || username == "") username <- row$username
-
-      member_input <- input[[paste0("submit_member_", i)]]
-      member_number <- if (!is.null(member_input) && trimws(member_input) != "") {
-        trimws(member_input)
+      # Get values from synced results (grid sync already applied above)
+      username <- if (!is.null(row$username) && row$username != "") row$username else ""
+      member_number <- if (!is.na(row$member_number) && trimws(row$member_number) != "") {
+        trimws(row$member_number)
       } else {
         NA_character_
       }
 
-      points_input <- input[[paste0("submit_points_", i)]]
-      points <- if (!is.null(points_input) && !is.na(points_input)) as.integer(points_input) else 0
+      points <- if (!is.na(row$points)) as.integer(row$points) else 0L
       wins <- points %/% 3
       ties <- points %% 3
       losses <- max(0, total_rounds - wins - ties)
@@ -977,30 +1071,29 @@ observeEvent(input$submit_tournament, {
       if (!is.na(row$matched_player_id) && row$match_status %in% c("matched", "possible")) {
         player_id <- row$matched_player_id
         if (!is.na(member_number)) {
-          dbExecute(rv$db_con, "
+          safe_execute(rv$db_con, "
             UPDATE players SET member_number = ?
             WHERE player_id = ? AND member_number IS NULL
           ", params = list(member_number, player_id))
         }
       } else {
-        player <- dbGetQuery(rv$db_con, "
+        player <- safe_query(rv$db_con, "
           SELECT player_id FROM players
           WHERE (member_number IS NOT NULL AND member_number = ?) OR LOWER(display_name) = LOWER(?)
           LIMIT 1
-        ", params = list(member_number, username))
+        ", params = list(member_number, username), default = data.frame())
 
         if (nrow(player) == 0) {
           # Generate player_id since DuckDB doesn't auto-increment
-          max_player_id <- dbGetQuery(rv$db_con, "SELECT COALESCE(MAX(player_id), 0) as max_id FROM players")$max_id
-          player_id <- max_player_id + 1
-          dbExecute(rv$db_con, "
+          player_id <- next_id(rv$db_con, "players", "player_id")
+          safe_execute(rv$db_con, "
             INSERT INTO players (player_id, display_name, member_number)
             VALUES (?, ?, ?)
           ", params = list(player_id, username, member_number))
         } else {
           player_id <- player$player_id[1]
           if (!is.na(member_number)) {
-            dbExecute(rv$db_con, "
+            safe_execute(rv$db_con, "
               UPDATE players SET member_number = ?
               WHERE player_id = ? AND member_number IS NULL
             ", params = list(member_number, player_id))
@@ -1010,14 +1103,13 @@ observeEvent(input$submit_tournament, {
 
       # Get UNKNOWN archetype_id if no deck selected
       if (is.na(deck_id)) {
-        unknown <- dbGetQuery(rv$db_con, "SELECT archetype_id FROM deck_archetypes WHERE archetype_name = 'UNKNOWN'")
+        unknown <- safe_query(rv$db_con, "SELECT archetype_id FROM deck_archetypes WHERE archetype_name = 'UNKNOWN'", default = data.frame())
         deck_id <- if (nrow(unknown) > 0) unknown$archetype_id[1] else NA_integer_
       }
 
       # Generate result_id since DuckDB doesn't auto-increment
-      max_result_id <- dbGetQuery(rv$db_con, "SELECT COALESCE(MAX(result_id), 0) as max_id FROM results")$max_id
-      result_id <- max_result_id + 1
-      dbExecute(rv$db_con, "
+      result_id <- next_id(rv$db_con, "results", "result_id")
+      safe_execute(rv$db_con, "
         INSERT INTO results (result_id, tournament_id, player_id, archetype_id, pending_deck_request_id, placement, wins, losses, ties)
         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
       ", params = list(
@@ -1025,6 +1117,9 @@ observeEvent(input$submit_tournament, {
         row$placement, wins, losses, ties
       ))
     }
+
+    # Commit transaction
+    dbExecute(rv$db_con, "COMMIT")
 
     # Trigger refresh
     rv$data_refresh <- (rv$data_refresh %||% 0) + 1
@@ -1035,6 +1130,9 @@ observeEvent(input$submit_tournament, {
     rv$submit_uploaded_files <- NULL
     rv$submit_parsed_count <- 0
     rv$submit_total_players <- 0
+    rv$submit_grid_data <- NULL
+    rv$submit_player_matches <- list()
+    rv$submit_ocr_row_indices <- NULL
 
     # Switch back to step 1
     shinyjs::hide("submit_wizard_step2")
@@ -1051,7 +1149,7 @@ observeEvent(input$submit_tournament, {
     updateCheckboxInput(session, "submit_confirm", value = FALSE)
     shinyjs::reset("submit_screenshots")
 
-    showNotification(
+    notify(
       paste("Tournament submitted successfully!", nrow(results), "results recorded."),
       type = "message"
     )
@@ -1062,7 +1160,8 @@ observeEvent(input$submit_tournament, {
     session$sendCustomMessage("updateSidebarNav", "nav_tournaments")
 
   }, error = function(e) {
-    showNotification(paste("Error submitting tournament:", e$message), type = "error")
+    tryCatch(dbExecute(rv$db_con, "ROLLBACK"), error = function(re) NULL)
+    notify(paste("Error submitting tournament:", e$message), type = "error")
   })
 })
 
@@ -1076,7 +1175,7 @@ observeEvent(input$submit_request_store, {
       bsicons::bs_icon("shop", size = "3em", class = "text-primary mb-3"),
       p("To request a new store be added to the system, please fill out our store request form."),
       tags$a(
-        href = "https://forms.gle/placeholder", # TODO: Real form URL
+        href = LINKS$contact,
         target = "_blank",
         class = "btn btn-primary",
         bsicons::bs_icon("box-arrow-up-right", class = "me-2"),
@@ -1223,12 +1322,12 @@ observeEvent(input$match_process_ocr, {
 
   # Validate required fields
   if (is.null(input$match_tournament) || input$match_tournament == "") {
-    showNotification("Please select a tournament", type = "error")
+    notify("Please select a tournament", type = "error")
     return()
   }
 
   if (is.null(input$match_player_username) || trimws(input$match_player_username) == "") {
-    showNotification("Please enter your username", type = "error")
+    notify("Please enter your username", type = "error")
     shinyjs::removeClass("match_username_hint", "d-none")
     return()
   } else {
@@ -1236,7 +1335,7 @@ observeEvent(input$match_process_ocr, {
   }
 
   if (is.null(input$match_player_member) || trimws(input$match_player_member) == "") {
-    showNotification("Please enter your member number", type = "error")
+    notify("Please enter your member number", type = "error")
     shinyjs::removeClass("match_member_hint", "d-none")
     return()
   } else {
@@ -1274,16 +1373,19 @@ observeEvent(input$match_process_ocr, {
   message("[MATCH SUBMIT] File path: ", file$datapath)
 
   # Call OCR
-  ocr_text <- tryCatch({
+  ocr_result <- tryCatch({
     gcv_detect_text(file$datapath, verbose = TRUE)
   }, error = function(e) {
     message("[MATCH SUBMIT] OCR error: ", e$message)
     NULL
   })
 
+  # Extract text from structured result (backward compatible with plain string)
+  ocr_text <- if (is.list(ocr_result)) ocr_result$text else ocr_result
+
   if (is.null(ocr_text) || ocr_text == "") {
     removeModal()
-    showNotification("Could not extract text from screenshot. Check that GOOGLE_CLOUD_VISION_API_KEY is set.", type = "error")
+    notify("Could not read the screenshot. Make sure the image is clear and shows the match history screen.", type = "error")
     return()
   }
 
@@ -1335,21 +1437,21 @@ observeEvent(input$match_process_ocr, {
 
   # Show appropriate notification
   if (parsed_count == 0) {
-    showNotification(
+    notify(
       paste("No matches found - fill in all", total_rounds, "rounds manually"),
       type = "warning",
       duration = 8
     )
   } else if (parsed_count == total_rounds) {
-    showNotification(paste("All", total_rounds, "rounds found"), type = "message")
+    notify(paste("All", total_rounds, "rounds found"), type = "message")
   } else if (parsed_count < total_rounds) {
-    showNotification(
+    notify(
       paste("Parsed", parsed_count, "of", total_rounds, "rounds - fill in remaining manually"),
       type = "warning",
       duration = 8
     )
   } else {
-    showNotification(
+    notify(
       paste("Found", parsed_count, "rounds, showing", total_rounds),
       type = "warning",
       duration = 8
@@ -1458,12 +1560,12 @@ observeEvent(input$match_submit, {
   req(input$match_tournament)
 
   if (is.null(input$match_player_username) || trimws(input$match_player_username) == "") {
-    showNotification("Please enter your username", type = "error")
+    notify("Please enter your username", type = "error")
     return()
   }
 
   if (is.null(input$match_player_member) || trimws(input$match_player_member) == "") {
-    showNotification("Please enter your member number", type = "error")
+    notify("Please enter your member number", type = "error")
     return()
   }
 
@@ -1474,7 +1576,7 @@ observeEvent(input$match_submit, {
 
   tryCatch({
     # Ensure matches table exists
-    dbExecute(rv$db_con, "
+    safe_execute(rv$db_con, "
       CREATE TABLE IF NOT EXISTS matches (
         match_id INTEGER PRIMARY KEY,
         tournament_id INTEGER NOT NULL,
@@ -1490,24 +1592,25 @@ observeEvent(input$match_submit, {
       )
     ")
 
+    # Begin transaction for atomic match history insert
+    dbExecute(rv$db_con, "BEGIN TRANSACTION")
+
     # Find or create submitting player
-    player <- dbGetQuery(rv$db_con, "
+    player <- safe_query(rv$db_con, "
       SELECT player_id FROM players
       WHERE (member_number IS NOT NULL AND member_number = ?) OR LOWER(display_name) = LOWER(?)
       LIMIT 1
-    ", params = list(submitter_member, submitter_username))
+    ", params = list(submitter_member, submitter_username), default = data.frame())
 
     if (nrow(player) == 0) {
-      # Generate player_id since DuckDB doesn't auto-increment
-      max_player_id <- dbGetQuery(rv$db_con, "SELECT COALESCE(MAX(player_id), 0) as max_id FROM players")$max_id
-      player_id <- max_player_id + 1
-      dbExecute(rv$db_con, "
+      player_id <- next_id(rv$db_con, "players", "player_id")
+      safe_execute(rv$db_con, "
         INSERT INTO players (player_id, display_name, member_number)
         VALUES (?, ?, ?)
       ", params = list(player_id, submitter_username, submitter_member))
     } else {
       player_id <- player$player_id[1]
-      dbExecute(rv$db_con, "
+      safe_execute(rv$db_con, "
         UPDATE players SET member_number = ?
         WHERE player_id = ? AND member_number IS NULL
       ", params = list(submitter_member, player_id))
@@ -1549,24 +1652,22 @@ observeEvent(input$match_submit, {
         as.integer(row$match_points)
       }
 
-      opponent <- dbGetQuery(rv$db_con, "
+      opponent <- safe_query(rv$db_con, "
         SELECT player_id FROM players
         WHERE (member_number IS NOT NULL AND member_number = ?) OR LOWER(display_name) = LOWER(?)
         LIMIT 1
-      ", params = list(opponent_member, opponent_username))
+      ", params = list(opponent_member, opponent_username), default = data.frame())
 
       if (nrow(opponent) == 0) {
-        # Generate player_id since DuckDB doesn't auto-increment
-        max_player_id <- dbGetQuery(rv$db_con, "SELECT COALESCE(MAX(player_id), 0) as max_id FROM players")$max_id
-        opponent_id <- max_player_id + 1
-        dbExecute(rv$db_con, "
+        opponent_id <- next_id(rv$db_con, "players", "player_id")
+        safe_execute(rv$db_con, "
           INSERT INTO players (player_id, display_name, member_number)
           VALUES (?, ?, ?)
         ", params = list(opponent_id, opponent_username, opponent_member))
       } else {
         opponent_id <- opponent$player_id[1]
         if (!is.na(opponent_member)) {
-          dbExecute(rv$db_con, "
+          safe_execute(rv$db_con, "
             UPDATE players SET member_number = ?
             WHERE player_id = ? AND member_number IS NULL
           ", params = list(opponent_member, opponent_id))
@@ -1574,10 +1675,8 @@ observeEvent(input$match_submit, {
       }
 
       tryCatch({
-        # Generate match_id since DuckDB doesn't auto-increment
-        max_match_id <- dbGetQuery(rv$db_con, "SELECT COALESCE(MAX(match_id), 0) as max_id FROM matches")$max_id
-        match_id <- max_match_id + 1
-        dbExecute(rv$db_con, "
+        match_id <- next_id(rv$db_con, "matches", "match_id")
+        safe_execute(rv$db_con, "
           INSERT INTO matches (match_id, tournament_id, round_number, player_id, opponent_id, games_won, games_lost, games_tied, match_points)
           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
         ", params = list(
@@ -1597,6 +1696,9 @@ observeEvent(input$match_submit, {
       })
     }
 
+    # Commit transaction
+    dbExecute(rv$db_con, "COMMIT")
+
     # Clear form
     rv$match_ocr_results <- NULL
     rv$match_uploaded_file <- NULL
@@ -1607,13 +1709,14 @@ observeEvent(input$match_submit, {
     updateTextInput(session, "match_player_member", value = "")
     shinyjs::reset("match_screenshots")
 
-    showNotification(
+    notify(
       paste("Match history submitted!", matches_inserted, "matches recorded."),
       type = "message"
     )
 
   }, error = function(e) {
-    showNotification(paste("Error submitting match history:", e$message), type = "error")
+    tryCatch(dbExecute(rv$db_con, "ROLLBACK"), error = function(re) NULL)
+    notify(paste("Error submitting match history:", e$message), type = "error")
   })
 })
 

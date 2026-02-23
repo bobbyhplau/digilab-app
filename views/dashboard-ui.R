@@ -43,6 +43,14 @@ dashboard_ui <- tagList(
     )
   ),
 
+  # Help text
+  div(class = "page-help-text",
+    div(class = "info-hint-box text-center",
+      bsicons::bs_icon("info-circle", class = "info-hint-icon"),
+      "Overview of your scene's tournament activity, trending decks, and top performers. Use filters above to drill into specific formats or event types."
+    )
+  ),
+
   # Value boxes with digital Digimon aesthetic
   div(
     class = "overview-value-boxes mb-3",
@@ -120,9 +128,13 @@ dashboard_ui <- tagList(
   # Top Decks with card images (primary visual)
   card(
     card_header(
-      class = "d-flex align-items-center gap-2",
-      bsicons::bs_icon("collection", class = "text-primary"),
-      uiOutput("top_decks_header", inline = TRUE)
+      class = "d-flex justify-content-between align-items-center",
+      div(
+        class = "d-flex align-items-center gap-2",
+        bsicons::bs_icon("collection", class = "text-primary"),
+        uiOutput("top_decks_header", inline = TRUE)
+      ),
+      span(class = "small text-muted", "Click a deck for details")
     ),
     card_body(
       class = "top-decks-container",
@@ -174,6 +186,7 @@ dashboard_ui <- tagList(
         class = "p-2 d-flex flex-column",
         div(
           class = "flex-grow-1",
+          div(id = "meta_diversity_gauge_skeleton", skeleton_chart(bars = 1, height = "180px")),
           highchartOutput("meta_diversity_gauge", height = "220px")
         ),
         div(
@@ -186,11 +199,16 @@ dashboard_ui <- tagList(
     # Recent Tournaments table
     card(
       card_header(
-        class = "d-flex align-items-center gap-2",
-        bsicons::bs_icon("calendar-event", class = "text-primary"),
-        "Recent Tournaments"
+        class = "d-flex justify-content-between align-items-center",
+        div(
+          class = "d-flex align-items-center gap-2",
+          bsicons::bs_icon("calendar-event", class = "text-primary"),
+          "Recent Tournaments"
+        ),
+        span(class = "small text-muted", "Click a row for full results")
       ),
       card_body(
+        div(id = "recent_tournaments_skeleton", skeleton_table(rows = 5)),
         reactableOutput("recent_tournaments")
       )
     )
@@ -201,7 +219,7 @@ dashboard_ui <- tagList(
 
   # Top 3 Conversion + Color Distribution row
   layout_columns(
-    col_widths = c(6, 6),
+    col_widths = breakpoints(sm = c(12, 12), md = c(6, 6)),
     card(
       card_header(
         class = "d-flex align-items-center gap-2",
@@ -210,6 +228,7 @@ dashboard_ui <- tagList(
       ),
       card_body(
         class = "p-0",
+        div(id = "conversion_rate_chart_skeleton", skeleton_chart(bars = 5, height = "240px")),
         highchartOutput("conversion_rate_chart", height = "280px")
       )
     ),
@@ -221,6 +240,7 @@ dashboard_ui <- tagList(
       ),
       card_body(
         class = "p-0",
+        div(id = "color_dist_chart_skeleton", skeleton_chart(bars = 7, height = "240px")),
         highchartOutput("color_dist_chart", height = "280px")
       )
     )
@@ -238,6 +258,7 @@ dashboard_ui <- tagList(
     ),
     card_body(
       class = "p-0",
+      div(id = "meta_share_timeline_skeleton", skeleton_chart(bars = 10, height = "310px")),
       highchartOutput("meta_share_timeline", height = "350px")
     )
   ),
@@ -254,6 +275,7 @@ dashboard_ui <- tagList(
     ),
     card_body(
       class = "p-0",
+      div(id = "tournaments_trend_chart_skeleton", skeleton_chart(bars = 8, height = "240px")),
       highchartOutput("tournaments_trend_chart", height = "280px")
     )
   ),
@@ -270,6 +292,7 @@ dashboard_ui <- tagList(
     ),
     card_body(
       class = "p-2",
+      div(id = "player_growth_chart_skeleton", skeleton_chart(bars = 6, height = "160px")),
       highchartOutput("player_growth_chart", height = "200px")
     )
   )

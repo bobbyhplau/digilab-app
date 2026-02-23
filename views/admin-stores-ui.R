@@ -12,10 +12,16 @@ admin_stores_ui <- tagList(
     )
   ),
   uiOutput("admin_stores_scene_indicator"),
+  div(class = "page-help-text",
+    div(class = "info-hint-box",
+      bsicons::bs_icon("info-circle", class = "info-hint-icon"),
+      "Manage store locations and schedules. Check 'Online' for virtual organizers without a physical address."
+    )
+  ),
   div(
     class = "admin-panel",
     layout_columns(
-      col_widths = c(6, 6),
+      col_widths = breakpoints(sm = c(12, 12), md = c(6, 6)),
       card(
         card_header(
           class = "d-flex justify-content-between align-items-center",
@@ -37,8 +43,27 @@ admin_stores_ui <- tagList(
             condition = "!input.store_is_online",
             textInput("store_name", "Store Name"),
             textInput("store_address", "Street Address"),
-            textInput("store_city", "City"),
-            selectInput("store_state", "State", choices = c("TX" = "TX"), selected = "TX"),
+            layout_columns(
+              col_widths = breakpoints(sm = c(12, 12), md = c(8, 4)),
+              textInput("store_city", "City"),
+              selectInput("store_state", "State",
+                choices = c(
+                  "AL" = "AL", "AK" = "AK", "AZ" = "AZ", "AR" = "AR", "CA" = "CA",
+                  "CO" = "CO", "CT" = "CT", "DE" = "DE", "DC" = "DC", "FL" = "FL",
+                  "GA" = "GA", "HI" = "HI", "ID" = "ID", "IL" = "IL", "IN" = "IN",
+                  "IA" = "IA", "KS" = "KS", "KY" = "KY", "LA" = "LA", "ME" = "ME",
+                  "MD" = "MD", "MA" = "MA", "MI" = "MI", "MN" = "MN", "MS" = "MS",
+                  "MO" = "MO", "MT" = "MT", "NE" = "NE", "NV" = "NV", "NH" = "NH",
+                  "NJ" = "NJ", "NM" = "NM", "NY" = "NY", "NC" = "NC", "ND" = "ND",
+                  "OH" = "OH", "OK" = "OK", "OR" = "OR", "PA" = "PA", "RI" = "RI",
+                  "SC" = "SC", "SD" = "SD", "TN" = "TN", "TX" = "TX", "UT" = "UT",
+                  "VT" = "VT", "VA" = "VA", "WA" = "WA", "WV" = "WV", "WI" = "WI",
+                  "WY" = "WY"
+                ),
+                selected = "TX",
+                selectize = FALSE
+              )
+            ),
             textInput("store_zip", "ZIP Code")
           ),
 
@@ -69,7 +94,7 @@ admin_stores_ui <- tagList(
             condition = "!input.store_is_online",
             div(
               class = "text-muted small mb-2",
-              bsicons::bs_icon("geo-alt"), " Location will be automatically geocoded from address"
+              bsicons::bs_icon("geo-alt"), " Map coordinates will be set automatically from the address"
             )
           ),
 
@@ -92,7 +117,7 @@ admin_stores_ui <- tagList(
             div(
               class = "mt-3",
               layout_columns(
-                col_widths = c(4, 3, 3, 2),
+                col_widths = breakpoints(sm = c(6, 6, 6, 6), md = c(4, 3, 3, 2)),
                 selectInput(
                   "schedule_day", "Day",
                   choices = list(
@@ -158,33 +183,6 @@ admin_stores_ui <- tagList(
         ),
         card_body(
           reactableOutput("admin_store_list")
-        )
-      )
-    )
-  ),
-
-  # Delete confirmation modal
-  tags$div(
-    id = "delete_store_modal",
-    class = "modal fade",
-    tabindex = "-1",
-    tags$div(
-      class = "modal-dialog",
-      tags$div(
-        class = "modal-content",
-        tags$div(
-          class = "modal-header",
-          tags$h5(class = "modal-title", "Confirm Delete"),
-          tags$button(type = "button", class = "btn-close", `data-bs-dismiss` = "modal")
-        ),
-        tags$div(
-          class = "modal-body",
-          uiOutput("delete_store_message")
-        ),
-        tags$div(
-          class = "modal-footer",
-          tags$button(type = "button", class = "btn btn-secondary", `data-bs-dismiss` = "modal", "Cancel"),
-          actionButton("confirm_delete_store", "Delete", class = "btn-danger")
         )
       )
     )

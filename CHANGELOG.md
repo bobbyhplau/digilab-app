@@ -5,8 +5,167 @@ All notable changes to DigiLab will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased]
+## [1.0.0] - 2026-02-23 - Public Launch
 
+### Added
+- **Enter/Submit Results Parity (ADM2)**: Migrated public Upload Results review grid to shared grid module from Enter Results
+  - Member # column in shared grid (visible in both admin and public flows)
+  - Searchable selectize deck dropdown replaces static select in both tabs
+  - OCR quality validation with warning modal (proceed anyway / re-upload)
+  - Blur-based player matching on public submit review grid
+  - Entry vs review mode CSS for OCR-populated rows (subtle blue highlight)
+  - Format and event type shown in both summary bars
+  - Event types synced to shared `EVENT_TYPES` constant
+  - Admin form validation (event type, format) and field reset after submit
+- **Progressive Web App (PWA1)**: App is now installable ("Add to Home Screen") on mobile and desktop
+  - Web app manifest with Digivice icons (192/512 standard + maskable) and dark theme
+  - Offline-only service worker serves Agumon fallback page when network is unavailable
+  - Favicon (`www/favicon.ico`) and Apple touch icon from Digivice SVG
+  - `mobile-web-app-capable` meta tag for standalone mode on iOS/Android
+- **Agumon Loading Spinner (DM9)**: Agumon SVG centered inside the circular loading gate animation with `gate-agumon-pulse` scale/opacity animation
+- **Agumon Disconnect Overlay (DM3)**: Agumon SVG in the "Connection Lost" reconnect screen with `disconnect-agumon` bounce animation
+- **Agumon 404 Not Found (DM7)**: Bad deep link URLs now show a modal with Agumon mascot, entity-specific title, and descriptive message instead of a toast notification
+- **Digivice OG Image (DM11)**: New 1200x630 Open Graph image (`www/og-image.svg` / `og-image.png`) with large Digivice watermark behind DigiLab text
+- **Digivice Logo Refresh (DM10)**: Updated `docs/digilab-logo.svg` and `docs/digilab-icon.svg` with Digivice icon
+- **Mobile Column Hiding**: Stores table hides City, Avg Event Size, Avg Rating on mobile; admin tournaments table hides Type, Format, Rounds
+- **Performance Profiling**: Load tested with shinycannon (1/5/10/25 concurrent users), profiled with profvis
+- **Lazy Admin UI**: Admin views (`renderUI`) only generated when user authenticates as admin — reduces initial page weight for public visitors
+- **Extended bindCache**: Added `bindCache()` to Players, Meta, Tournaments, and Stores tab outputs for cross-session caching
+- **Responsive Top Decks & Rising Stars**: Dashboard grids show 4/6/8 items based on screen size (CSS nth-child breakpoints at 1600px/991px/640px)
+- **Rising Stars Top 6**: Expanded from 4 to 6 players (up to 8 on large screens)
+- **"Report an Error" Links**: Discord link in player, meta, tournament, and store modal footers
+- **Clickable DigiLab Header**: App title navigates back to Dashboard
+- **`next_id()` Helper**: Atomic ID generation replacing `SELECT MAX(id) + 1` pattern
+- **`format_event_type()` Shared Helper**: Centralized event type display formatting (was duplicated 4x)
+
+### Changed
+- **Version Badge**: BETA badge replaced with "v1.0" version indicator
+- **Sentry Version Tag**: Now reads from `APP_VERSION` variable instead of hardcoded string
+- **Dashboard Value Boxes**: `total_stores_val` and `total_decks_val` now respect format/event type/scene filters and use `bindCache()`
+- **Dashboard Filters**: `build_dashboard_filters()` and `build_community_filters()` refactored to delegate to shared `build_filters_param()`
+- **OG Meta Tags**: Updated to reference `og-image.png` with dimensions, Twitter card upgraded to `summary_large_image`
+- **Admin Layout Breakpoints (MOB1)**: All 8 admin and dashboard `layout_columns` calls now use `breakpoints()` for proper mobile stacking
+- **Admin Results Mobile (MOB1)**: All `col-md-X` classes now include `col-12` prefix for mobile-first stacking
+- **Tab Bar Tap Targets (MOB1)**: Increased mobile tab bar item padding and added `min-width: 44px` / `min-height: 44px` for WCAG compliance
+- **Value Box Font Floor (MOB1)**: Bumped `.vb-label` and `.vb-subtitle` minimum font sizes at 576px breakpoint from 0.55/0.6rem to 0.65rem
+
+### Security
+- **Public Submit Server Hardened**: All 28 raw `dbGetQuery`/`dbExecute` calls migrated to `safe_query()`/`safe_execute()` wrappers
+- **Transaction Safety**: Tournament and match history submissions wrapped in `BEGIN TRANSACTION`/`COMMIT`/`ROLLBACK`
+- **ID Race Condition Fix**: Replaced `SELECT MAX(id) + 1` with `next_id()` helper in submit and admin-results servers
+- **XSS Fix**: Scene map popup HTML now uses `htmltools::htmlEscape()` on user-facing names
+
+### Fixed
+- **Agumon SVG Scope Bug**: `agumonSvg` variable was scoped inside `$(document).ready()`, causing `ReferenceError` in disconnect overlay IIFE — hoisted to outer scope
+- **Agumon SVG Color/Size Swap**: `agumon_svg()` sprintf args were in wrong order (`size, size, color` instead of `color, size, size`), putting color value into height attribute
+- **Tournament Modal Store Link**: Removed clickable store name (was navigating away from modal context)
+
+### Removed
+- Duplicate `www/digilab-logo.svg` (original lives in `docs/`)
+- `.loading-character` CSS class and `character-jump` animation (replaced by Agumon in loading gate)
+- 4 duplicated `format_event_type()` implementations (now shared from `shared-server.R`)
+
+## [0.29.0] - 2026-02-22 - Admin Auth & Automation
+
+### Added
+- **Per-User Admin Accounts**: `admin_users` table with bcrypt password hashing, roles (super_admin / scene_admin), and scene assignment
+- **Admin Login Form**: Username/password authentication with bootstrap flow for first super admin creation
+- **Permission-Scoped Admin Tabs**: Hidden unless logged in with appropriate role
+- **Manage Admins UI**: Add, edit, and deactivate admin accounts (super admin only)
+- **Manage Scenes UI**: Add, edit, and delete scenes with auto-geocoding (super admin only)
+- **Change Password Form**: Collapsible form in admin modal for changing own password
+- **Scene Scoping**: Scene admins locked to their assigned scene's data
+- **Sentry Context Tags**: `active_tab`, `scene`, `is_admin`, `community` on all error captures
+- **GA4 Custom Events**: `tab_visit`, `modal_open`, `scene_change` tracking
+
+### Changed
+- **Admin Modal**: Simplified header, collapsible change password section
+- **Edit Stores**: Moved to admin section (was super admin only)
+- **Scene Locations**: Auto-geocoded from location text field
+
+### Fixed
+- **Limitless Sync NULL Decks**: NULL deck archetypes now default to UNKNOWN (archetype_id=50)
+- **Limitless Sync Filter**: Skip tournaments where top 3 players have no deck data (no-decklist tournaments)
+- **GitHub Actions**: Both `sync-limitless.yml` (weekly) and `sync-cards.yml` (monthly) confirmed working
+
+### Documentation
+- **Admin Auth Design Doc**: `docs/plans/2026-02-22-admin-auth-design.md`
+
+## [0.28.0] - 2026-02-22 - Content Updates, Error Tracking & Admin UX
+
+### Added
+- **OCR Layout-Aware Parser**: Replaced line-based text parsing with bounding box coordinate analysis using Google Cloud Vision annotations (73% → 95% accuracy)
+  - `parse_standings_layout()`: 12-step algorithm normalizes coordinates, clusters rows by Y-position, assigns text to columns (Ranking, Username/Member, Win Points) by X-position
+  - `parse_standings()` orchestrator: tries layout parser first, validates results, falls back to text parser
+  - Medal icon rank inference: detects missing ranks 1-3 (gold/silver/bronze icons unreadable by GCV) and infers from Y-position ordering
+  - Points validation: caps at `rounds * 3`, truncates merged digits (GCV sometimes merges "6" + "0" from adjacent OMW% column)
+  - Noise filtering: app headers, B-logo variants, copyright fragments, garbled multi-word text without member numbers
+  - `gcv_detect_text()` now returns bounding box annotations alongside full text for backward compatibility
+  - Ranking-aware multi-screenshot merge with GUEST dedup and rank gap padding
+  - GUEST player DB lookup: recovers real member numbers by matching username against players table
+- **OCR Batch Test Harness**: `batch_test_folders()` and `batch_retest_folders()` in `scripts/batch_test_ocr.R` — 7 ground truth folders (11 screenshots, 106 expected players) with per-field accuracy scoring
+- **LINKS Constant**: Centralized all external URLs (Discord, Ko-fi, GitHub, contact form) into a `LINKS` list in `app.R` — all views reference `LINKS$discord`, `LINKS$kofi`, etc.
+- **FAQ Page Rewrite**: 5 categories (Getting Started, Ratings & Scores, Scenes & Regions, Data & Coverage, General), 22 questions covering all features through v0.27
+- **About Page Rewrite**: Removed DFW-specific language, added "Active Scenes" stat with globe icon, Discord as primary contact link, multi-region audience types (Online Competitors, Community Builders)
+- **For Organizers Page Rewrite**: New Limitless Integration section (3 panels), Community Links section (3 panels), split store submission into Physical/Online/Requirements, replaced GitHub with Discord for scene requests
+- **Sentry Error Tracking**: `sentryR` integration with `SENTRY_DSN` env var — captures exceptions in `safe_query()`/`safe_execute()` and global Shiny error handler, with graceful no-op when not configured
+- **Admin Info Hint Boxes**: Added to Enter Results, Edit Tournaments, and Edit Players (all 6 admin pages now have consistent help text)
+- **Record Format Help Text**: Inline explanation below radio buttons ("Points: Total match points... W-L-T: Individual wins, losses, and ties")
+- **Release Event Callout**: Info alert in results wizard Step 2 when event type is Release Event ("deck archetypes are set to Unknown automatically")
+- **Player Matching Explanation**: Text above match summary badges in Upload Results Step 2 explaining matching by member number then username
+- **Multi-Color Checkbox Help**: Inline explanation ("Check for decks with 3+ colors. For dual-color decks, use Primary and Secondary color instead")
+- **Skeleton Loaders**: Digital-themed skeleton loaders on all public tables and dashboard charts with shimmer animation, auto-hidden when data renders
+- **`skeleton_table()` / `skeleton_chart()` Helpers**: Reusable skeleton loader generators for table and chart card bodies
+- **`admin_empty_state()` Helper**: Lightweight empty state variant for admin tables with consistent digital styling
+- **Filter-Aware Empty States**: Public tables (Players, Meta, Tournaments) now show "No X match your filters" with funnel icon when filters are active, vs Agumon mascot "No data" when genuinely empty
+- **`notify()` Smart Durations**: Wrapper around `showNotification()` — errors stick until dismissed, warnings last 8s, success messages last 4s
+- **Digital Grid on All Card Headers**: Subtle grid pattern (Tier 2, 0.025 opacity) applied to all card headers, with stronger pattern (Tier 1, 0.04 opacity) on chart/feature cards
+- **Circuit Node on All Card Headers**: Small cyan accent dot on all card headers (4px Tier 2), with larger dot (5px Tier 1) on chart/feature cards
+- **Modal Body Grid Texture**: Very subtle digital grid overlay (0.015 opacity) on all modal bodies
+- **Inline Form Validation**: Red border + glow on invalid fields across all 14 admin form handlers with auto-clear on user interaction
+- **`show_field_error()` / `clear_field_error()` / `clear_all_field_errors()` Helpers**: Inline validation helpers using shinyjs
+- **Debounced Search Inputs**: 300ms debounce on all 5 search inputs (Players, Meta, Tournaments, Admin Tournaments, Admin Players)
+- **Value Box Count-Up Animation**: Numeric value boxes (Tournaments, Players) animate from old to new value with cubic ease-out; deck boxes fade in on update
+
+### Changed
+- **US States Dropdown**: Edit Stores state selection expanded from TX-only to all 50 US states + DC with `selectize = FALSE`
+- **OCR Error Messages**: Replaced technical messages ("Check that GOOGLE_CLOUD_VISION_API_KEY is set") with user-friendly text in both standings and match history OCR flows
+- **Geocoding Help Text**: Changed "Location will be automatically geocoded from address" to "Map coordinates will be set automatically from the address"
+- **Cross-Page Navigation**: All 11 sidebar navigation handlers now update sidebar selection via `sendCustomMessage("updateSidebarNav", ...)`
+- **Modal System Consolidated**: All 8 static Bootstrap modals (`tags$div(class="modal fade")` + jQuery triggers) migrated to Shiny's `showModal(modalDialog())` / `removeModal()` pattern — single modal system throughout the app
+- **Tournament Results Editor**: Nested edit/delete modals now use re-show pattern (Shiny only supports one modal at a time)
+- **Error Notifications Persistent**: Error toasts no longer auto-dismiss — user must click X to close
+- **Admin Empty States Styled**: Admin formats and players tables now use `admin_empty_state()` instead of plain text reactable rows
+
+### Removed
+- Debug `message()` calls from `admin-decks-server.R` (UPDATE/DELETE archetype logging) and verbose file processing logs from `public-submit-server.R`
+- Orphaned `about_result_count` server output and `faq_to_about` navigation handler
+- ~270 lines of static Bootstrap modal HTML from 6 admin view files
+- All jQuery `modal('show'/'hide')` calls from server files
+
+### Documentation
+- **OCR Layout Parser Design Doc**: `docs/plans/2026-02-22-ocr-layout-parser-design.md` — brainstorming design for bounding box approach
+- **OCR Layout Parser Implementation Plan**: `docs/plans/2026-02-22-ocr-layout-parser-implementation.md` — 9-task implementation plan
+- **Admin UX Audit Design Doc**: `docs/plans/2026-02-22-admin-ux-audit-design.md` — prioritized findings from REV1 audit (2 blockers, 3 high, 3 medium, 3 low)
+
+## [0.27.0] - 2026-02-20 - Onboarding & Help
+
+### Added
+- **Onboarding Carousel**: Revamped first-visit modal with 3-step flow — Welcome (Agumon hero + feature list), Scene Selection (map + geolocation), Community Links (Discord, Ko-fi, For Organizers)
+- **Welcome Guide**: Question-circle icon in footer reopens onboarding modal for returning users
+- **Contextual Table Hints**: "Click a row for full results" on Recent Tournaments, "Click a deck for details" on Top Decks (dashboard)
+- **Rating/Score FAQ Links**: Clickable links in Players tab help text navigate to FAQ methodology sections
+- **Admin Page Hints**: Info hint boxes on Edit Stores, Edit Decks, and Edit Formats pages
+- **Per-Page Help Text**: Info hint boxes on all 5 public tabs (Dashboard, Players, Meta, Tournaments, Stores) explaining what each tab offers
+- **Agumon Empty States**: Agumon SVG mascot replaces generic icons in 7 empty state locations across all public tabs
+- **Agumon on About Page**: Walking Agumon animation in the About page hero section (right-to-left with dust, turn, walk back)
+- **`agumon_svg()` Helper**: Reusable function for inline Agumon SVG with configurable size and color
+- **`digital_empty_state()` Mascot Parameter**: Optional `mascot = "agumon"` parameter to show Agumon instead of bsicons
+
+### Changed
+- Onboarding modal upgraded from single-step scene picker to 3-step carousel with progress bar, pill-shaped dot indicators, and per-step navigation (Skip/Get Started, Back/Almost Done, Back/Enter DigiLab)
+- Map in onboarding step 2 triggers resize event when becoming visible (prevents blank Mapbox rendering)
+- App version bumped to 0.27.0
 
 ## [0.25.0] - 2026-02-20 - Stores & Filtering Enhancements
 

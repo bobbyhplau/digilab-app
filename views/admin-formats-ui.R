@@ -3,10 +3,16 @@
 
 admin_formats_ui <- tagList(
   h2("Edit Formats"),
+  div(class = "page-help-text",
+    div(class = "info-hint-box",
+      bsicons::bs_icon("info-circle", class = "info-hint-icon"),
+      "Add card sets and formats. Tournaments reference these for filtering by era."
+    )
+  ),
   div(
     class = "admin-panel",
     layout_columns(
-      col_widths = c(5, 7),
+      col_widths = breakpoints(sm = c(12, 12), md = c(5, 7)),
       card(
         card_header(
           class = "d-flex justify-content-between align-items-center",
@@ -43,33 +49,6 @@ admin_formats_ui <- tagList(
         ),
         card_body(
           reactableOutput("admin_format_list")
-        )
-      )
-    )
-  ),
-
-  # Delete confirmation modal
-  tags$div(
-    id = "delete_format_modal",
-    class = "modal fade",
-    tabindex = "-1",
-    tags$div(
-      class = "modal-dialog",
-      tags$div(
-        class = "modal-content",
-        tags$div(
-          class = "modal-header",
-          tags$h5(class = "modal-title", "Confirm Delete"),
-          tags$button(type = "button", class = "btn-close", `data-bs-dismiss` = "modal")
-        ),
-        tags$div(
-          class = "modal-body",
-          uiOutput("delete_format_message")
-        ),
-        tags$div(
-          class = "modal-footer",
-          tags$button(type = "button", class = "btn btn-secondary", `data-bs-dismiss` = "modal", "Cancel"),
-          actionButton("confirm_delete_format", "Delete", class = "btn-danger")
         )
       )
     )

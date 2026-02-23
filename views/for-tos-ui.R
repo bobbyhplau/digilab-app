@@ -8,15 +8,14 @@ for_tos_ui <- div(
   div(
     class = "content-page-header",
     h1(class = "content-page-title", "For Organizers"),
-    p(class = "content-page-subtitle", "Help grow your local Digimon TCG scene")
+    p(class = "content-page-subtitle", "Help grow your Digimon TCG community")
   ),
 
   # Intro
-  p("Tournament organizers are the backbone of the Digimon TCG community. DigiLab helps you ",
-    "showcase your events and build engagement with your local player base."),
-  p("Here's how you can get involved:"),
+  p("Tournament organizers and community builders are the backbone of the Digimon TCG scene. ",
+    "DigiLab helps you showcase your events, track your community's growth, and connect with players."),
 
-  # Submit Tournament Results
+  # Section 1: Upload Tournament Results
   h2(class = "faq-category", bsicons::bs_icon("cloud-upload"), "Upload Tournament Results"),
   accordion(
     id = "tos_submit",
@@ -108,21 +107,112 @@ for_tos_ui <- div(
     )
   ),
 
-  # Add Your Store
+  # Section 2: Limitless Integration
+  h2(class = "faq-category", bsicons::bs_icon("cloud-arrow-down"), "Limitless Integration"),
+  accordion(
+    id = "tos_limitless",
+    open = FALSE,
+    accordion_panel(
+      title = "How Limitless sync works",
+      value = "limitless-sync",
+      icon = bsicons::bs_icon("arrow-repeat"),
+      p("Online tournaments from Limitless TCG are synced automatically into DigiLab. ",
+        "Results, placements, and deck archetypes are imported weekly. Online tournaments ",
+        "appear in the \"Online\" scene and feed the same rating system as in-person events.")
+    ),
+    accordion_panel(
+      title = "Currently synced organizers",
+      value = "limitless-organizers",
+      icon = bsicons::bs_icon("people"),
+      p("The following Tier 1 organizers are currently synced:"),
+      tags$ul(
+        tags$li(strong("Eagle's Nest")),
+        tags$li(strong("PHOENIX REBORN")),
+        tags$li(strong("DMV Drakes")),
+        tags$li(strong("MasterRukasu"))
+      ),
+      p("These organizers run regular online events that are automatically imported.")
+    ),
+    accordion_panel(
+      title = "Get your organizer page added",
+      value = "limitless-add",
+      icon = bsicons::bs_icon("plus-circle"),
+      p("If you run online tournaments on Limitless TCG, contact us to add your organizer page to the sync."),
+      p(strong("Provide:")),
+      tags$ul(
+        tags$li("Your Limitless organizer name and page URL"),
+        tags$li("Approximate event frequency")
+      ),
+      div(
+        class = "contact-links",
+        tags$a(
+          class = "contact-link",
+          href = LINKS$discord,
+          target = "_blank",
+          bsicons::bs_icon("discord"), "Ask on Discord"
+        ),
+        tags$a(
+          class = "contact-link",
+          href = LINKS$contact,
+          target = "_blank",
+          bsicons::bs_icon("envelope"), "Request via Form"
+        )
+      )
+    )
+  ),
+
+  # Section 3: Community Links
+  h2(class = "faq-category", bsicons::bs_icon("link-45deg"), "Community Links"),
+  accordion(
+    id = "tos_community",
+    open = FALSE,
+    accordion_panel(
+      title = "What are community links?",
+      value = "community-links",
+      icon = bsicons::bs_icon("link"),
+      p("Every store and organizer on DigiLab has a unique community link. When shared, it ",
+        "filters the entire app to show only that community's data \u2014 tournaments, players, ",
+        "meta, everything."),
+      p("URL format: ", tags$code("digilab.cards/?community=your-store-slug"))
+    ),
+    accordion_panel(
+      title = "How to find your community link",
+      value = "find-community-link",
+      icon = bsicons::bs_icon("search"),
+      p("To get your store's community link:"),
+      tags$ol(
+        class = "steps-list",
+        tags$li("Go to the ", strong("Stores"), " tab"),
+        tags$li("Find your store and click it to open the modal"),
+        tags$li("Look for the ", strong("\"Share Community View\""), " button in the modal"),
+        tags$li("Copy the link and share it!")
+      )
+    ),
+    accordion_panel(
+      title = "Use cases",
+      value = "community-use-cases",
+      icon = bsicons::bs_icon("lightbulb"),
+      p(strong("Discord server:"), " Post the link so players can check standings anytime."),
+      p(strong("Social media:"), " Share after events so players can see updated results."),
+      p(strong("Store website:"), " Link to your community's DigiLab page for tournament info.")
+    )
+  ),
+
+  # Section 4: Add Your Store
   h2(class = "faq-category", bsicons::bs_icon("shop-window"), "Add Your Store"),
   accordion(
     id = "tos_store",
     open = FALSE,
     accordion_panel(
-      title = "How to get your store listed",
-      value = "add-store",
-      icon = bsicons::bs_icon("plus-circle"),
+      title = "Physical stores",
+      value = "physical-stores",
+      icon = bsicons::bs_icon("shop"),
       p("We want to include every store that runs Digimon TCG events! To add your store:"),
       tags$ol(
         class = "steps-list",
         tags$li(
           strong("Provide store information"),
-          p("Store name, address, city, and state/region.")
+          p("Store name, address, city, and state.")
         ),
         tags$li(
           strong("Share your tournament schedule"),
@@ -130,20 +220,48 @@ for_tos_ui <- div(
         ),
         tags$li(
           strong("Contact us"),
-          p("Reach out through GitHub or the links below with your store details.")
+          p("Reach out through the form or GitHub with your store details.")
         )
       ),
       div(
         class = "contact-links",
         tags$a(
           class = "contact-link",
-          href = "https://forms.google.com/digilab-contact",
+          href = LINKS$contact,
           target = "_blank",
           bsicons::bs_icon("envelope"), "Request via Form"
         ),
         tags$a(
           class = "contact-link",
-          href = "https://github.com/lopezmichael/digimon-tcg-standings/issues/new?title=New%20Store%20Request",
+          href = paste0(LINKS$github, "/issues/new?title=New%20Store%20Request"),
+          target = "_blank",
+          bsicons::bs_icon("github"), "Request via GitHub"
+        )
+      )
+    ),
+    accordion_panel(
+      title = "Online organizers",
+      value = "online-organizers",
+      icon = bsicons::bs_icon("camera-video"),
+      p("Already running webcam events? Online organizers are supported on DigiLab! To get listed:"),
+      p(strong("Provide:")),
+      tags$ul(
+        tags$li("Platform name (e.g., your Discord server or community name)"),
+        tags$li("Limitless organizer page URL"),
+        tags$li("Discord server invite link")
+      ),
+      p("Events sync automatically via Limitless integration once your organizer page is added."),
+      div(
+        class = "contact-links",
+        tags$a(
+          class = "contact-link",
+          href = LINKS$contact,
+          target = "_blank",
+          bsicons::bs_icon("envelope"), "Request via Form"
+        ),
+        tags$a(
+          class = "contact-link",
+          href = paste0(LINKS$github, "/issues/new?title=New%20Online%20Organizer%20Request"),
           target = "_blank",
           bsicons::bs_icon("github"), "Request via GitHub"
         )
@@ -153,32 +271,35 @@ for_tos_ui <- div(
       title = "Store requirements",
       value = "store-requirements",
       icon = bsicons::bs_icon("check-circle"),
-      p("To be listed on DigiLab, stores should:"),
+      p(strong("Physical stores"), " should meet the following:"),
       tags$ul(
         tags$li("Run regular Digimon TCG events (at least monthly)"),
-        tags$li("Use Bandai TCG+ for tournament management"),
+        tags$li("Use Bandai TCG+ or Limitless for tournament management"),
         tags$li("Be open to the public (not private play groups)")
       ),
-      p("Online tournament platforms may be added in the future.")
+      p(strong("Online organizers"), " should meet the following:"),
+      tags$ul(
+        tags$li("Run regular scheduled events"),
+        tags$li("Have public registration open to all players")
+      )
     )
   ),
 
-  # Request a New Region/Scene
-  h2(class = "faq-category", bsicons::bs_icon("globe"), "Request a New Region"),
+  # Section 5: Request a New Scene
+  h2(class = "faq-category", bsicons::bs_icon("globe"), "Request a New Scene"),
   accordion(
-    id = "tos_region",
+    id = "tos_scene",
     open = FALSE,
     accordion_panel(
-      title = "How to get your region added",
-      value = "add-region",
+      title = "How to get your scene added",
+      value = "add-scene",
       icon = bsicons::bs_icon("geo-alt"),
-      p("DigiLab currently focuses on the Dallas-Fort Worth area, but we're looking to expand! ",
-        "If you want your region added:"),
+      p("Want to bring DigiLab to your community? Here's how to get a new scene set up:"),
       tags$ol(
         class = "steps-list",
         tags$li(
           strong("Check prerequisites"),
-          p("Your region should have at least 2-3 active stores running regular Digimon events.")
+          p("Your scene should have at least 2-3 active stores or organizers running regular Digimon events.")
         ),
         tags$li(
           strong("Identify a community contact"),
@@ -187,7 +308,7 @@ for_tos_ui <- div(
         ),
         tags$li(
           strong("Submit your request"),
-          p("Tell us about your region: which stores are active, how many players typically ",
+          p("Tell us about your scene: which stores are active, how many players typically ",
             "attend events, and who we can contact.")
         )
       ),
@@ -195,34 +316,35 @@ for_tos_ui <- div(
         class = "contact-links",
         tags$a(
           class = "contact-link",
-          href = "https://forms.google.com/digilab-contact",
+          href = LINKS$discord,
           target = "_blank",
-          bsicons::bs_icon("envelope"), "Request via Form"
+          bsicons::bs_icon("discord"), "Ask on Discord"
         ),
         tags$a(
           class = "contact-link",
-          href = "https://github.com/lopezmichael/digimon-tcg-standings/issues/new?title=New%20Region%20Request",
+          href = LINKS$contact,
           target = "_blank",
-          bsicons::bs_icon("github"), "Request via GitHub"
+          bsicons::bs_icon("envelope"), "Request via Form"
         )
       )
     ),
     accordion_panel(
-      title = "What makes a region?",
-      value = "region-definition",
+      title = "What makes a scene?",
+      value = "scene-definition",
       icon = bsicons::bs_icon("map"),
-      p("A \"region\" or \"scene\" in DigiLab is a community of players who regularly compete ",
+      p("A \"scene\" in DigiLab is a community of players who regularly compete ",
         "against each other. This is usually defined by:"),
       tags$ul(
-        tags$li(strong("Geography"), " - A metro area or collection of nearby cities"),
+        tags$li(strong("Geography"), " - A metro area, state, or collection of nearby cities"),
         tags$li(strong("Community"), " - Players who know each other and attend the same events"),
-        tags$li(strong("Activity"), " - At least 2-3 stores with regular events")
+        tags$li(strong("Activity"), " - At least 2-3 stores or organizers with regular events")
       ),
-      p("Examples: \"DFW Digimon\", \"Houston TCG\", \"Austin Tamers\"")
+      p("Examples: a metro area like \"Houston TCG\", a state-level scene like \"Florida Digimon\", ",
+        "or a regional community like \"Southeast Tamers\"")
     )
   ),
 
-  # Become a Contributor
+  # Section 6: Become a Contributor
   h2(class = "faq-category", bsicons::bs_icon("person-badge"), "Become a Contributor"),
   accordion(
     id = "tos_contributor",
@@ -268,15 +390,21 @@ for_tos_ui <- div(
         class = "contact-links",
         tags$a(
           class = "contact-link",
-          href = "https://forms.google.com/digilab-contact",
+          href = LINKS$discord,
           target = "_blank",
-          bsicons::bs_icon("envelope"), "Request Contributor Access"
+          bsicons::bs_icon("discord"), "Ask on Discord"
+        ),
+        tags$a(
+          class = "contact-link",
+          href = LINKS$contact,
+          target = "_blank",
+          bsicons::bs_icon("envelope"), "Request via Form"
         )
       )
     )
   ),
 
-  # Report an Error
+  # Section 7: Report an Error
   h2(class = "faq-category", bsicons::bs_icon("exclamation-triangle"), "Report an Error"),
   accordion(
     id = "tos_errors",
@@ -312,13 +440,19 @@ for_tos_ui <- div(
         class = "contact-links",
         tags$a(
           class = "contact-link",
-          href = "https://forms.google.com/digilab-contact",
+          href = LINKS$discord,
+          target = "_blank",
+          bsicons::bs_icon("discord"), "Report on Discord"
+        ),
+        tags$a(
+          class = "contact-link",
+          href = LINKS$contact,
           target = "_blank",
           bsicons::bs_icon("envelope"), "Report via Form"
         ),
         tags$a(
           class = "contact-link",
-          href = "https://github.com/lopezmichael/digimon-tcg-standings/issues/new?title=Data%20Error%20Report",
+          href = paste0(LINKS$github, "/issues/new?title=Data%20Error%20Report"),
           target = "_blank",
           bsicons::bs_icon("github"), "Report via GitHub"
         )
@@ -337,19 +471,25 @@ for_tos_ui <- div(
       class = "contact-links",
       tags$a(
         class = "contact-link",
-        href = "https://forms.google.com/digilab-contact",
+        href = LINKS$discord,
+        target = "_blank",
+        bsicons::bs_icon("discord"), "Discord"
+      ),
+      tags$a(
+        class = "contact-link",
+        href = LINKS$contact,
         target = "_blank",
         bsicons::bs_icon("envelope"), "Contact Form"
       ),
       tags$a(
         class = "contact-link",
-        href = "https://github.com/lopezmichael/digimon-tcg-standings",
+        href = LINKS$github,
         target = "_blank",
         bsicons::bs_icon("github"), "GitHub"
       ),
       tags$a(
         class = "contact-link",
-        href = "https://ko-fi.com/digilab",
+        href = LINKS$kofi,
         target = "_blank",
         bsicons::bs_icon("cup-hot"), "Ko-fi"
       )

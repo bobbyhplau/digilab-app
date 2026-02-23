@@ -2,7 +2,7 @@
 
 Technical reference for the DigiLab codebase. Consult this document before adding new server modules, reactive values, or modifying core patterns.
 
-**Last Updated:** February 2026 (v0.24.0)
+**Last Updated:** February 2026 (v0.27.0)
 
 > **Note:** Always keep this document in sync with code changes. Update when adding new reactive values, server modules, or patterns.
 
@@ -48,14 +48,40 @@ server/
 | `admin-*` | Admin tabs (requires `rv$is_admin` or `rv$is_superadmin`) | `admin-decks-server.R` |
 | `shared-*` | Shared utilities used by multiple modules | `shared-server.R` |
 
+### Lazy Admin Loading
+
+Admin modules use a two-stage lazy loading pattern to reduce startup overhead for non-admin sessions:
+
+1. **UI stage:** Admin view files (`views/admin-*.R`) are NOT sourced at app startup. Instead, `nav_panel_hidden` panels contain `uiOutput()` placeholders.
+2. **Server stage:** When `rv$is_admin` becomes TRUE, an `observeEvent` sources both the admin view files and server modules, then renders the UI into the placeholders via `renderUI()`.
+
+```r
+# In app.R UI definition — lightweight placeholders
+nav_panel_hidden(value = "admin_results", uiOutput("admin_results_ui")),
+
+# In app.R server — lazy-loaded on auth
+observeEvent(rv$is_admin, {
+  if (rv$is_admin && !admin_modules_loaded()) {
+    source("views/admin-results-ui.R", local = TRUE)   # defines admin_results_ui
+    output$admin_results_ui <- renderUI(admin_results_ui)
+    source("server/admin-results-server.R", local = TRUE)
+    # ... repeat for all 8 admin modules
+    admin_modules_loaded(TRUE)
+  }
+}, ignoreInit = TRUE)
+```
+
+This means ~99% of sessions (non-admin visitors) skip all admin UI construction and server module registration.
+
 ### Adding a New Server Module
 
 1. Create file: `server/{prefix}-{name}-server.R`
-2. Add `source()` call in `app.R` (after reactive values, before UI render)
-3. Module has access to `input`, `output`, `session`, `rv` via `local = TRUE`
+2. For **public** modules: Add `source()` call in `app.R` (after reactive values, before UI render)
+3. For **admin** modules: Add `source()` inside the `observeEvent(rv$is_admin, ...)` block, along with the corresponding view source and `renderUI`
+4. Module has access to `input`, `output`, `session`, `rv` via `local = TRUE`
 
 ```r
-# In app.R
+# In app.R — public module
 source("server/public-newfeature-server.R", local = TRUE)
 ```
 
@@ -107,6 +133,12 @@ Pattern: `selected_{entity}_id` for single selection, `selected_{entity}_ids` fo
 | `selected_store_ids` | integer[] | Store IDs from map region filter |
 | `modal_store_coords` | list | Store coordinates for modal mini map (lat, lng, name) |
 
+### Onboarding State
+
+| Name | Type | Description |
+|------|------|-------------|
+| `onboarding_step` | integer | Current step in onboarding carousel (1-3) |
+
 ### Form/Wizard State
 
 | Name | Type | Description |
@@ -115,12 +147,48 @@ Pattern: `selected_{entity}_id` for single selection, `selected_{entity}_ids` fo
 | `active_tournament_id` | integer | Tournament being edited in wizard |
 | `current_results` | data.frame | Results being entered in wizard |
 | `duplicate_tournament` | data.frame | Tournament info for duplicate flow |
-| `modal_tournament_id` | integer | Tournament ID for results edit modal |
 | `editing_store` | list | Store being edited (edit mode) |
 | `editing_archetype` | list | Archetype being edited (edit mode) |
 | `card_search_results` | data.frame | Card search results for deck management |
 | `card_search_page` | integer | Current page in card search pagination |
 | `schedule_to_delete_id` | integer | Schedule ID pending delete confirmation |
+
+### Admin Grid State
+
+Declared at top of respective server files. All three grids use shared functions from `R/admin_grid.R`.
+
+**Enter Results** (prefix: `admin_`, declared in `admin-results-server.R`):
+
+| Name | Type | Description |
+|------|------|-------------|
+| `admin_grid_data` | data.frame | Grid rows for bulk result entry |
+| `admin_record_format` | string | "points" or "wlt" |
+| `admin_player_matches` | list | Player match status per row |
+| `admin_deck_request_row` | integer | Row requesting a new deck |
+
+**Upload Results** (prefix: `submit_`, declared in `public-submit-server.R`):
+
+| Name | Type | Description |
+|------|------|-------------|
+| `submit_grid_data` | data.frame | Grid rows for OCR review/edit |
+| `submit_player_matches` | list | Player match status per row |
+| `submit_ocr_row_indices` | integer[] | Row indices populated by OCR (for review mode CSS) |
+| `submit_ocr_results` | data.frame | Raw OCR results (synced from grid on submit) |
+| `submit_refresh_trigger` | integer | Refresh trigger for submit grid re-render |
+| `ocr_pending_combined` | data.frame | Pending OCR results awaiting quality confirmation |
+| `ocr_pending_total_players` | integer | Pending player count for quality check |
+| `ocr_pending_total_rounds` | integer | Pending round count for quality check |
+| `ocr_pending_parsed_count` | integer | Parsed player count for quality check |
+
+**Edit Tournaments** (prefix: `edit_`, declared in `admin-tournaments-server.R`):
+
+| Name | Type | Description |
+|------|------|-------------|
+| `edit_grid_data` | data.frame | Grid rows for editing existing results |
+| `edit_record_format` | string | "points" or "wlt" (inferred from data) |
+| `edit_player_matches` | list | Player match status per row |
+| `edit_deleted_result_ids` | integer[] | Result IDs marked for DB deletion |
+| `edit_grid_tournament_id` | integer | Tournament being edited in grid |
 
 ### Refresh Triggers
 
@@ -132,7 +200,6 @@ Pattern: `{scope}_refresh` - increment to trigger reactive invalidation.
 | `results_refresh` | integer | Refresh results table in wizard |
 | `format_refresh` | integer | Refresh format dropdowns |
 | `tournament_refresh` | integer | Refresh tournament tables |
-| `modal_results_refresh` | integer | Refresh results in edit modal |
 | `schedules_refresh` | integer | Refresh store schedules table in admin |
 
 **Usage:**
@@ -211,31 +278,53 @@ session$sendCustomMessage("updateSidebarNav", "nav_target_tab")
 
 ## Modal Patterns
 
-### Bootstrap Modals (Defined in UI)
+All modals use Shiny's native `showModal(modalDialog())` / `removeModal()` pattern. There are no static Bootstrap modals in the codebase.
+
+### Standard Modal
 
 ```r
-# Show modal
-shinyjs::runjs("$('#modal_id').modal('show');")
-
-# Hide modal
-shinyjs::runjs("$('#modal_id').modal('hide');")
-```
-
-### Dynamic Shiny Modals
-
-```r
-# Show modal
 showModal(modalDialog(
   title = "Modal Title",
   # ... content
   footer = tagList(
     modalButton("Cancel"),
     actionButton("confirm_btn", "Confirm")
-  )
+  ),
+  size = "l",       # "s", default, "l", or "xl"
+  easyClose = TRUE  # Click outside to close
 ))
 
 # Hide modal
 removeModal()
+```
+
+### Modal Size Convention
+
+| Modal Type | Size |
+|------------|------|
+| Detail/Profile (player, deck, store, tournament) | `size = "l"` |
+| Confirmation (delete, merge) | Default (no size param) |
+| Forms/Editors (results editor, paste spreadsheet) | `size = "l"` |
+| Processing spinners | `size = "s"` |
+
+### Nested Modal Pattern (Results Editor)
+
+Shiny only supports one modal at a time — `showModal()` replaces the current modal. For the tournament results editor (which has edit/delete sub-modals):
+
+```r
+# Helper function to re-show the results editor
+show_results_editor <- function() {
+  showModal(modalDialog(
+    # ... results table + add form
+    size = "l"
+  ))
+}
+
+# When editing a result: replace results modal with edit modal
+showModal(modalDialog(title = "Edit Result", ...))
+
+# After save/cancel: re-show the results editor
+show_results_editor()
 ```
 
 ### Modal Data Flow
@@ -376,6 +465,20 @@ core_metrics <- reactive({
 ```
 
 Downstream outputs read from these batch reactives instead of running their own queries.
+
+### Output Caching (bindCache)
+
+All major public tab outputs use `bindCache()` to avoid redundant computation across sessions:
+
+| Tab | Outputs Cached | Cache Keys |
+|-----|---------------|------------|
+| Dashboard | 14 outputs (charts, tables, value boxes) | format, event_type, scene, community, dark_mode, data_refresh |
+| Players | `player_standings` | format, search, min_events, scene, community, data_refresh |
+| Meta | `archetype_stats` | format, search, min_entries, scene, community, data_refresh |
+| Tournaments | `tournament_history` | format, event_type, search, scene, community, data_refresh |
+| Stores | `store_list`, `stores_cards_content`, `online_stores_section`, `stores_map` | scene, community, dark_mode (map only), data_refresh |
+
+**Key pattern:** Always include `rv$data_refresh` as a cache key — this reactive value increments whenever admin operations modify data, busting the cache. Include `input$dark_mode` for any output that renders differently in light/dark mode (charts, maps).
 
 ### Community vs Format Filters (v0.23+)
 
@@ -550,8 +653,8 @@ session$sendCustomMessage("updateSidebarNav", "nav_tab_id")
 # Trigger refresh
 rv$data_refresh <- (rv$data_refresh %||% 0) + 1
 
-# Show Bootstrap modal
-shinyjs::runjs("$('#modal_id').modal('show');")
+# Show modal
+showModal(modalDialog(title = "Title", ..., footer = modalButton("Close")))
 
 # Check admin (Enter Results, Edit Tournaments, Edit Players, Edit Decks)
 req(rv$is_admin)

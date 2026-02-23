@@ -26,6 +26,49 @@ historical_snapshot_data <- reactive({
   if (nrow(result) > 0) result else NULL
 })
 
+# Debounce search input (300ms)
+players_search_debounced <- reactive(input$players_search) |> debounce(300)
+
+# Generate inline SVG sparkline from a numeric vector
+make_sparkline_svg <- function(values, width = 120, height = 24, color = "#00C8FF") {
+  if (length(values) < 2) return(NULL)
+
+  # Normalize to 0-1 range
+  min_val <- min(values, na.rm = TRUE)
+  max_val <- max(values, na.rm = TRUE)
+  if (max_val == min_val) {
+    normalized <- rep(0.5, length(values))
+  } else {
+    normalized <- (values - min_val) / (max_val - min_val)
+  }
+
+  # Build SVG points
+  n <- length(normalized)
+  x_step <- (width - 4) / max(n - 1, 1)
+  points <- paste(
+    sapply(seq_along(normalized), function(i) {
+      x <- 2 + (i - 1) * x_step
+      y <- 2 + (1 - normalized[i]) * (height - 4)
+      sprintf("%.1f,%.1f", x, y)
+    }),
+    collapse = " "
+  )
+
+  # End dot color based on recent trend
+  trend_up <- normalized[n] > normalized[max(1, n - 3)]
+  dot_color <- if (trend_up) "#38A169" else "#E5383B"
+  last_x <- 2 + (n - 1) * x_step
+  last_y <- 2 + (1 - normalized[n]) * (height - 4)
+
+  sprintf(
+    '<svg class="rating-sparkline" width="%d" height="%d" viewBox="0 0 %d %d">
+      <polyline points="%s" fill="none" stroke="%s" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+      <circle cx="%.1f" cy="%.1f" r="2.5" fill="%s"/>
+    </svg>',
+    width, height, width, height, points, color, last_x, last_y, dot_color
+  )
+}
+
 # Reset players filters
 observeEvent(input$reset_players_filters, {
   updateTextInput(session, "players_search", value = "")
@@ -52,7 +95,7 @@ output$player_standings <- renderReactable({
   # Build parameterized filters to prevent SQL injection
   search_filters <- build_filters_param(
     table_alias = "p",
-    search = input$players_search,
+    search = players_search_debounced(),
     search_column = "display_name"
   )
 
@@ -112,7 +155,22 @@ output$player_standings <- renderReactable({
   main_decks <- safe_query(rv$db_con, main_decks_query, params = filter_params, default = data.frame())
 
   if (nrow(result) == 0) {
-    return(reactable(data.frame(Message = "No player data matches filters"), compact = TRUE))
+    has_filters <- nchar(trimws(players_search_debounced() %||% "")) > 0 ||
+                   nchar(trimws(input$players_format %||% "")) > 0
+    if (has_filters) {
+      return(digital_empty_state(
+        title = "No players match your filters",
+        subtitle = "// try adjusting search or format",
+        icon = "funnel"
+      ))
+    } else {
+      return(digital_empty_state(
+        title = "No players recorded",
+        subtitle = "// player data pending",
+        icon = "people",
+        mascot = "agumon"
+      ))
+    }
   }
 
   # Determine rating source: historical snapshot or live cache
@@ -182,12 +240,12 @@ output$player_standings <- renderReactable({
       Events = colDef(minWidth = 60, align = "center"),
       competitive_rating = colDef(
         name = "Rating",
-        minWidth = 65,
+        minWidth = 75,
         align = "center"
       ),
       achievement_score = colDef(
         name = "Score",
-        minWidth = 55,
+        minWidth = 65,
         align = "center"
       ),
       `1sts` = colDef(minWidth = 45, align = "center"),
@@ -211,7 +269,14 @@ output$player_standings <- renderReactable({
       )
     )
   )
-})
+}) |> bindCache(
+  input$players_format,
+  players_search_debounced(),
+  input$players_min_events,
+  rv$current_scene,
+  rv$community_filter,
+  rv$data_refresh
+)
 
 # Handle player row click - open detail modal
 observeEvent(input$player_clicked, {
@@ -287,6 +352,27 @@ output$player_detail_modal <- renderUI({
     LIMIT 10
   ", params = list(player_id), default = data.frame())
 
+  # Get placement history for sparkline
+  sparkline_data <- safe_query(rv$db_con, "
+    SELECT r.placement, t.player_count
+    FROM results r
+    JOIN tournaments t ON r.tournament_id = t.tournament_id
+    WHERE r.player_id = ?
+      AND r.placement IS NOT NULL
+      AND t.player_count IS NOT NULL
+      AND t.player_count >= 4
+    ORDER BY t.event_date ASC
+  ", params = list(player_id), default = data.frame())
+
+  # Compute placement percentile sparkline (1.0 = 1st place, 0.0 = last)
+  sparkline_html <- NULL
+  if (!is.null(sparkline_data) && nrow(sparkline_data) >= 3) {
+    percentiles <- 1 - (sparkline_data$placement - 1) / pmax(sparkline_data$player_count - 1, 1)
+    percentiles <- pmin(pmax(percentiles, 0), 1)
+    if (length(percentiles) > 15) percentiles <- tail(percentiles, 15)
+    sparkline_html <- make_sparkline_svg(percentiles)
+  }
+
   # Update URL for deep linking
   update_url_for_player(session, player_id, player$display_name)
 
@@ -305,6 +391,11 @@ output$player_detail_modal <- renderUI({
         class = "btn btn-outline-secondary me-auto",
         onclick = "copyCurrentUrl()",
         bsicons::bs_icon("link-45deg"), " Copy Link"
+      ),
+      tags$a(
+        href = LINKS$discord, target = "_blank",
+        class = "text-muted small me-2",
+        bsicons::bs_icon("flag"), " Report an error"
       ),
       modalButton("Close")
     ),
@@ -344,7 +435,8 @@ output$player_detail_modal <- renderUI({
       div(
         class = "modal-stat-item",
         div(class = "modal-stat-value", round(player_rating)),
-        div(class = "modal-stat-label", "Rating")
+        div(class = "modal-stat-label", "Rating"),
+        if (!is.null(sparkline_html)) HTML(sparkline_html)
       ),
       div(
         class = "modal-stat-item",
@@ -423,7 +515,7 @@ output$player_detail_modal <- renderUI({
         )
       )
     } else {
-      digital_empty_state("No results recorded", "// deck data pending", "clipboard-x")
+      digital_empty_state("No results recorded", "// deck data pending", "clipboard-x", mascot = "agumon")
     }
   ))
 })

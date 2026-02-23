@@ -9,6 +9,9 @@ observeEvent(input$reset_meta_filters, {
   session$sendCustomMessage("resetPillToggle", list(inputId = "meta_min_entries", value = "5"))
 })
 
+# Debounce search input (300ms)
+meta_search_debounced <- reactive(input$meta_search) |> debounce(300)
+
 # Archetype stats
 output$archetype_stats <- renderReactable({
   rv$data_refresh  # Trigger refresh on admin changes
@@ -17,7 +20,7 @@ output$archetype_stats <- renderReactable({
   # Build parameterized filters to prevent SQL injection
   search_filters <- build_filters_param(
     table_alias = "da",
-    search = input$meta_search,
+    search = meta_search_debounced(),
     search_column = "archetype_name"
   )
 
@@ -54,7 +57,22 @@ output$archetype_stats <- renderReactable({
   ", combined_sql), params = combined_params, default = data.frame())
 
   if (nrow(result) == 0) {
-    return(reactable(data.frame(Message = "No decks match the current filters"), compact = TRUE))
+    has_filters <- nchar(trimws(meta_search_debounced() %||% "")) > 0 ||
+                   nchar(trimws(input$meta_format %||% "")) > 0
+    if (has_filters) {
+      return(digital_empty_state(
+        title = "No decks match your filters",
+        subtitle = "// try adjusting search or format",
+        icon = "funnel"
+      ))
+    } else {
+      return(digital_empty_state(
+        title = "No deck data available",
+        subtitle = "// meta data pending",
+        icon = "stack",
+        mascot = "agumon"
+      ))
+    }
   }
 
   # Calculate Meta % (share of total entries)
@@ -88,7 +106,14 @@ output$archetype_stats <- renderReactable({
       `Win %` = colDef(minWidth = 60, align = "center")
     )
   )
-})
+}) |> bindCache(
+  input$meta_format,
+  meta_search_debounced(),
+  input$meta_min_entries,
+  rv$current_scene,
+  rv$community_filter,
+  rv$data_refresh
+)
 
 # Handle archetype row click - open detail modal
 observeEvent(input$archetype_clicked, {
@@ -209,6 +234,11 @@ output$deck_detail_modal <- renderUI({
         class = "btn btn-outline-secondary me-auto",
         onclick = "copyCurrentUrl()",
         bsicons::bs_icon("link-45deg"), " Copy Link"
+      ),
+      tags$a(
+        href = LINKS$discord, target = "_blank",
+        class = "text-muted small me-2",
+        bsicons::bs_icon("flag"), " Report an error"
       ),
       modalButton("Close")
     ),
@@ -342,7 +372,7 @@ output$deck_detail_modal <- renderUI({
         )
       )
     } else {
-      digital_empty_state("No tournament history", "// player data pending", "person-x")
+      digital_empty_state("No tournament history", "// player data pending", "person-x", mascot = "agumon")
     }
   ))
 })

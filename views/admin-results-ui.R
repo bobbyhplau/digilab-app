@@ -3,6 +3,12 @@
 
 admin_results_ui <- tagList(
   h2("Enter Tournament Results"),
+  div(class = "page-help-text",
+    div(class = "info-hint-box",
+      bsicons::bs_icon("info-circle", class = "info-hint-icon"),
+      "Create a new tournament and enter player results. Use the grid to add placements, player names, records, and deck archetypes."
+    )
+  ),
 
   # Wizard step indicator
   div(
@@ -31,9 +37,9 @@ admin_results_ui <- tagList(
           # Row 1: Store + Date
           div(
             class = "row g-3 mb-3",
-            div(class = "col-md-8",
+            div(class = "col-12 col-md-8",
                 selectInput("tournament_store", "Store", choices = NULL)),
-            div(class = "col-md-4",
+            div(class = "col-12 col-md-4",
                 div(
                   class = "date-required",
                   dateInput("tournament_date", "Date *", value = NA),
@@ -43,27 +49,30 @@ admin_results_ui <- tagList(
           # Row 2: Event Type + Format
           div(
             class = "row g-3 mb-3",
-            div(class = "col-md-6",
+            div(class = "col-12 col-md-6",
                 selectInput("tournament_type", "Event Type",
                             choices = c("Select event type..." = "", EVENT_TYPES))),
-            div(class = "col-md-6",
+            div(class = "col-12 col-md-6",
                 selectInput("tournament_format", "Format/Set", choices = list("Loading..." = "")))
           ),
           # Row 3: Players + Rounds
           div(
             class = "row g-3 mb-3",
-            div(class = "col-md-6",
+            div(class = "col-12 col-md-6",
                 numericInput("tournament_players", "Number of Players", value = 8, min = 2)),
-            div(class = "col-md-6",
+            div(class = "col-12 col-md-6",
                 numericInput("tournament_rounds", "Number of Rounds", value = 3, min = 1))
           ),
           # Row 4: Record Format
           div(
             class = "row g-3 mb-3",
-            div(class = "col-md-6",
+            div(class = "col-12 col-md-6",
                 radioButtons("admin_record_format", "Record Format",
                              choices = c("Points" = "points", "W-L-T" = "wlt"),
-                             selected = "points", inline = TRUE))
+                             selected = "points", inline = TRUE),
+                div(class = "text-muted small mt-1",
+                    "Points: Total match points (e.g., from Bandai TCG+ standings). ",
+                    "W-L-T: Individual wins, losses, and ties."))
           ),
           div(
             class = "d-flex justify-content-end mt-3",
@@ -81,6 +90,16 @@ admin_results_ui <- tagList(
       class = "admin-panel",
       # Tournament summary bar
       uiOutput("tournament_summary_bar"),
+
+      # Release event notice (shown/hidden by server based on event type)
+      shinyjs::hidden(
+        div(
+          id = "release_event_deck_notice",
+          class = "alert alert-info d-flex mb-3",
+          bsicons::bs_icon("box-seam", class = "me-2 flex-shrink-0", size = "1.2em"),
+          "Release events use sealed product, so deck archetypes are set to Unknown automatically."
+        )
+      ),
 
       card(
         card_header(
@@ -115,114 +134,6 @@ admin_results_ui <- tagList(
         ),
         actionButton("admin_submit_results", "Submit Results", class = "btn-primary btn-lg",
                      icon = icon("check"))
-      )
-    )
-  ),
-
-  # Duplicate tournament modal
-  tags$div(
-    id = "duplicate_tournament_modal",
-    class = "modal fade",
-    tabindex = "-1",
-    tags$div(
-      class = "modal-dialog",
-      tags$div(
-        class = "modal-content",
-        tags$div(
-          class = "modal-header",
-          tags$h5(class = "modal-title", "Possible Duplicate Tournament"),
-          tags$button(type = "button", class = "btn-close", `data-bs-dismiss` = "modal")
-        ),
-        tags$div(
-          class = "modal-body",
-          uiOutput("duplicate_tournament_message")
-        ),
-        tags$div(
-          class = "modal-footer d-flex gap-2 justify-content-end",
-          actionButton("edit_existing_tournament", "View/Edit Existing", class = "btn-outline-primary"),
-          actionButton("create_anyway", "Create Anyway", class = "btn-warning"),
-          tags$button(type = "button", class = "btn btn-outline-secondary", `data-bs-dismiss` = "modal", "Cancel")
-        )
-      )
-    )
-  ),
-
-  # Start over modal (clear results vs delete tournament)
-  tags$div(
-    id = "start_over_modal",
-    class = "modal fade",
-    tabindex = "-1",
-    tags$div(
-      class = "modal-dialog",
-      tags$div(
-        class = "modal-content",
-        tags$div(
-          class = "modal-header",
-          tags$h5(class = "modal-title", "Start Over?"),
-          tags$button(type = "button", class = "btn-close", `data-bs-dismiss` = "modal")
-        ),
-        tags$div(
-          class = "modal-body",
-          p("What would you like to do?"),
-          uiOutput("start_over_message")
-        ),
-        tags$div(
-          class = "modal-footer d-flex flex-column gap-2 align-items-stretch",
-          actionButton("clear_results_only", "Clear Results",
-                       class = "btn-warning",
-                       icon = icon("eraser")),
-          tags$small(class = "text-muted text-center", "Remove entered results but keep the tournament for re-entry."),
-          actionButton("delete_tournament_confirm", "Delete Tournament",
-                       class = "btn-danger",
-                       icon = icon("trash")),
-          uiOutput("delete_tournament_warning"),
-          tags$button(type = "button", class = "btn btn-secondary mt-2", `data-bs-dismiss` = "modal", "Cancel")
-        )
-      )
-    )
-  ),
-
-  # Paste from spreadsheet modal
-  tags$div(
-    id = "paste_spreadsheet_modal",
-    class = "modal fade",
-    tabindex = "-1",
-    tags$div(
-      class = "modal-dialog modal-lg",
-      tags$div(
-        class = "modal-content",
-        tags$div(
-          class = "modal-header",
-          tags$h5(class = "modal-title", bsicons::bs_icon("clipboard"), " Paste from Spreadsheet"),
-          tags$button(type = "button", class = "btn-close", `data-bs-dismiss` = "modal")
-        ),
-        tags$div(
-          class = "modal-body",
-          p(class = "text-muted", "Paste data with one player per line. Columns separated by tabs (from a spreadsheet) or 2+ spaces."),
-          p(class = "text-muted small mb-2", "Supported formats:"),
-          tags$div(
-            class = "bg-body-secondary rounded p-2 mb-3",
-            style = "font-family: monospace; font-size: 0.8rem; white-space: pre-line;",
-            tags$div(class = "fw-bold mb-1", "Names only:"),
-            tags$div(class = "text-muted mb-2", "PlayerOne\nPlayerTwo\nPlayerThree"),
-            tags$div(class = "fw-bold mb-1", "Names + Points:"),
-            tags$div(class = "text-muted mb-2", "PlayerOne\t9\nPlayerTwo\t7\nPlayerThree\t6"),
-            tags$div(class = "fw-bold mb-1", "Names + Points + Deck:"),
-            tags$div(class = "text-muted mb-2", "PlayerOne\t9\tBlue Flare\nPlayerTwo\t7\tRed Hybrid\nPlayerThree\t6\tUNKNOWN"),
-            tags$div(class = "fw-bold mb-1", "Names + W/L/T:"),
-            tags$div(class = "text-muted mb-2", "PlayerOne\t3\t0\t0\nPlayerTwo\t2\t1\t1\nPlayerThree\t2\t2\t0"),
-            tags$div(class = "fw-bold mb-1", "Names + W/L/T + Deck:"),
-            tags$div(class = "text-muted", "PlayerOne\t3\t0\t0\tBlue Flare\nPlayerTwo\t2\t1\t1\tRed Hybrid")
-          ),
-          p(class = "text-muted small", "Deck names must match existing archetypes exactly (case-insensitive). Unrecognized decks default to Unknown."),
-          tags$textarea(id = "paste_data", class = "form-control", rows = "10",
-                        placeholder = "Paste data here...")
-        ),
-        tags$div(
-          class = "modal-footer",
-          tags$button(type = "button", class = "btn btn-secondary", `data-bs-dismiss` = "modal", "Cancel"),
-          actionButton("paste_apply", "Fill Grid", class = "btn-primary", icon = icon("table"))
-        )
       )
     )
   )

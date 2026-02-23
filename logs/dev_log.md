@@ -4,6 +4,175 @@ This log tracks development decisions, blockers, and technical notes for DigiLab
 
 ---
 
+## 2026-02-23: v1.0 Performance Optimizations & Launch
+
+### Context
+Load tested with shinycannon at 1, 5, 10, and 25 concurrent users. At 10+ users, response times degraded significantly — admin UI rendering was happening for all users (even non-admins), and public tab outputs had no cross-session caching.
+
+### Performance Changes
+1. **Lazy Admin UI**: Wrapped all admin tab UI in `renderUI()` behind `req(rv$is_admin)` gates. Non-admin users no longer generate admin DOM elements, reducing initial page weight.
+2. **Extended bindCache**: Added `bindCache()` to Players, Meta, Tournaments, and Stores tab outputs (tables, modals, charts). Dashboard already had caching from v0.21.1.
+3. **Dashboard value box fixes**: `total_stores_val` and `total_decks_val` weren't respecting filters or `data_refresh` — fixed to use `build_dashboard_filters()` + `bindCache()`.
+
+### Pre-Launch Polish
+- BETA badge → v1.0 version indicator
+- Clickable DigiLab header navigates to Dashboard
+- "Report an error" Discord links in 4 modal footers
+- Rising Stars expanded to top 6, responsive grids (4/6/8 items by screen size)
+- Removed clickable store name in tournament modal (was confusing navigation)
+
+### Code Review Fixes (7 items)
+- **CRITICAL**: Migrated all 28 raw `dbGetQuery`/`dbExecute` in public-submit-server to `safe_query()`/`safe_execute()`
+- **CRITICAL**: Added `BEGIN TRANSACTION`/`COMMIT`/`ROLLBACK` around both submission handlers
+- **IMPORTANT**: Created `next_id()` helper, replaced `SELECT MAX(id) + 1` pattern in submit-server and admin-results-server
+- **IMPORTANT**: XSS fix — `htmltools::htmlEscape()` on scene map popup HTML
+- **IMPORTANT**: Dashboard value boxes now respect filters + data_refresh + bindCache
+- **IMPORTANT**: Refactored `build_dashboard_filters()` to delegate to `build_filters_param()` (was duplicated logic)
+- **IMPORTANT**: Extracted shared `format_event_type()` helper, removed 4 duplicate implementations
+
+### Key Decision
+- Responsive grid breakpoints set at 1600px (not standard 1200px) to account for the ~250-300px sidebar eating viewport width. CSS `nth-child` hides extra items at smaller breakpoints rather than using JavaScript screen detection.
+
+---
+
+## 2026-02-23: Enter/Submit Results Parity (ADM2)
+
+### Problem
+The public Upload Results tab (Step 2 review grid) used a completely separate rendering implementation from the admin Enter Results grid. This meant bug fixes and features added to the admin grid (member # column, searchable deck dropdown, paste-from-spreadsheet, blur-based player matching) had to be duplicated. The two grids had drifted in behavior and appearance.
+
+### Solution
+Migrated the public submit review grid to use the shared `R/admin_grid.R` module, adding a `mode` parameter to distinguish entry vs review contexts. Key changes:
+- `render_grid_ui()` now accepts `mode = "entry"` (default, admin) or `mode = "review"` (OCR-populated submit) with `ocr_rows` parameter for CSS highlighting
+- Added `ocr_to_grid_data()` converter to map OCR result format → shared grid format
+- Extracted `complete_ocr_processing()` helper in submit server for OCR validation flow
+- Added OCR quality validation modal (warns if <50% of players parsed and no valid member numbers)
+
+### Key Decisions
+- **Review mode is visual-only**: The `mode = "review"` parameter only adds a CSS class (`ocr-populated`) to rows that came from OCR. All inputs remain editable — the distinction is purely visual so users know which data was machine-extracted.
+- **Paste-from-spreadsheet is admin-only**: Public submitters use OCR screenshots; paste is a power-user admin feature.
+- **Grid-to-OCR sync on submit**: The submission handler syncs edited grid values (including blur-matched player IDs) back to the OCR results data frame before writing to the database, keeping the existing submission logic intact.
+- **No reject buttons**: The old custom grid had inline reject-match buttons. The shared grid uses match status badges instead. Users can clear a name and retype to trigger a new match via blur.
+
+### Result
+~200 lines of custom grid rendering removed from `public-submit-server.R`. Both tabs now share identical grid behavior: member # column, selectize deck search, placement badges, player match badges.
+
+---
+
+## 2026-02-22: OCR Layout-Aware Parser (REV2)
+
+### Problem
+The text-based OCR parser (`parse_tournament_standings()`) processed Google Cloud Vision output as plain text lines. This approach suffered from line ordering issues, couldn't distinguish between columns, and frequently misassigned points, rankings, and member numbers. Initial batch test accuracy: **73.2%**.
+
+### Solution
+Built a layout-aware parser (`parse_standings_layout()`) that uses GCV's word-level bounding box coordinates instead of raw text. The 12-step algorithm:
+1. Normalizes bounding box coordinates to percentages of image dimensions
+2. Filters top/bottom noise (status bar, nav bar)
+3. Detects header row keywords to dynamically set column boundaries
+4. Filters known noise text (app headers, copyright, navigation)
+5. Clusters annotations into visual rows by Y-position (1.5% gap threshold)
+6. Assigns text to columns (Ranking, Username/Member, Win Points) by X-position
+7. Handles multi-word usernames, "Member Number" labels, GUEST patterns
+8. Validates points against `total_rounds * 3` with digit truncation
+9. Infers missing ranks 1-3 (medal icons unreadable by GCV) from Y-position
+10. Autofills zero points for high-ranked players, calculates W-L-T
+
+### Key Decisions
+- **Layout-first with text fallback**: `parse_standings()` orchestrator tries layout parser, validates (needs ≥1 player with ranking+username+member), falls back to text parser
+- **Medal icon workaround**: GCV cannot read numbers inside gold/silver/bronze medal circles. Instead of trying harder at OCR, we infer ranks 1-3 from their screen position relative to detected rank 4+
+- **Points truncation over rejection**: When GCV merges "6" with adjacent "0" from OMW% column (reading "60"), we truncate trailing digits rather than rejecting the value
+- **Conservative noise filtering**: Aggressive filtering of decimal numbers/percentages caused regressions by disrupting row clustering. Kept word-based noise list instead.
+
+### Results
+- Batch test accuracy: **73.2% → 95.1%** across 7 test folders (11 screenshots, 106 expected players)
+- Remaining ~5% failures are GCV character recognition errors (9↔6 digit confusion, Cyrillic substitution) — unfixable at parser level
+- Rankings: 100% accuracy across all test folders (was ~60% before rank inference)
+
+### Files Modified
+- `R/ocr.R`: `gcv_detect_text()` (returns annotations), `parse_standings_layout()` (~460 lines), `parse_standings()` orchestrator
+- `server/public-submit-server.R`: Ranking-aware merge, GUEST dedup, DB lookup
+- `scripts/batch_test_ocr.R`: `batch_test_folders()`, `batch_retest_folders()`
+- `scripts/test_ocr.R`: Updated for orchestrator, `test_compare()`
+
+---
+
+## 2026-02-22: UX Polish Round 2 — Items 6, 8, 14
+
+### Changes Made
+
+**Inline Form Validation (Item 6):**
+- CSS `.input-invalid` class with red border + box-shadow (light and dark mode)
+- `show_field_error(session, inputId)`, `clear_field_error(session, inputId)`, `clear_all_field_errors(session)` R helpers using shinyjs
+- Auto-clear JS handler: invalid styling clears on change/input/focus events
+- Applied to all 14 admin form submission handlers across 6 server files
+- No new packages — uses shinyjs (already loaded) + CSS classes
+
+**Debounced Search Inputs (Item 8):**
+- 300ms `reactive() |> debounce(300)` on all 5 search inputs
+- Public: `players_search_debounced`, `meta_search_debounced`, `tournaments_search_debounced`
+- Admin: `admin_tournament_search_debounced`, `player_search_debounced`
+- Only READ references replaced; WRITE references (updateTextInput) unchanged
+
+**Value Box Animations (Item 14):**
+- Count-up: `requestAnimationFrame` loop with cubic ease-out, 600ms duration, for Tournaments and Players numeric boxes
+- Fade-in: CSS `.vb-value-updating` class with 0.4s ease-out animation for deck content boxes
+- Both integrated into existing `shiny:value` event handler (no separate listener)
+- First load uses fade-in (oldVal === 0); subsequent updates count up
+
+### Design Doc
+- `docs/plans/2026-02-21-ux-polish-round-2.md`
+
+### Content & Error Tracking Design (planned, not yet implemented)
+- Design doc: `docs/plans/2026-02-22-content-and-error-tracking-design.md`
+- Implementation plan: `docs/plans/2026-02-22-content-and-error-tracking-implementation.md`
+- Scope: FAQ/About/For Organizers rewrites for multi-region, LINKS constants, Sentry integration
+- Ready for implementation — 6 tasks planned
+
+---
+
+## 2026-02-21: UX Polish — Items 1-5
+
+### Changes Made
+
+**Loading Indicators:**
+- Added CSS skeleton loaders with digital shimmer animation (light + dark mode)
+- `skeleton_table(rows)` and `skeleton_chart(bars, height)` R helpers in app.R
+- Skeleton divs on 3 public table views + 7 dashboard outputs, auto-hidden via `shiny:value` JS event
+- `.recalculating` class fades outputs to 40% opacity while Shiny recalculates
+
+**Empty State Standardization:**
+- `admin_empty_state()` helper — lightweight variant of `digital_empty_state()` for admin tables
+- Replaced plain `reactable(data.frame(Message = "..."))` empty rows in admin-formats and admin-players
+- Public pages (Players, Meta, Tournaments) now show filter-aware messages: "No X match your filters" with funnel icon when filters active, vs Agumon mascot when genuinely empty
+
+**Digital Aesthetic Extension:**
+- All card headers now get subtle grid pattern (Tier 2: 0.025 opacity vs feature cards' 0.04)
+- All card headers now get small circuit node accent (Tier 2: 4px vs feature cards' 5px)
+- Modal bodies get very subtle grid texture (0.015 opacity)
+- Creates visual continuity between themed chrome and content area
+
+**Notification System:**
+- `notify()` wrapper replaces all 175 `showNotification()` calls across 11 server files
+- Smart duration defaults: errors = sticky (NULL), warnings = 8s, messages = 4s
+- Existing explicit `duration` params preserved — wrapper only applies defaults when duration is NULL
+
+**Modal Consolidation:**
+- Migrated all 8 static Bootstrap modals to Shiny's `showModal()`/`removeModal()` pattern
+- Removed ~270 lines of boilerplate `tags$div(class = "modal fade", ...)` HTML from 6 view files
+- Replaced all jQuery `$('#id').modal('show'/'hide')` calls in server files
+- Tournament results editor uses helper function `show_results_editor()` for re-show after nested edit/delete
+
+### Technical Notes
+
+- Shiny's `showModal()` only supports one modal at a time — calling it replaces the current modal. This required the re-show pattern for the tournament results editor's nested modals.
+- The `notify()` wrapper merges with the existing custom notification system (icon + message layout) — it doesn't replace the HTML structure, just adds smart duration logic.
+- CSS card header grid uses `background-image` with `repeating-linear-gradient` — the `!important` is needed to override Bootstrap defaults.
+- Skeleton loaders use a single `shiny:value` event handler that maps `event.name + '_skeleton'` to find and hide matching skeleton divs.
+
+### Design Doc
+- `docs/plans/2026-02-21-ux-polish-items-1-5.md`
+
+---
+
 ## 2026-02-20: Stores & Filtering Features (v0.25.0)
 
 ### Changes Made

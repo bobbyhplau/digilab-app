@@ -132,8 +132,11 @@ output$stores_schedule_content <- renderUI({
       })
     }
 
+    day_keys <- c("sun", "mon", "tue", "wed", "thu", "fri", "sat")
+    day_class <- paste0("schedule-day--", day_keys[day_idx + 1])
+
     div(
-      class = "schedule-day-section mb-3",
+      class = paste("schedule-day-section mb-3", day_class),
       # Day header
       div(
         class = paste("schedule-day-header", if (is_today) "schedule-day-today" else ""),
@@ -282,7 +285,7 @@ output$store_list <- renderReactable({
       store_id = colDef(show = FALSE)
     )
   )
-})
+}) |> bindCache(rv$current_scene, rv$community_filter, rv$data_refresh)
 
 # Store cards view (replaces table for both physical and online)
 output$stores_cards_content <- renderUI({
@@ -304,7 +307,7 @@ output$stores_cards_content <- renderUI({
     ")
 
     if (nrow(online_stores) == 0) {
-      return(digital_empty_state("No online organizers", "// check back soon", "globe"))
+      return(digital_empty_state("No online organizers", "// check back soon", "globe", mascot = "agumon"))
     }
 
     return(render_store_cards(online_stores, is_online = TRUE))
@@ -314,11 +317,11 @@ output$stores_cards_content <- renderUI({
   stores <- stores_data()
 
   if (is.null(stores) || nrow(stores) == 0) {
-    return(digital_empty_state("No stores found", "// check back soon", "shop"))
+    return(digital_empty_state("No stores found", "// check back soon", "shop", mascot = "agumon"))
   }
 
   render_store_cards(stores, is_online = FALSE)
-})
+}) |> bindCache(rv$current_scene, rv$community_filter, rv$data_refresh)
 
 # Helper: Render store cards grid
 render_store_cards <- function(stores, is_online = FALSE) {
@@ -387,6 +390,25 @@ output$store_detail_modal <- renderUI({
   stores <- stores_data()
   store <- stores[stores$store_id == store_id, ]
 
+  # If store not found in filtered data (e.g. online store when viewing "all" scene),
+  # query directly from the database
+  if (nrow(store) == 0) {
+    store <- safe_query(rv$db_con, "
+      SELECT s.store_id, s.name, s.address, s.city, s.state, s.zip_code,
+             s.latitude, s.longitude, s.website, s.schedule_info, s.slug,
+             s.country, s.is_online,
+             COUNT(t.tournament_id) as tournament_count,
+             COALESCE(ROUND(AVG(t.player_count), 1), 0) as avg_players,
+             MAX(t.event_date) as last_event
+      FROM stores s
+      LEFT JOIN tournaments t ON s.store_id = t.store_id
+      WHERE s.store_id = ?
+      GROUP BY s.store_id, s.name, s.address, s.city, s.state, s.zip_code,
+               s.latitude, s.longitude, s.website, s.schedule_info, s.slug,
+               s.country, s.is_online
+    ", params = list(store_id))
+  }
+
   if (nrow(store) == 0) return(NULL)
 
   # Get recent tournaments at this store
@@ -438,18 +460,6 @@ output$store_detail_modal <- renderUI({
     WHERE store_id = ? AND is_active = TRUE
     ORDER BY day_of_week, start_time
   ", params = list(store_id))
-
-  # Format event type
-  format_event_type <- function(et) {
-    if (is.na(et)) return("Unknown")
-    switch(et,
-           "locals" = "Locals",
-           "evo_cup" = "Evo Cup",
-           "store_championship" = "Store Championship",
-           "regional" = "Regional",
-           "online" = "Online",
-           et)
-  }
 
   # Determine if this is an online store
 
@@ -533,6 +543,11 @@ output$store_detail_modal <- renderUI({
         class = "btn btn-outline-primary ms-2",
         onclick = sprintf("copyCommunityUrl('%s')", store_slug),
         bsicons::bs_icon("share"), " Share Community View"
+      ),
+      tags$a(
+        href = LINKS$discord, target = "_blank",
+        class = "text-muted small me-2",
+        bsicons::bs_icon("flag"), " Report an error"
       ),
       modalButton("Close")
     ),
@@ -663,7 +678,7 @@ output$store_detail_modal <- renderUI({
         )
       )
     } else {
-      digital_empty_state("No tournaments recorded", "// check back soon", "calendar-x")
+      digital_empty_state("No tournaments recorded", "// check back soon", "calendar-x", mascot = "agumon")
     },
 
     # Top players
@@ -795,7 +810,7 @@ output$online_stores_section <- renderUI({
       )
     )
   )
-})
+}) |> bindCache(rv$current_scene, rv$data_refresh)
 
 # Reactive: All stores data with activity metrics (for filtering and map)
 stores_data <- reactive({
@@ -848,7 +863,7 @@ stores_data <- reactive({
 observeEvent(input$reset_dashboard_filters, {
   updateSelectInput(session, "dashboard_format", selected = "")
   updateSelectInput(session, "dashboard_event_type", selected = "locals")
-  showNotification("Filters reset to defaults", type = "message")
+  notify("Filters reset to defaults", type = "message")
 })
 
 # Helper: Render world map for online organizers
@@ -867,7 +882,7 @@ render_online_organizers_map <- function() {
   if (nrow(online_stores) == 0) {
     # Empty world map
     return(
-      atom_mapgl(theme = "digital") |>
+      atom_mapgl(theme = "digital", projection = "mercator") |>
         mapgl::set_view(center = c(-40, 20), zoom = 1.5)
     )
   }
@@ -892,7 +907,7 @@ render_online_organizers_map <- function() {
 
   if (nrow(stores_with_coords) == 0) {
     return(
-      atom_mapgl(theme = "digital") |>
+      atom_mapgl(theme = "digital", projection = "mercator") |>
         mapgl::set_view(center = c(-40, 20), zoom = 1.5)
     )
   }
@@ -929,7 +944,7 @@ render_online_organizers_map <- function() {
   })
 
   # Create world map
-  atom_mapgl(theme = "digital") |>
+  atom_mapgl(theme = "digital", projection = "mercator") |>
     add_atom_popup_style(theme = "light") |>
     mapgl::add_circle_layer(
       id = "online-stores-layer",
@@ -1049,4 +1064,4 @@ output$stores_map <- renderMapboxgl({
     mapgl::fit_bounds(stores_sf, padding = 50)
 
   map
-})
+}) |> bindCache(rv$current_scene, rv$community_filter, input$dark_mode, rv$data_refresh)

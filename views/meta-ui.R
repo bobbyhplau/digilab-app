@@ -28,6 +28,7 @@ meta_ui <- tagList(
                       width = "140px",
                       selectize = FALSE)
         ),
+        span(class = "title-strip-pill-label", "Min Entries:"),
         div(
           class = "pill-toggle",
           `data-input-id` = "meta_min_entries",
@@ -43,6 +44,14 @@ meta_ui <- tagList(
     )
   ),
 
+  # Help text
+  div(class = "page-help-text",
+    div(class = "info-hint-box text-center",
+      bsicons::bs_icon("info-circle", class = "info-hint-icon"),
+      "Deck performance across all tournaments. See which archetypes are played most and which convert to top finishes."
+    )
+  ),
+
   card(
     card_header(
       class = "d-flex justify-content-between align-items-center",
@@ -50,6 +59,10 @@ meta_ui <- tagList(
       span(class = "small text-muted", "Click a row for deck profile")
     ),
     card_body(
+      div(
+        id = "archetype_stats_skeleton",
+        skeleton_table(rows = 8)
+      ),
       reactableOutput("archetype_stats")
     )
   ),

@@ -13,10 +13,16 @@ admin_decks_ui <- tagList(
   # Pending deck requests section (collapsible)
   uiOutput("deck_requests_section"),
 
+  div(class = "page-help-text",
+    div(class = "info-hint-box",
+      bsicons::bs_icon("info-circle", class = "info-hint-icon"),
+      "Define deck archetypes with colors and a display card. Players' results are tagged with these archetypes for meta analysis."
+    )
+  ),
   div(
     class = "admin-panel",
     layout_columns(
-      col_widths = c(6, 6),
+      col_widths = breakpoints(sm = c(12, 12), md = c(6, 6)),
       card(
         card_header(
           class = "d-flex justify-content-between align-items-center",
@@ -38,13 +44,15 @@ admin_decks_ui <- tagList(
           selectInput("deck_secondary_color", "Secondary Color",
                       choices = c("None" = "", "Red", "Blue", "Yellow", "Green", "Purple", "Black", "White")),
           checkboxInput("deck_multi_color", "Multi-color deck (3+ colors)", value = FALSE),
+          div(class = "text-muted small mt-n2 mb-2",
+              "Check for decks with 3+ colors. For dual-color decks, use Primary and Secondary color instead."),
 
           hr(),
 
           # Display Card section
           h5("Display Card"),
           layout_columns(
-            col_widths = c(4, 8),
+            col_widths = breakpoints(sm = c(12, 12), md = c(4, 8)),
             # Card preview on left
             div(
               class = "text-center",
@@ -109,66 +117,6 @@ admin_decks_ui <- tagList(
         ),
         card_body(
           reactableOutput("archetype_list")
-        )
-      )
-    )
-  ),
-
-  # Delete confirmation modal
-  tags$div(
-    id = "delete_archetype_modal",
-    class = "modal fade",
-    tabindex = "-1",
-    tags$div(
-      class = "modal-dialog",
-      tags$div(
-        class = "modal-content",
-        tags$div(
-          class = "modal-header",
-          tags$h5(class = "modal-title", "Confirm Delete"),
-          tags$button(type = "button", class = "btn-close", `data-bs-dismiss` = "modal")
-        ),
-        tags$div(
-          class = "modal-body",
-          uiOutput("delete_archetype_message")
-        ),
-        tags$div(
-          class = "modal-footer",
-          tags$button(type = "button", class = "btn btn-secondary", `data-bs-dismiss` = "modal", "Cancel"),
-          actionButton("confirm_delete_archetype", "Delete", class = "btn-danger")
-        )
-      )
-    )
-  ),
-
-  # Merge decks modal
-  tags$div(
-    id = "merge_deck_modal",
-    class = "modal fade",
-    tabindex = "-1",
-    tags$div(
-      class = "modal-dialog",
-      tags$div(
-        class = "modal-content",
-        tags$div(
-          class = "modal-header",
-          tags$h5(class = "modal-title", "Merge Deck Archetypes"),
-          tags$button(type = "button", class = "btn-close", `data-bs-dismiss` = "modal")
-        ),
-        tags$div(
-          class = "modal-body",
-          p("Merge two deck archetypes into one. The source deck will be deleted and all its results will be reassigned to the target deck."),
-          selectizeInput("merge_source_deck", "Source Deck (will be deleted)",
-                         choices = NULL, options = list(placeholder = "Select deck to merge away...")),
-          selectizeInput("merge_target_deck", "Target Deck (will keep)",
-                         choices = NULL, options = list(placeholder = "Select deck to keep...")),
-          hr(),
-          uiOutput("merge_deck_preview")
-        ),
-        tags$div(
-          class = "modal-footer",
-          tags$button(type = "button", class = "btn btn-secondary", `data-bs-dismiss` = "modal", "Cancel"),
-          actionButton("confirm_merge_decks", "Merge Decks", class = "btn-warning")
         )
       )
     )

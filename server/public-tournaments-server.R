@@ -11,6 +11,9 @@ observeEvent(input$reset_tournaments_filters, {
   updateSelectInput(session, "tournaments_event_type", selected = "")
 })
 
+# Debounce search input (300ms)
+tournaments_search_debounced <- reactive(input$tournaments_search) |> debounce(300)
+
 output$tournament_history <- renderReactable({
   rv$data_refresh  # Trigger refresh on admin changes
   if (is.null(rv$db_con) || !dbIsValid(rv$db_con)) return(NULL)
@@ -18,7 +21,7 @@ output$tournament_history <- renderReactable({
   # Build parameterized filters to prevent SQL injection
   search_filters <- build_filters_param(
     table_alias = "s",
-    search = input$tournaments_search,
+    search = tournaments_search_debounced(),
     search_column = "name"
   )
 
@@ -55,24 +58,27 @@ output$tournament_history <- renderReactable({
   result <- safe_query(rv$db_con, query, params = filter_params, default = data.frame())
 
   if (nrow(result) == 0) {
-    return(reactable(data.frame(Message = "No tournaments match filters"), compact = TRUE))
+    has_filters <- nchar(trimws(tournaments_search_debounced() %||% "")) > 0 ||
+                   nchar(trimws(input$tournaments_format %||% "")) > 0 ||
+                   nchar(trimws(input$tournaments_event_type %||% "")) > 0
+    if (has_filters) {
+      return(digital_empty_state(
+        title = "No tournaments match your filters",
+        subtitle = "// try adjusting search or filters",
+        icon = "funnel"
+      ))
+    } else {
+      return(digital_empty_state(
+        title = "No tournaments recorded",
+        subtitle = "// tournament data pending",
+        icon = "trophy",
+        mascot = "agumon"
+      ))
+    }
   }
 
   # Format event type nicely
-  result$Type <- sapply(result$Type, function(et) {
-    if (is.na(et)) return("Unknown")
-    switch(et,
-           "locals" = "Locals",
-           "evo_cup" = "Evo Cup",
-           "store_championship" = "Store Champ",
-           "regional" = "Regional",
-           "regionals" = "Regionals",
-           "online" = "Online",
-           "regulation_battle" = "Reg Battle",
-           "release_event" = "Release Event",
-           "other" = "Other",
-           et)
-  })
+  result$Type <- sapply(result$Type, format_event_type)
 
   reactable(
     result,
@@ -99,7 +105,14 @@ output$tournament_history <- renderReactable({
       `Winning Deck` = colDef(minWidth = 120)
     )
   )
-})
+}) |> bindCache(
+  input$tournaments_format,
+  input$tournaments_event_type,
+  tournaments_search_debounced(),
+  rv$current_scene,
+  rv$community_filter,
+  rv$data_refresh
+)
 
 # Handle tournament row click - open detail modal
 observeEvent(input$tournament_clicked, {
@@ -141,13 +154,7 @@ output$tournament_detail_modal <- renderUI({
   ", params = list(tournament_id), default = data.frame())
 
   # Format event type
-  event_type_display <- switch(tournament$event_type,
-                                "locals" = "Locals",
-                                "evo_cup" = "Evo Cup",
-                                "store_championship" = "Store Championship",
-                                "regional" = "Regional",
-                                "online" = "Online",
-                                tournament$event_type)
+  event_type_display <- format_event_type(tournament$event_type)
 
   # Update URL for deep linking
   update_url_for_tournament(session, tournament_id)
@@ -157,12 +164,7 @@ output$tournament_detail_modal <- renderUI({
     title = div(
       class = "d-flex align-items-center gap-2",
       bsicons::bs_icon("trophy"),
-      tags$a(
-        href = "#",
-        class = "text-primary text-decoration-none clickable-row",
-        onclick = sprintf("Shiny.setInputValue('modal_store_clicked', %d, {priority: 'event'}); return false;", tournament$store_id),
-        tournament$store_name
-      ),
+      span(tournament$store_name),
       span(class = "text-muted", "-"),
       span(format(as.Date(tournament$event_date), "%B %d, %Y"))
     ),
@@ -174,6 +176,11 @@ output$tournament_detail_modal <- renderUI({
         class = "btn btn-outline-secondary me-auto",
         onclick = "copyCurrentUrl()",
         bsicons::bs_icon("link-45deg"), " Copy Link"
+      ),
+      tags$a(
+        href = LINKS$discord, target = "_blank",
+        class = "text-muted small me-2",
+        bsicons::bs_icon("flag"), " Report an error"
       ),
       modalButton("Close")
     ),
@@ -245,7 +252,7 @@ output$tournament_detail_modal <- renderUI({
         )
       )
     } else {
-      digital_empty_state("No results recorded", "// tournament data pending", "list-ul")
+      digital_empty_state("No results recorded", "// tournament data pending", "list-ul", mascot = "agumon")
     }
   ))
 })
