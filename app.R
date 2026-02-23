@@ -254,7 +254,8 @@ clear_all_field_errors <- function(session) {
 })
 
 agumon_svg <- function(size = "48px", color = "#F7941D") {
-  HTML(sprintf(.agumon_svg_template, size, size, color))
+  # Template placeholder order: style="color:%s" width="%s" height="%s"
+  HTML(sprintf(.agumon_svg_template, color, size, size))
 }
 
 # =============================================================================
