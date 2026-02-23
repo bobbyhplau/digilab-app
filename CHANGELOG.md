@@ -17,6 +17,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Format and event type shown in both summary bars
   - Event types synced to shared `EVENT_TYPES` constant
   - Admin form validation (event type, format) and field reset after submit
+- **Progressive Web App (PWA1)**: App is now installable ("Add to Home Screen") on mobile and desktop
+  - Web app manifest with Digivice icons (192/512 standard + maskable) and dark theme
+  - Offline-only service worker serves Agumon fallback page when network is unavailable
+  - Favicon (`www/favicon.ico`) and Apple touch icon from Digivice SVG
+  - `mobile-web-app-capable` meta tag for standalone mode on iOS/Android
 - **Agumon Loading Spinner (DM9)**: Agumon SVG centered inside the circular loading gate animation with `gate-agumon-pulse` scale/opacity animation
 - **Agumon Disconnect Overlay (DM3)**: Agumon SVG in the "Connection Lost" reconnect screen with `disconnect-agumon` bounce animation
 - **Agumon 404 Not Found (DM7)**: Bad deep link URLs now show a modal with Agumon mascot, entity-specific title, and descriptive message instead of a toast notification
@@ -30,6 +35,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Admin Results Mobile (MOB1)**: All `col-md-X` classes now include `col-12` prefix for mobile-first stacking
 - **Tab Bar Tap Targets (MOB1)**: Increased mobile tab bar item padding and added `min-width: 44px` / `min-height: 44px` for WCAG compliance
 - **Value Box Font Floor (MOB1)**: Bumped `.vb-label` and `.vb-subtitle` minimum font sizes at 576px breakpoint from 0.55/0.6rem to 0.65rem
+
+### Fixed
+- **Agumon SVG Scope Bug**: `agumonSvg` variable was scoped inside `$(document).ready()`, causing `ReferenceError` in disconnect overlay IIFE — hoisted to outer scope
+- **Agumon SVG Color/Size Swap**: `agumon_svg()` sprintf args were in wrong order (`size, size, color` instead of `color, size, size`), putting color value into height attribute
 
 ### Removed
 - Duplicate `www/digilab-logo.svg` (original lives in `docs/`)

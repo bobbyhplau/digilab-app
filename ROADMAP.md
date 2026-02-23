@@ -25,13 +25,13 @@ This document outlines the planned features, improvements, and bug fixes for the
 
 ## v1.0 - Public Launch
 
-| ID | Type | Description |
-|----|------|-------------|
-| X1 | IMPROVEMENT | Replace BETA badge with version badge ("v1.0") — keep the visual element, update text |
-| PWA1 | FEATURE | PWA manifest + service worker — "Add to Home Screen" on mobile, offline Agumon screen |
-| F2c | UX | "Report an error" link in modals → directs to Discord #feedback channel |
-| FORM1 | UX | Link to Google feedback form in footer/help — Bug Report, Feature Request, General Feedback |
-| LAUNCH1 | OPS | Final review pass — verify all tabs, modals, admin flows, mobile experience |
+| ID | Type | Status | Description |
+|----|------|--------|-------------|
+| X1 | IMPROVEMENT | | Replace BETA badge with version badge ("v1.0") — keep the visual element, update text |
+| PWA1 | FEATURE | ✅ Done | PWA manifest + service worker — installable app, offline Agumon screen, Digivice icons |
+| F2c | UX | | "Report an error" link in modals → directs to Discord #feedback channel |
+| FORM1 | UX | ✅ Done | Link to Google feedback form in footer/help (already linked via `LINKS$contact`) |
+| LAUNCH1 | OPS | | Final review pass — verify all tabs, modals, admin flows, mobile experience |
 
 ---
 
@@ -158,6 +158,7 @@ The React PoC on `explore/react-rewrite` branch serves as a reference for future
 - Mobile UX audit (MOB1): admin layout breakpoints, column hiding, tap targets, value box fonts, admin-results col-md fixes
 - Edit tournaments grid (ADM1): shared grid module, step-transition UX, paste-from-spreadsheet, inline player matching, update/insert/delete diff save
 - Enter/Submit Results parity (ADM2): migrated public submit to shared grid, member # column, selectize deck dropdown, OCR quality validation, blur player matching, summary bar format, admin validation + form reset
+- PWA (PWA1): installable app with Digivice icons, offline Agumon fallback page, service worker, favicon
 - Security audit: parameterized all SQL queries with user-controllable values (scene filters, search terms)
 
 ### v0.29.0 - Admin Auth & Automation
