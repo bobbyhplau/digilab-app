@@ -232,6 +232,8 @@ observe({
 # Next buttons (step 1 and step 2 both increment)
 observeEvent(input$onboarding_next, {
   if (rv$onboarding_step < 3) {
+    # Hide scene confirmation when arriving at Step 2 fresh
+    shinyjs::hide("onboarding_scene_confirmed")
     rv$onboarding_step <- rv$onboarding_step + 1
   }
 })
@@ -291,21 +293,34 @@ observeEvent(input$onboarding_goto_organizers, {
 
 # Handle "Online / Webcam" button
 observeEvent(input$select_scene_online, {
-  select_scene_and_close("online")
+  select_scene("online")
+  show_scene_confirmation("Online / Webcam")
 })
 
 # Handle "All Scenes" button
 observeEvent(input$select_scene_all, {
-  select_scene_and_close("all")
+  select_scene("all")
+  show_scene_confirmation("All Scenes")
 })
 
-# Helper function to select scene and close modal
-select_scene_and_close <- function(scene_slug) {
+# Helper: select scene without closing modal
+select_scene <- function(scene_slug) {
   rv$current_scene <- scene_slug
   updateSelectInput(session, "scene_selector", selected = scene_slug)
   session$sendCustomMessage("saveScenePreference", list(scene = scene_slug))
-  removeModal()
   rv$data_refresh <- Sys.time()
+}
+
+# Helper: select scene AND close modal (for skip/finish/link handlers)
+select_scene_and_close <- function(scene_slug) {
+  select_scene(scene_slug)
+  removeModal()
+}
+
+# Helper: show confirmation on Step 2 after scene selection
+show_scene_confirmation <- function(display_name) {
+  shinyjs::show("onboarding_scene_confirmed")
+  shinyjs::html("onboarding_scene_label", paste("Scene selected:", display_name))
 }
 
 # -----------------------------------------------------------------------------
@@ -372,7 +387,13 @@ if (!is.null(scenes) && nrow(scenes) > 0) {
 observeEvent(input$select_scene_from_map, {
   scene_slug <- input$select_scene_from_map
   if (!is.null(scene_slug) && scene_slug != "") {
-    select_scene_and_close(scene_slug)
+    select_scene(scene_slug)
+    # Look up display name from DB
+    scene_info <- safe_query(rv$db_con,
+      "SELECT display_name FROM scenes WHERE slug = ? LIMIT 1",
+      params = list(scene_slug))
+    label <- if (nrow(scene_info) > 0) scene_info$display_name[1] else scene_slug
+    show_scene_confirmation(label)
   }
 })
 
@@ -410,10 +431,11 @@ observeEvent(input$geolocation_result, {
   if (isTRUE(result$success)) {
     nearest <- result$nearestScene
     if (!is.null(nearest)) {
-      # Auto-select nearest scene
-      select_scene_and_close(nearest$slug)
+      # Auto-select nearest scene (stay on Step 2 with confirmation)
+      select_scene(nearest$slug)
+      show_scene_confirmation(nearest$display_name)
       notify(
-        sprintf("Selected %s (%.0f km away)", nearest$display_name, result$distance),
+        sprintf("Found %s (%.0f km away)", nearest$display_name, result$distance),
         type = "message",
         duration = 3
       )

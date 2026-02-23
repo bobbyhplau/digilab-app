@@ -123,6 +123,16 @@ onboarding_ui <- function() {
                        class = "btn-outline-secondary btn-sm")
         ),
 
+        # Confirmation (hidden by default, shown after selection)
+        shinyjs::hidden(
+          div(
+            id = "onboarding_scene_confirmed",
+            class = "onboarding-scene-confirmation",
+            bsicons::bs_icon("check-circle-fill"),
+            span(id = "onboarding_scene_label", "")
+          )
+        ),
+
         # Reassurance note
         p(class = "onboarding-muted-note",
           "You can change your scene anytime from the dropdown in the header."
