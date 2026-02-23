@@ -206,6 +206,7 @@ observeEvent(input$admin_tournament_list_clicked, {
 
   # Hide edit grid if switching to a different tournament
   shinyjs::hide("edit_results_grid_section")
+  shinyjs::show("edit_tournaments_main")
   rv$edit_grid_data <- NULL
   rv$edit_player_matches <- list()
   rv$edit_grid_tournament_id <- NULL
@@ -301,6 +302,7 @@ observeEvent(input$cancel_edit_tournament, {
   reset_tournament_form()
   # Also hide the edit grid if open
   shinyjs::hide("edit_results_grid_section")
+  shinyjs::show("edit_tournaments_main")
   rv$edit_grid_data <- NULL
   rv$edit_player_matches <- list()
   rv$edit_deleted_result_ids <- c()
@@ -377,6 +379,7 @@ observeEvent(input$confirm_delete_tournament, {
     removeModal()
     reset_tournament_form()
     shinyjs::hide("edit_results_grid_section")
+    shinyjs::show("edit_tournaments_main")
     rv$edit_grid_data <- NULL
     rv$edit_player_matches <- list()
     rv$edit_deleted_result_ids <- c()
@@ -441,6 +444,7 @@ observeEvent(input$view_edit_results, {
     }
   }
 
+  shinyjs::hide("edit_tournaments_main")
   shinyjs::show("edit_results_grid_section")
 })
 
@@ -505,6 +509,7 @@ output$edit_filled_count <- renderUI({
 # Cancel edit grid
 observeEvent(input$edit_grid_cancel, {
   shinyjs::hide("edit_results_grid_section")
+  shinyjs::show("edit_tournaments_main")
   rv$edit_grid_data <- NULL
   rv$edit_player_matches <- list()
   rv$edit_deleted_result_ids <- c()
@@ -914,8 +919,9 @@ observeEvent(input$edit_grid_save, {
 
     notify(msg, type = "message", duration = 5)
 
-    # Collapse grid
+    # Collapse grid and show main panel
     shinyjs::hide("edit_results_grid_section")
+    shinyjs::show("edit_tournaments_main")
     rv$edit_grid_data <- NULL
     rv$edit_player_matches <- list()
     rv$edit_deleted_result_ids <- c()

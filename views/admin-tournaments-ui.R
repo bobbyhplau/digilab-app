@@ -19,6 +19,7 @@ admin_tournaments_ui <- tagList(
   ),
   uiOutput("admin_tournaments_scene_indicator"),
   div(
+    id = "edit_tournaments_main",
     class = "admin-panel",
     layout_columns(
       col_widths = breakpoints(sm = c(12, 12), md = c(5, 7)),
