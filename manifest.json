@@ -4363,7 +4363,7 @@
       "checksum": "2209b31b91119dd05fb80ff1a2c13be2"
     },
     ".Rprofile": {
-      "checksum": "3fdf41e7675bf380136d1139b2c7656c"
+      "checksum": "4b382d7e03401208ce9cbae2b30dd545"
     },
     ".vscode/settings.json": {
       "checksum": "4aa85c6acde752675b31b354987521ce"
@@ -4390,7 +4390,10 @@
       "checksum": "ac76f9b9ad950f6e3a524c10a7c43b8a"
     },
     "data/local.duckdb": {
-      "checksum": "a7156b751b94a10f9d90a1cbc8a9ec3c"
+      "checksum": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    "data/local.duckdb.wal": {
+      "checksum": "d41d8cd98f00b204e9800998ecf8427e"
     },
     "db/migrations/002_limitless_integration.sql": {
       "checksum": "24669a90807862edbf2c200caad55fb5"
@@ -5494,7 +5497,7 @@
       "checksum": "b357ed4c70272f6ea47e3ca8e72b4da6"
     },
     "server/admin-stores-server.R": {
-      "checksum": "0e080d4cd2230a5827b9e5181d25a5a1"
+      "checksum": "34e73ccc19df6706b5e92b74f1ab24e7"
     },
     "server/admin-tournaments-server.R": {
       "checksum": "6568351faec876387315974c3185bf8d"
