@@ -545,7 +545,7 @@ observeEvent(input$update_store, {
     website <- if (nchar(input$store_website) > 0) input$store_website else NA_character_
     scene_id <- if (!is.null(input$store_scene) && input$store_scene != "") as.integer(input$store_scene) else NA_integer_
 
-    dbExecute(rv$db_con, "
+    safe_execute(rv$db_con, "
       UPDATE stores
       SET name = ?, address = ?, city = ?, state = ?, zip_code = ?,
           latitude = ?, longitude = ?, website = ?, is_online = ?, country = ?, scene_id = ?, updated_at = CURRENT_TIMESTAMP
@@ -651,11 +651,13 @@ observeEvent(input$confirm_delete_store, {
   req(rv$is_admin, rv$db_con, input$editing_store_id)
   store_id <- as.integer(input$editing_store_id)
 
-  safe_execute(rv$db_con, "DELETE FROM store_schedules WHERE store_id = ?",
-               params = list(store_id))
-  rows_deleted <- safe_execute(rv$db_con, "DELETE FROM stores WHERE store_id = ?",
-                               params = list(store_id))
-  delete_ok <- rows_deleted > 0
+  # Soft delete: set is_active = FALSE instead of hard DELETE.
+  # MotherDuck cannot handle sequential DELETEs (catalog changed error).
+  # All queries already filter WHERE is_active = TRUE.
+  rows_updated <- safe_execute(rv$db_con,
+    "UPDATE stores SET is_active = FALSE, updated_at = CURRENT_TIMESTAMP WHERE store_id = ?",
+    params = list(store_id))
+  delete_ok <- rows_updated > 0
 
   if (!delete_ok) {
     notify("Failed to delete store. Check logs for details.", type = "error")

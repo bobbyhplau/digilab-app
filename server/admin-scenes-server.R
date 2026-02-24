@@ -244,26 +244,14 @@ observeEvent(input$save_scene_btn, {
       return()
     }
 
-    # DuckDB: DELETE + INSERT for update
-    old <- safe_query(rv$db_con,
-      "SELECT * FROM scenes WHERE scene_id = ?",
-      params = list(sid),
-      default = data.frame())
-    if (nrow(old) == 0) {
-      notify("Scene not found", type = "error")
-      return()
-    }
-
     safe_execute(rv$db_con,
-      "DELETE FROM scenes WHERE scene_id = ?",
-      params = list(sid))
-    safe_execute(rv$db_con,
-      "INSERT INTO scenes (scene_id, name, slug, display_name, scene_type, latitude, longitude, is_active, created_at)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
-      params = list(sid, display_name, slug, display_name, scene_type,
+      "UPDATE scenes SET name = ?, slug = ?, display_name = ?, scene_type = ?,
+       latitude = ?, longitude = ?, is_active = ?
+       WHERE scene_id = ?",
+      params = list(display_name, slug, display_name, scene_type,
                     if (is.na(lat)) NA_real_ else lat,
                     if (is.na(lng)) NA_real_ else lng,
-                    is_active, old$created_at[1]))
+                    is_active, sid))
 
     notify(paste0("Scene '", display_name, "' updated"), type = "message")
     rv$data_refresh <- rv$data_refresh + 1

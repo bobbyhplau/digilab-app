@@ -238,32 +238,17 @@ observeEvent(input$save_admin_btn, {
       }
       hash <- bcrypt::hashpw(password)
       safe_execute(rv$db_con,
-        "DELETE FROM admin_users WHERE user_id = ?",
-        params = list(uid))
-      safe_execute(rv$db_con,
-        "INSERT INTO admin_users (user_id, username, password_hash, display_name, role, scene_id, is_active)
-         VALUES (?, ?, ?, ?, ?, ?, TRUE)",
-        params = list(uid, username, hash, display_name, role,
-                      if (is.na(scene_id)) NA_integer_ else scene_id))
+        "UPDATE admin_users SET username = ?, password_hash = ?, display_name = ?, role = ?, scene_id = ?
+         WHERE user_id = ?",
+        params = list(username, hash, display_name, role,
+                      if (is.na(scene_id)) NA_integer_ else scene_id, uid))
     } else {
-      # Update without changing password (DuckDB: DELETE + INSERT to preserve hash)
-      old <- safe_query(rv$db_con,
-        "SELECT password_hash, is_active FROM admin_users WHERE user_id = ?",
-        params = list(uid),
-        default = data.frame())
-      if (nrow(old) == 0) {
-        notify("Admin not found", type = "error")
-        return()
-      }
+      # Update without changing password
       safe_execute(rv$db_con,
-        "DELETE FROM admin_users WHERE user_id = ?",
-        params = list(uid))
-      safe_execute(rv$db_con,
-        "INSERT INTO admin_users (user_id, username, password_hash, display_name, role, scene_id, is_active)
-         VALUES (?, ?, ?, ?, ?, ?, ?)",
-        params = list(uid, username, old$password_hash[1], display_name, role,
-                      if (is.na(scene_id)) NA_integer_ else scene_id,
-                      old$is_active[1]))
+        "UPDATE admin_users SET username = ?, display_name = ?, role = ?, scene_id = ?
+         WHERE user_id = ?",
+        params = list(username, display_name, role,
+                      if (is.na(scene_id)) NA_integer_ else scene_id, uid))
     }
 
     notify(paste0("Admin '", username, "' updated"), type = "message")
@@ -290,25 +275,16 @@ observeEvent(input$toggle_admin_active_btn, {
 
   # Get current status
   current <- safe_query(rv$db_con,
-    "SELECT is_active, username, password_hash, display_name, role, scene_id, created_at
-     FROM admin_users WHERE user_id = ?",
+    "SELECT is_active, username FROM admin_users WHERE user_id = ?",
     params = list(uid),
     default = data.frame())
   if (nrow(current) == 0) return()
 
   new_status <- !current$is_active[1]
 
-  # DuckDB: DELETE + INSERT for update
   safe_execute(rv$db_con,
-    "DELETE FROM admin_users WHERE user_id = ?",
-    params = list(uid))
-  safe_execute(rv$db_con,
-    "INSERT INTO admin_users (user_id, username, password_hash, display_name, role, scene_id, is_active, created_at)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
-    params = list(uid, current$username[1], current$password_hash[1],
-                  current$display_name[1], current$role[1],
-                  if (is.na(current$scene_id[1])) NA_integer_ else current$scene_id[1],
-                  new_status, current$created_at[1]))
+    "UPDATE admin_users SET is_active = ? WHERE user_id = ?",
+    params = list(new_status, uid))
 
   action <- if (new_status) "reactivated" else "deactivated"
   notify(paste0("Admin '", current$username[1], "' ", action), type = "message")

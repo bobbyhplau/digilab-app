@@ -430,7 +430,7 @@ observeEvent(input$confirm_merge_players, {
 
     if (nrow(conflicts) > 0) {
       # Delete source results that conflict (target's result takes priority)
-      dbExecute(rv$db_con, "
+      safe_execute(rv$db_con, "
         DELETE FROM results
         WHERE player_id = ? AND tournament_id IN (
           SELECT r2.tournament_id FROM results r2 WHERE r2.player_id = ?
@@ -443,22 +443,22 @@ observeEvent(input$confirm_merge_players, {
     }
 
     # Move remaining results from source to target
-    dbExecute(rv$db_con, "
+    safe_execute(rv$db_con, "
       UPDATE results SET player_id = ? WHERE player_id = ?
     ", params = list(target_id, source_id))
 
     # Transfer matches (as player)
-    dbExecute(rv$db_con, "
+    safe_execute(rv$db_con, "
       UPDATE matches SET player_id = ? WHERE player_id = ?
     ", params = list(target_id, source_id))
 
     # Transfer matches (as opponent)
-    dbExecute(rv$db_con, "
+    safe_execute(rv$db_con, "
       UPDATE matches SET opponent_id = ? WHERE opponent_id = ?
     ", params = list(target_id, source_id))
 
     # Copy limitless_username from source to target (if target doesn't have one)
-    dbExecute(rv$db_con, "
+    safe_execute(rv$db_con, "
       UPDATE players
       SET limitless_username = (
         SELECT limitless_username FROM players WHERE player_id = ?
@@ -466,9 +466,9 @@ observeEvent(input$confirm_merge_players, {
       WHERE player_id = ? AND (limitless_username IS NULL OR limitless_username = '')
     ", params = list(source_id, target_id))
 
-    # Delete source player
-    dbExecute(rv$db_con, "DELETE FROM players WHERE player_id = ?",
-              params = list(source_id))
+    # Soft-delete source player instead of hard DELETE to avoid MotherDuck catalog errors
+    safe_execute(rv$db_con, "UPDATE players SET is_active = FALSE WHERE player_id = ?",
+                 params = list(source_id))
 
     notify("Players merged successfully", type = "message")
 

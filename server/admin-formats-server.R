@@ -151,18 +151,18 @@ observeEvent(input$update_format, {
     # If format_id changed, we need to update related tournaments
     if (format_id != original_id) {
       # Update tournaments that reference this format
-      dbExecute(rv$db_con, "
+      safe_execute(rv$db_con, "
         UPDATE tournaments SET format = $1 WHERE format = $2
       ", params = list(format_id, original_id))
 
       # Delete old and insert new (since format_id is primary key)
-      dbExecute(rv$db_con, "DELETE FROM formats WHERE format_id = $1", params = list(original_id))
-      dbExecute(rv$db_con, "
+      safe_execute(rv$db_con, "DELETE FROM formats WHERE format_id = $1", params = list(original_id))
+      safe_execute(rv$db_con, "
         INSERT INTO formats (format_id, set_name, display_name, release_date, sort_order, is_active)
         VALUES ($1, $2, $3, $4, 0, $5)
       ", params = list(format_id, set_name, display_name, release_date, is_active))
     } else {
-      dbExecute(rv$db_con, "
+      safe_execute(rv$db_con, "
         UPDATE formats
         SET set_name = $1, display_name = $2, release_date = $3, is_active = $4, updated_at = CURRENT_TIMESTAMP
         WHERE format_id = $5

@@ -352,34 +352,33 @@ observeEvent(input$confirm_delete_tournament, {
 
   tournament_id <- as.integer(input$editing_tournament_id)
 
-  tryCatch({
-    # Delete results first (cascade)
-    dbExecute(rv$db_con, "DELETE FROM results WHERE tournament_id = ?",
-              params = list(tournament_id))
+  # Delete results first, then tournament.
+  # Uses safe_execute with retry logic for MotherDuck catalog errors.
+  safe_execute(rv$db_con, "DELETE FROM results WHERE tournament_id = ?",
+               params = list(tournament_id))
+  rows <- safe_execute(rv$db_con, "DELETE FROM tournaments WHERE tournament_id = ?",
+                       params = list(tournament_id))
 
-    # Delete tournament
-    dbExecute(rv$db_con, "DELETE FROM tournaments WHERE tournament_id = ?",
-              params = list(tournament_id))
+  if (rows == 0) {
+    notify("Failed to delete tournament. Try again.", type = "error")
+    return()
+  }
 
-    notify("Tournament and results deleted", type = "message")
+  notify("Tournament and results deleted", type = "message")
 
-    # Hide modal, reset form, and hide edit grid
-    removeModal()
-    reset_tournament_form()
-    shinyjs::hide("edit_results_grid_section")
-    shinyjs::show("edit_tournaments_main")
-    rv$edit_grid_data <- NULL
-    rv$edit_player_matches <- list()
-    rv$edit_deleted_result_ids <- c()
-    rv$edit_grid_tournament_id <- NULL
+  # Hide modal, reset form, and hide edit grid
+  removeModal()
+  reset_tournament_form()
+  shinyjs::hide("edit_results_grid_section")
+  shinyjs::show("edit_tournaments_main")
+  rv$edit_grid_data <- NULL
+  rv$edit_player_matches <- list()
+  rv$edit_deleted_result_ids <- c()
+  rv$edit_grid_tournament_id <- NULL
 
-    # Trigger table refresh (admin + public tables)
-    rv$tournament_refresh <- (rv$tournament_refresh %||% 0) + 1
-    rv$data_refresh <- (rv$data_refresh %||% 0) + 1
-
-  }, error = function(e) {
-    notify(paste("Error:", e$message), type = "error")
-  })
+  # Trigger table refresh (admin + public tables)
+  rv$tournament_refresh <- (rv$tournament_refresh %||% 0) + 1
+  rv$data_refresh <- (rv$data_refresh %||% 0) + 1
 })
 
 # Show View/Edit Results button when tournament is selected
@@ -803,15 +802,15 @@ observeEvent(input$edit_grid_save, {
 
     # 1. DELETE: rows that were deleted via X button
     for (rid in rv$edit_deleted_result_ids) {
-      dbExecute(rv$db_con, "DELETE FROM results WHERE result_id = ?", params = list(rid))
+      safe_execute(rv$db_con, "DELETE FROM results WHERE result_id = ?", params = list(rid))
       delete_count <- delete_count + 1L
     }
 
     # 2. DELETE: original rows that are now empty (user cleared the name)
     empty_rows <- grid[nchar(trimws(grid$player_name)) == 0 & !is.na(grid$result_id), ]
     for (idx in seq_len(nrow(empty_rows))) {
-      dbExecute(rv$db_con, "DELETE FROM results WHERE result_id = ?",
-                params = list(empty_rows$result_id[idx]))
+      safe_execute(rv$db_con, "DELETE FROM results WHERE result_id = ?",
+                   params = list(empty_rows$result_id[idx]))
       delete_count <- delete_count + 1L
     }
 
@@ -832,8 +831,8 @@ observeEvent(input$edit_grid_save, {
       } else {
         max_pid <- dbGetQuery(rv$db_con, "SELECT COALESCE(MAX(player_id), 0) as max_id FROM players")$max_id
         player_id <- max_pid + 1
-        dbExecute(rv$db_con, "INSERT INTO players (player_id, display_name) VALUES (?, ?)",
-                  params = list(player_id, name))
+        safe_execute(rv$db_con, "INSERT INTO players (player_id, display_name) VALUES (?, ?)",
+                     params = list(player_id, name))
       }
 
       # Convert record
@@ -866,7 +865,7 @@ observeEvent(input$edit_grid_save, {
 
       if (!is.na(row$result_id)) {
         # UPDATE existing result
-        dbExecute(rv$db_con, "
+        safe_execute(rv$db_con, "
           UPDATE results
           SET player_id = ?, archetype_id = ?, pending_deck_request_id = ?,
               placement = ?, wins = ?, losses = ?, ties = ?,
@@ -878,7 +877,7 @@ observeEvent(input$edit_grid_save, {
       } else {
         # INSERT new result
         max_result_id <- max_result_id + 1
-        dbExecute(rv$db_con, "
+        safe_execute(rv$db_con, "
           INSERT INTO results (result_id, tournament_id, player_id, archetype_id,
                                pending_deck_request_id, placement, wins, losses, ties)
           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
@@ -889,7 +888,7 @@ observeEvent(input$edit_grid_save, {
     }
 
     # Update player count on tournament
-    dbExecute(rv$db_con, "
+    safe_execute(rv$db_con, "
       UPDATE tournaments SET player_count = ?, updated_at = CURRENT_TIMESTAMP
       WHERE tournament_id = ?
     ", params = list(nrow(filled_rows), tournament_id))

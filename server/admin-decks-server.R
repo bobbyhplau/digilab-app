@@ -774,20 +774,20 @@ create_deck_from_request <- function(req_id, deck_name, primary_color, secondary
     max_id <- dbGetQuery(rv$db_con, "SELECT COALESCE(MAX(archetype_id), 0) as max_id FROM deck_archetypes")$max_id
     new_archetype_id <- max_id + 1
 
-    dbExecute(rv$db_con, "
+    safe_execute(rv$db_con, "
       INSERT INTO deck_archetypes (archetype_id, archetype_name, primary_color, secondary_color, display_card_id)
       VALUES (?, ?, ?, ?, ?)
     ", params = list(new_archetype_id, deck_name, primary_color, secondary_color, card_id))
 
     # Update the deck request
-    dbExecute(rv$db_con, "
+    safe_execute(rv$db_con, "
       UPDATE deck_requests
       SET status = 'approved', approved_archetype_id = ?, reviewed_at = CURRENT_TIMESTAMP
       WHERE request_id = ?
     ", params = list(new_archetype_id, req_id))
 
     # Auto-update any results that used this pending request
-    updated_count <- dbExecute(rv$db_con, "
+    updated_count <- safe_execute(rv$db_con, "
       UPDATE results
       SET archetype_id = ?, pending_deck_request_id = NULL
       WHERE pending_deck_request_id = ?
@@ -987,18 +987,18 @@ observeEvent(input$confirm_merge_decks, {
 
   tryCatch({
     # 1. Move all results from source to target
-    results_moved <- dbExecute(rv$db_con, "
+    results_moved <- safe_execute(rv$db_con, "
       UPDATE results SET archetype_id = ? WHERE archetype_id = ?
     ", params = list(target_id, source_id))
 
     # 2. Update limitless_deck_map entries to point to target
-    mappings_updated <- dbExecute(rv$db_con, "
+    mappings_updated <- safe_execute(rv$db_con, "
       UPDATE limitless_deck_map SET archetype_id = ? WHERE archetype_id = ?
     ", params = list(target_id, source_id))
 
     # 3. Delete the source archetype
-    dbExecute(rv$db_con, "DELETE FROM deck_archetypes WHERE archetype_id = ?",
-              params = list(source_id))
+    safe_execute(rv$db_con, "DELETE FROM deck_archetypes WHERE archetype_id = ?",
+                 params = list(source_id))
 
     # Hide modal
     removeModal()

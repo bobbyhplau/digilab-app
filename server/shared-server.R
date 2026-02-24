@@ -703,15 +703,8 @@ observeEvent(input$change_password_btn, {
 
   new_hash <- bcrypt::hashpw(new_pw)
   safe_execute(rv$db_con,
-    "DELETE FROM admin_users WHERE user_id = ?",
-    params = list(rv$admin_user$user_id))
-  safe_execute(rv$db_con,
-    "INSERT INTO admin_users (user_id, username, password_hash, display_name, role, scene_id, is_active, created_at)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
-    params = list(old$user_id[1], old$username[1], new_hash, old$display_name[1],
-                  old$role[1],
-                  if (is.na(old$scene_id[1])) NA_integer_ else old$scene_id[1],
-                  old$is_active[1], old$created_at[1]))
+    "UPDATE admin_users SET password_hash = ? WHERE user_id = ?",
+    params = list(new_hash, rv$admin_user$user_id))
 
   notify("Password updated successfully", type = "message")
   removeModal()
