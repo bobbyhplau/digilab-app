@@ -4,6 +4,32 @@ This log tracks development decisions, blockers, and technical notes for DigiLab
 
 ---
 
+## 2026-02-23: v1.0.1 - International Store Support
+
+### Problem
+Store admin form only supported US addresses — hardcoded 50-state dropdown, "ZIP Code" label, and `country = "USA"` for all physical stores. User onboarding request from Vancouver BC Canada exposed the limitation.
+
+### Solution
+- Added `R/constants.R` with `COUNTRY_CHOICES` built from `countrycode` package (~291 countries/territories, USA pinned first)
+- Replaced US state `selectInput` with free-text `textInput` labeled "State / Province"
+- Renamed "ZIP Code" to "Postal Code"
+- Added Country dropdown to physical store form (selectize for type-to-search)
+- Upgraded online store country selector from 6-item list to full country list
+- Geocoding address string now includes country for international Mapbox accuracy
+- Removed `DEFAULT 'TX'` from schema `state` column
+
+### Files Changed
+| File | Changes |
+|------|---------|
+| `R/constants.R` | New — shared `COUNTRY_CHOICES` constant |
+| `views/admin-stores-ui.R` | Country dropdown, free-text state, postal code label |
+| `server/admin-stores-server.R` | Country selection, geocoding with country, form resets |
+| `app.R` | Source constants, version bump to 1.0.1 |
+| `db/schema.sql` | Removed `DEFAULT 'TX'` from state column |
+| `renv.lock` | Added `countrycode` 1.6.1 |
+
+---
+
 ## 2026-02-23: Post-Launch Fixes & Hardening
 
 ### OCR Parser "96 Players" Bug

@@ -5,6 +5,25 @@ All notable changes to DigiLab will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.0.1] - 2026-02-23 - International Store Support
+
+### Added
+- **International Store Addresses**: Physical stores now support worldwide addresses
+  - Full ~195 country dropdown (via `countrycode` package) with type-to-search on both physical and online store forms
+  - Free-text "State / Province" field replaces hardcoded US state dropdown
+  - "ZIP Code" renamed to "Postal Code" for international compatibility
+  - Geocoding address string now includes country for better Mapbox accuracy
+- **`R/constants.R`**: Shared constants file with `COUNTRY_CHOICES` list
+
+### Changed
+- **Online store country selector**: Upgraded from 6-item list to full country list
+- **DB schema**: Removed `DEFAULT 'TX'` from `state` column (no migration needed)
+
+### Dependencies
+- Added `countrycode` 1.6.1 (ISO country names)
+
+---
+
 ## [1.0.0] - 2026-02-23 - Public Launch
 
 ### Added

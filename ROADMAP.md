@@ -2,7 +2,7 @@
 
 This document outlines the planned features, improvements, and bug fixes for the tournament tracker.
 
-**Current Version:** v1.0.0
+**Current Version:** v1.0.1
 **Cadence:** ~1 milestone per week
 
 ---

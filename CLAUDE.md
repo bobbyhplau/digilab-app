@@ -374,6 +374,6 @@ See `ARCHITECTURE.md` > CSS Architecture for full documentation.
 
 ## Current Version
 
-**v1.0.0** - Public Launch (performance optimizations, PWA, mascot polish, security hardening, responsive grids)
+**v1.0.1** - International Store Support (full country dropdown, free-text state/province, postal code)
 
 See `CHANGELOG.md` for full version history and `ROADMAP.md` for upcoming features.
