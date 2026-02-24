@@ -70,8 +70,6 @@ connect_motherduck <- function() {
     dbExecute(con, "INSTALL motherduck;")
     dbExecute(con, "LOAD motherduck;")
     dbExecute(con, sprintf("SET motherduck_token = '%s';", token))
-    # Disable instance caching so each connection gets a fresh catalog
-    dbExecute(con, "SET motherduck_dbinstance_inactivity_ttl = '0s';")
     # Single mode: isolate from catalog changes by other connections (sync scripts)
     dbExecute(con, sprintf("ATTACH 'md:%s?attach_mode=single';", db_name))
     dbExecute(con, sprintf("USE %s;", db_name))
