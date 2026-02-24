@@ -2,106 +2,67 @@
 # Database Connection Module
 # DigiLab - https://digilab.cards/
 #
-# Auto-detects environment:
-#   - Local Windows dev → uses local DuckDB file
-#   - Posit Connect (Linux) → uses MotherDuck cloud
+# Uses Neon PostgreSQL via pool + RPostgres.
+# Single connection pool shared across the app.
 # =============================================================================
 
 library(DBI)
-library(duckdb)
+library(pool)
+library(RPostgres)
 
 # -----------------------------------------------------------------------------
-# Main Connection Function - Just use this one
+# Connection Pool
 # -----------------------------------------------------------------------------
 
-#' Connect to database (auto-detects environment)
+#' Create database connection pool
 #'
 #' @description
-#' Automatically chooses the right connection:
-#' - On Posit Connect or Linux with MOTHERDUCK_TOKEN set → MotherDuck cloud
-#' - Otherwise → Local DuckDB file (data/local.duckdb)
+#' Creates a pool of connections to Neon PostgreSQL.
+#' Requires NEON_HOST, NEON_USER, NEON_PASSWORD env vars.
+#' NEON_DATABASE defaults to "neondb" if not set.
 #'
-#' @return DBI connection object
+#' @return pool object
 #' @export
-connect_db <- function() {
+create_db_pool <- function() {
+  host <- Sys.getenv("NEON_HOST")
+  dbname <- Sys.getenv("NEON_DATABASE", "neondb")
+  user <- Sys.getenv("NEON_USER")
+  password <- Sys.getenv("NEON_PASSWORD")
 
- # Check if we should use MotherDuck
-  use_motherduck <- can_use_motherduck()
-
-  if (use_motherduck) {
-    return(connect_motherduck())
-  } else {
-    return(connect_local())
+  if (host == "" || password == "") {
+    stop("NEON_HOST and NEON_PASSWORD environment variables are required. See .env.example")
   }
-}
-
-#' Check if MotherDuck connection is available
-#' @return Logical
-can_use_motherduck <- function() {
-  # Need token
-  token <- Sys.getenv("MOTHERDUCK_TOKEN")
-  if (token == "") return(FALSE)
-
-  # Check if we're on Linux (Posit Connect) or if extension is available
-  is_linux <- Sys.info()["sysname"] == "Linux"
-
-  # On Windows, MotherDuck extension isn't available for R
-  is_windows <- Sys.info()["sysname"] == "Windows"
-  if (is_windows) {
-    message("Note: Using local database (MotherDuck not available on Windows R)")
-    return(FALSE)
-  }
-
-  return(TRUE)
-}
-
-# -----------------------------------------------------------------------------
-# Specific Connection Functions (used internally)
-# -----------------------------------------------------------------------------
-
-#' Connect to MotherDuck cloud database
-#' @return DBI connection object
-connect_motherduck <- function() {
-  token <- Sys.getenv("MOTHERDUCK_TOKEN")
-  db_name <- Sys.getenv("MOTHERDUCK_DATABASE", "digimon_tcg_dfw")
 
   tryCatch({
-    con <- dbConnect(duckdb::duckdb())
-    dbExecute(con, "INSTALL motherduck;")
-    dbExecute(con, "LOAD motherduck;")
-    dbExecute(con, sprintf("SET motherduck_token = '%s';", token))
-    dbExecute(con, sprintf("ATTACH 'md:%s';", db_name))
-    dbExecute(con, sprintf("USE %s;", db_name))
-    message("Connected to MotherDuck: ", db_name)
-    return(con)
+    p <- dbPool(
+      RPostgres::Postgres(),
+      host = host,
+      dbname = dbname,
+      user = user,
+      password = password,
+      port = 5432,
+      sslmode = "require",
+      minSize = 1,
+      maxSize = 5
+    )
+    message("Connected to Neon PostgreSQL: ", dbname, " @ ", host)
+    p
   }, error = function(e) {
-    stop("MotherDuck connection failed: ", e$message)
+    stop("Database connection failed: ", e$message)
   })
 }
 
-#' Connect to local DuckDB file
-#' @param db_path Path to database file
-#' @return DBI connection object
-connect_local <- function(db_path = "data/local.duckdb") {
-  # Ensure data directory exists
-  dir.create(dirname(db_path), showWarnings = FALSE, recursive = TRUE)
-
-  tryCatch({
-    con <- dbConnect(duckdb::duckdb(), dbdir = db_path, read_only = FALSE)
-    message("Connected to local database: ", db_path)
-    return(con)
-  }, error = function(e) {
-    stop("Local connection failed: ", e$message)
-  })
-}
-
-#' Disconnect from database
-#' @param con DBI connection object
+#' Close the connection pool
+#' @param p pool object
 #' @export
-disconnect <- function(con) {
-  if (!is.null(con) && dbIsValid(con)) {
-    dbDisconnect(con, shutdown = TRUE)
-    message("Disconnected")
+close_db_pool <- function(p) {
+  if (!is.null(p)) {
+    tryCatch({
+      poolClose(p)
+      message("Database pool closed")
+    }, error = function(e) {
+      message("Error closing pool: ", e$message)
+    })
   }
 }
 
@@ -110,21 +71,16 @@ disconnect <- function(con) {
 # -----------------------------------------------------------------------------
 
 #' Initialize database schema
-#' @param con DBI connection object
+#' @param pool pool object
 #' @param schema_path Path to SQL schema file
 #' @export
-init_schema <- function(con, schema_path = "db/schema.sql") {
+init_schema <- function(pool, schema_path = "db/schema_postgres.sql") {
   if (!file.exists(schema_path)) {
     stop("Schema file not found: ", schema_path)
   }
 
-  # Read file
   lines <- readLines(schema_path, warn = FALSE)
-
-  # Remove comment lines (lines starting with --)
   lines <- lines[!grepl("^\\s*--", lines)]
-
-  # Join and split by semicolon
   schema_sql <- paste(lines, collapse = "\n")
   statements <- strsplit(schema_sql, ";")[[1]]
 
@@ -133,17 +89,14 @@ init_schema <- function(con, schema_path = "db/schema.sql") {
 
   for (stmt in statements) {
     stmt <- trimws(stmt)
-    # Skip empty statements
     if (stmt == "" || nchar(stmt) < 5) next
 
     tryCatch({
-      dbExecute(con, paste0(stmt, ";"))
+      dbExecute(pool, paste0(stmt, ";"))
       success_count <- success_count + 1
     }, error = function(e) {
-      # Only warn if not "already exists"
       if (!grepl("already exists", e$message, ignore.case = TRUE)) {
         fail_count <<- fail_count + 1
-        # Show more context for debugging
         stmt_preview <- substr(gsub("\\s+", " ", stmt), 1, 60)
         warning("FAILED: ", stmt_preview, "...\n  Error: ", e$message)
       }
@@ -154,14 +107,14 @@ init_schema <- function(con, schema_path = "db/schema.sql") {
 }
 
 #' Verify all required tables exist
-#' @param con DBI connection object
+#' @param pool pool object
 #' @return Logical
 #' @export
-check_schema <- function(con) {
+check_schema <- function(pool) {
   required <- c("stores", "players", "deck_archetypes",
                 "archetype_cards", "tournaments", "results")
 
-  existing <- dbListTables(con)
+  existing <- dbListTables(pool)
   missing <- setdiff(required, existing)
 
   if (length(missing) > 0) {
@@ -178,18 +131,19 @@ check_schema <- function(con) {
 # -----------------------------------------------------------------------------
 
 #' Run a query and return data frame
-#' @param con DBI connection
+#' @param pool pool object
 #' @param sql SQL query string
 #' @return Data frame
 #' @export
-query <- function(con, sql) {
-  dbGetQuery(con, sql)
+query <- function(pool, sql) {
+  dbGetQuery(pool, sql)
 }
 
-#' Log a data operation (for tracking imports/changes)
+#' Log a data operation
 #' @export
-log_operation <- function(con, source, action, status, records = 0, error = NULL) {
-  sql <- "INSERT INTO ingestion_log (source, action, status, records_affected, error_message)
-          VALUES (?, ?, ?, ?, ?)"
-  dbExecute(con, sql, params = list(source, action, status, records, error))
+log_operation <- function(pool, source, action, status, records = 0, error = NULL) {
+  dbExecute(pool,
+    "INSERT INTO ingestion_log (source, action, status, records_affected, error_message)
+     VALUES ($1, $2, $3, $4, $5)",
+    params = list(source, action, status, records, error))
 }
