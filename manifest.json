@@ -4363,7 +4363,7 @@
       "checksum": "2209b31b91119dd05fb80ff1a2c13be2"
     },
     ".Rprofile": {
-      "checksum": "57cc8c6abc4414d3a6d411c78c7b45aa"
+      "checksum": "3fdf41e7675bf380136d1139b2c7656c"
     },
     ".vscode/settings.json": {
       "checksum": "4aa85c6acde752675b31b354987521ce"
@@ -5494,7 +5494,7 @@
       "checksum": "b357ed4c70272f6ea47e3ca8e72b4da6"
     },
     "server/admin-stores-server.R": {
-      "checksum": "3f1151d5ac29927f478419635b6338d5"
+      "checksum": "0e080d4cd2230a5827b9e5181d25a5a1"
     },
     "server/admin-tournaments-server.R": {
       "checksum": "6568351faec876387315974c3185bf8d"
@@ -5524,7 +5524,7 @@
       "checksum": "6d1c04028d63453c33c5bf165245e286"
     },
     "server/shared-server.R": {
-      "checksum": "819d48fedd9fdd4e9e3838d75587f168"
+      "checksum": "79db78e04aa3940412dfb1eb0fba4b9e"
     },
     "server/url-routing-server.R": {
       "checksum": "e9cfcaccc10048b10291db6ede464522"
