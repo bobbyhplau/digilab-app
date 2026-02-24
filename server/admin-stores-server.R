@@ -53,21 +53,23 @@ geocode_with_mapbox <- function(address) {
 }
 
 # --- Load scene choices for store dropdown ---
+# Re-fires when navigating to this tab (ensures UI exists after lazy-load)
 observe({
   rv$current_nav
   rv$data_refresh
   req(rv$db_con, rv$is_admin)
-  tryCatch({
-    scenes <- dbGetQuery(rv$db_con,
+  scenes <- tryCatch(
+    dbGetQuery(rv$db_con,
       "SELECT scene_id, display_name FROM scenes
        WHERE is_active = TRUE
-       ORDER BY scene_type, display_name")
-    if (nrow(scenes) > 0) {
-      choices <- setNames(as.character(scenes$scene_id), scenes$display_name)
-      updateSelectInput(session, "store_scene",
-                        choices = c("Select scene..." = "", choices))
-    }
-  }, error = function(e) NULL)
+       ORDER BY scene_type, display_name"),
+    error = function(e) data.frame()
+  )
+  if (nrow(scenes) > 0) {
+    choices <- setNames(as.character(scenes$scene_id), scenes$display_name)
+    updateSelectInput(session, "store_scene",
+                      choices = c("Select scene..." = "", choices))
+  }
 })
 
 # Add store
@@ -255,10 +257,10 @@ observeEvent(input$add_store, {
 output$admin_store_list <- renderReactable({
   if (is.null(rv$db_con) || !dbIsValid(rv$db_con)) return(NULL)
 
-  # Trigger refresh
-  input$add_store
-  input$update_store
-  input$confirm_delete_store
+  # Trigger refresh via rv$data_refresh (set after add/update/delete complete)
+  # Do NOT use input$add_store etc. directly — they fire simultaneously with
+  # the handler, racing on the same DuckDB connection ("catalog changed" error)
+  rv$data_refresh
   rv$schedules_refresh
   input$admin_stores_show_all_scenes
 
@@ -645,13 +647,10 @@ observeEvent(input$confirm_delete_store, {
   store_id <- as.integer(input$editing_store_id)
 
   tryCatch({
-    # Wrap in transaction to avoid "remote catalog changed" DuckDB error
-    dbExecute(rv$db_con, "BEGIN TRANSACTION")
     dbExecute(rv$db_con, "DELETE FROM store_schedules WHERE store_id = ?",
               params = list(store_id))
     dbExecute(rv$db_con, "DELETE FROM stores WHERE store_id = ?",
               params = list(store_id))
-    dbExecute(rv$db_con, "COMMIT")
     notify("Store deleted", type = "message")
 
     # Hide modal and reset form
@@ -684,7 +683,6 @@ observeEvent(input$confirm_delete_store, {
     rv$data_refresh <- (rv$data_refresh %||% 0) + 1
 
   }, error = function(e) {
-    tryCatch(dbExecute(rv$db_con, "ROLLBACK"), error = function(re) NULL)
     notify(paste("Error:", e$message), type = "error")
   })
 })

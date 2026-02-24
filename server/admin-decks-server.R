@@ -167,7 +167,7 @@ output$selected_card_preview <- renderUI({
 
 # Add archetype
 observeEvent(input$add_archetype, {
-  req(rv$is_admin, rv$db_con)
+  req(rv$is_superadmin, rv$db_con)
 
   clear_all_field_errors(session)
 
@@ -356,7 +356,7 @@ observeEvent(input$archetype_list_clicked, {
 
 # Update archetype
 observeEvent(input$update_archetype, {
-  req(rv$is_admin, rv$db_con)
+  req(rv$is_superadmin, rv$db_con)
   req(input$editing_archetype_id)
 
   clear_all_field_errors(session)
@@ -435,7 +435,7 @@ observe({
 
 # Delete button click - show modal
 observeEvent(input$delete_archetype, {
-  req(rv$is_admin, input$editing_archetype_id)
+  req(rv$is_superadmin, input$editing_archetype_id)
 
   archetype_id <- as.integer(input$editing_archetype_id)
   arch <- dbGetQuery(rv$db_con, "SELECT archetype_name FROM deck_archetypes WHERE archetype_id = ?",
@@ -464,7 +464,7 @@ observeEvent(input$delete_archetype, {
 
 # Confirm delete
 observeEvent(input$confirm_delete_archetype, {
-  req(rv$is_admin, rv$db_con, input$editing_archetype_id)
+  req(rv$is_superadmin, rv$db_con, input$editing_archetype_id)
   archetype_id <- as.integer(input$editing_archetype_id)
 
   # Re-check for referential integrity before delete
@@ -604,14 +604,14 @@ output$deck_requests_section <- renderUI({
 
 # Handle approve button clicks (using Shiny.setInputValue from onclick)
 observeEvent(input$deck_request_approve_click, {
-  req(rv$db_con, rv$is_admin)
+  req(rv$db_con, rv$is_superadmin)
   req_id <- input$deck_request_approve_click
   approve_deck_request(req_id, session, rv)
 })
 
 # Handle edit & approve button clicks
 observeEvent(input$deck_request_edit_click, {
-  req(rv$db_con, rv$is_admin)
+  req(rv$db_con, rv$is_superadmin)
   req_id <- input$deck_request_edit_click
 
   req_data <- dbGetQuery(rv$db_con, "SELECT * FROM deck_requests WHERE request_id = ?",
@@ -649,7 +649,7 @@ observeEvent(input$deck_request_edit_click, {
 
 # Handle confirm edit & approve
 observeEvent(input$confirm_edit_approve_deck, {
-  req(rv$db_con, rv$is_admin, rv$editing_deck_request_id)
+  req(rv$db_con, rv$is_superadmin, rv$editing_deck_request_id)
 
   req_id <- rv$editing_deck_request_id
   deck_name <- trimws(input$edit_deck_request_name)
@@ -672,7 +672,7 @@ observeEvent(input$confirm_edit_approve_deck, {
 
 # Handle reject button clicks - show modal to select replacement deck
 observeEvent(input$deck_request_reject_click, {
-  req(rv$db_con, rv$is_admin)
+  req(rv$db_con, rv$is_superadmin)
   req_id <- input$deck_request_reject_click
 
   req_data <- dbGetQuery(rv$db_con, "SELECT * FROM deck_requests WHERE request_id = ?",
@@ -723,7 +723,7 @@ observeEvent(input$deck_request_reject_click, {
 
 # Handle confirm reject
 observeEvent(input$confirm_reject_deck, {
-  req(rv$db_con, rv$is_admin, rv$rejecting_deck_request_id)
+  req(rv$db_con, rv$is_superadmin, rv$rejecting_deck_request_id)
 
   req_id <- rv$rejecting_deck_request_id
   replacement_id <- if (!is.null(input$reject_replacement_deck) && input$reject_replacement_deck != "") {
@@ -905,7 +905,7 @@ observeEvent(input$show_merge_deck_modal, {
 # Re-fires on tab navigation (ensures UI exists after lazy-load)
 observe({
   rv$current_nav
-  req(rv$db_con, rv$is_admin)
+  req(rv$db_con, rv$is_superadmin)
   # Trigger on modal show or data refresh
   input$show_merge_deck_modal
   rv$data_refresh
@@ -968,7 +968,7 @@ output$merge_deck_preview <- renderUI({
 
 # Confirm merge
 observeEvent(input$confirm_merge_decks, {
-  req(rv$is_admin, rv$db_con)
+  req(rv$is_superadmin, rv$db_con)
   req(input$merge_source_deck, input$merge_target_deck)
 
   source_id <- as.integer(input$merge_source_deck)
