@@ -61,11 +61,11 @@ observeEvent(input$add_store, {
   # Check if this is an online store
   is_online <- isTRUE(input$store_is_online)
 
-  # Get country for online stores
+  # Get country
   store_country <- if (is_online) {
     input$store_country %||% "USA"
   } else {
-    "USA"  # Physical stores default to USA
+    input$store_country_physical %||% "USA"
   }
 
   # Get name from appropriate input based on is_online
@@ -149,10 +149,9 @@ observeEvent(input$add_store, {
     } else {
       # Build full address for geocoding (physical stores only)
       address_parts <- c(input$store_address, store_city)
-      address_parts <- c(address_parts, if (nchar(input$store_state) > 0) input$store_state else NA_character_)
-      if (nchar(input$store_zip) > 0) {
-        address_parts <- c(address_parts, input$store_zip)
-      }
+      if (nchar(trimws(input$store_state)) > 0) address_parts <- c(address_parts, trimws(input$store_state))
+      if (nchar(trimws(input$store_zip)) > 0) address_parts <- c(address_parts, trimws(input$store_zip))
+      if (nchar(store_country) > 0) address_parts <- c(address_parts, store_country)
       full_address <- paste(address_parts, collapse = ", ")
 
       # Geocode the address using Mapbox
@@ -169,9 +168,9 @@ observeEvent(input$add_store, {
       }
 
       # Use NA instead of NULL for DuckDB parameterized queries
-      zip_code <- if (nchar(input$store_zip) > 0) input$store_zip else NA_character_
-      address <- if (nchar(input$store_address) > 0) input$store_address else NA_character_
-      state <- if (nchar(input$store_state) > 0) input$store_state else NA_character_
+      zip_code <- if (nchar(trimws(input$store_zip)) > 0) trimws(input$store_zip) else NA_character_
+      address <- if (nchar(trimws(input$store_address)) > 0) trimws(input$store_address) else NA_character_
+      state <- if (nchar(trimws(input$store_state)) > 0) trimws(input$store_state) else NA_character_
     }
 
     max_id <- dbGetQuery(rv$db_con, "SELECT COALESCE(MAX(store_id), 0) as max_id FROM stores")$max_id
@@ -214,11 +213,12 @@ observeEvent(input$add_store, {
     updateTextInput(session, "store_region", value = "")
     updateTextInput(session, "store_address", value = "")
     updateTextInput(session, "store_city", value = "")
-    updateSelectInput(session, "store_state", selected = "TX")
+    updateTextInput(session, "store_state", value = "")
     updateTextInput(session, "store_zip", value = "")
     updateTextInput(session, "store_website", value = "")
     updateCheckboxInput(session, "store_is_online", value = FALSE)
     updateSelectInput(session, "store_country", selected = "USA")
+    updateSelectInput(session, "store_country_physical", selected = "USA")
 
     # Update store dropdown
     updateSelectInput(session, "tournament_store", choices = get_store_choices(rv$db_con, include_none = TRUE))
@@ -406,13 +406,14 @@ observeEvent(input$admin_store_list__reactable__selected, {
     updateTextInput(session, "store_name", value = "")  # Clear physical store name
   } else {
     updateTextInput(session, "store_name", value = store$name)
+    updateSelectInput(session, "store_country_physical", selected = if (is.na(store$country)) "USA" else store$country)
     updateTextInput(session, "store_name_online", value = "")  # Clear online store name
     updateTextInput(session, "store_region", value = "")
   }
 
   updateTextInput(session, "store_address", value = if (is.na(store$address)) "" else store$address)
   updateTextInput(session, "store_city", value = if (is.na(store$city)) "" else store$city)
-  updateSelectInput(session, "store_state", selected = if (is.na(store$state)) "TX" else store$state)
+  updateTextInput(session, "store_state", value = if (is.na(store$state)) "" else store$state)
   updateTextInput(session, "store_zip", value = if (is.na(store$zip_code)) "" else store$zip_code)
   updateTextInput(session, "store_website", value = if (is.na(store$website)) "" else store$website)
 
@@ -439,7 +440,7 @@ observeEvent(input$update_store, {
   store_country <- if (is_online) {
     input$store_country %||% "USA"
   } else {
-    "USA"
+    input$store_country_physical %||% "USA"
   }
 
   store_name <- if (is_online) {
@@ -492,10 +493,9 @@ observeEvent(input$update_store, {
     } else {
       # Build full address for geocoding
       address_parts <- c(input$store_address, store_city)
-      address_parts <- c(address_parts, if (nchar(input$store_state) > 0) input$store_state else NA_character_)
-      if (nchar(input$store_zip) > 0) {
-        address_parts <- c(address_parts, input$store_zip)
-      }
+      if (nchar(trimws(input$store_state)) > 0) address_parts <- c(address_parts, trimws(input$store_state))
+      if (nchar(trimws(input$store_zip)) > 0) address_parts <- c(address_parts, trimws(input$store_zip))
+      if (nchar(store_country) > 0) address_parts <- c(address_parts, store_country)
       full_address <- paste(address_parts, collapse = ", ")
 
       # Geocode the address using Mapbox
@@ -514,9 +514,9 @@ observeEvent(input$update_store, {
         lng <- existing$longitude
       }
 
-      zip_code <- if (nchar(input$store_zip) > 0) input$store_zip else NA_character_
-      address <- if (nchar(input$store_address) > 0) input$store_address else NA_character_
-      state <- if (nchar(input$store_state) > 0) input$store_state else NA_character_
+      zip_code <- if (nchar(trimws(input$store_zip)) > 0) trimws(input$store_zip) else NA_character_
+      address <- if (nchar(trimws(input$store_address)) > 0) trimws(input$store_address) else NA_character_
+      state <- if (nchar(trimws(input$store_state)) > 0) trimws(input$store_state) else NA_character_
       store_city_db <- store_city
     }
 
@@ -538,11 +538,12 @@ observeEvent(input$update_store, {
     updateTextInput(session, "store_region", value = "")
     updateTextInput(session, "store_address", value = "")
     updateTextInput(session, "store_city", value = "")
+    updateTextInput(session, "store_state", value = "")
     updateTextInput(session, "store_zip", value = "")
     updateTextInput(session, "store_website", value = "")
     updateCheckboxInput(session, "store_is_online", value = FALSE)
-    updateSelectInput(session, "store_state", selected = "TX")
     updateSelectInput(session, "store_country", selected = "USA")
+    updateSelectInput(session, "store_country_physical", selected = "USA")
     rv$pending_schedules <- list()  # Clear pending schedules
 
     shinyjs::show("add_store")
@@ -568,11 +569,12 @@ observeEvent(input$cancel_edit_store, {
   updateTextInput(session, "store_region", value = "")
   updateTextInput(session, "store_address", value = "")
   updateTextInput(session, "store_city", value = "")
+  updateTextInput(session, "store_state", value = "")
   updateTextInput(session, "store_zip", value = "")
   updateTextInput(session, "store_website", value = "")
   updateCheckboxInput(session, "store_is_online", value = FALSE)
-  updateSelectInput(session, "store_state", selected = "TX")
   updateSelectInput(session, "store_country", selected = "USA")
+  updateSelectInput(session, "store_country_physical", selected = "USA")
   rv$pending_schedules <- list()  # Clear pending schedules
 
   shinyjs::show("add_store")
@@ -646,11 +648,12 @@ observeEvent(input$confirm_delete_store, {
     updateTextInput(session, "store_region", value = "")
     updateTextInput(session, "store_address", value = "")
     updateTextInput(session, "store_city", value = "")
-    updateSelectInput(session, "store_state", selected = "TX")
+    updateTextInput(session, "store_state", value = "")
     updateTextInput(session, "store_zip", value = "")
     updateTextInput(session, "store_website", value = "")
     updateCheckboxInput(session, "store_is_online", value = FALSE)
     updateSelectInput(session, "store_country", selected = "USA")
+    updateSelectInput(session, "store_country_physical", selected = "USA")
     rv$pending_schedules <- list()  # Clear pending schedules
 
     shinyjs::show("add_store")

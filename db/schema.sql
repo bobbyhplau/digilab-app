@@ -38,7 +38,7 @@ CREATE TABLE IF NOT EXISTS stores (
     slug VARCHAR,                     -- URL-friendly identifier for deep linking
     address VARCHAR,
     city VARCHAR NOT NULL,
-    state VARCHAR DEFAULT 'TX',
+    state VARCHAR,
     zip_code VARCHAR,
     latitude DECIMAL(9, 6),
     longitude DECIMAL(9, 6),
