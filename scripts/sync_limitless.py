@@ -2,25 +2,17 @@
 Sync LimitlessTCG Tournament Data to Database
 
 Fetches tournament data from the LimitlessTCG API and imports it into the
-DigiLab DuckDB database. Handles players, results, matches, and deck mapping.
-
-Recommended workflow (manual):
-    1. python scripts/sync_from_motherduck.py --yes   (pull fresh cloud data)
-    2. python scripts/sync_limitless.py --local --organizer 452 --since 2025-10-01
-    3. python scripts/sync_to_motherduck.py            (push back to cloud)
-
-Recommended workflow (automated via GitHub Actions):
-    python scripts/sync_limitless.py --all-tier1 --incremental --classify --motherduck
+DigiLab PostgreSQL database (Neon). Handles players, results, matches, and
+deck mapping.
 
 Usage:
     python scripts/sync_limitless.py --organizer 452 --since 2025-10-01
     python scripts/sync_limitless.py --organizer 452 --since 2025-10-01 --dry-run
-    python scripts/sync_limitless.py --organizer 452 --since 2025-10-01 --local
     python scripts/sync_limitless.py --all-tier1 --since 2025-10-01
     python scripts/sync_limitless.py --all-tier1 --incremental  (use last sync date)
     python scripts/sync_limitless.py --all-tier1 --incremental --classify  (+ auto-classify)
     python scripts/sync_limitless.py --all-tier1 --since 2025-10-01 --limit 5
-    python scripts/sync_limitless.py --repair --local  (re-fetch missing standings)
+    python scripts/sync_limitless.py --repair  (re-fetch missing standings)
     python scripts/sync_limitless.py --all-tier1 --since 2025-01-01 --clean  (fresh re-import)
 
 Arguments:
@@ -30,15 +22,13 @@ Arguments:
     --incremental      Auto-detect since date from last sync (stored in limitless_sync_state)
     --classify         Run deck archetype auto-classification after sync
     --dry-run          Show what would be synced without writing to DB
-    --local            Sync to local DuckDB (data/local.duckdb) instead of MotherDuck
-    --motherduck       Sync directly to MotherDuck (for GitHub Actions)
     --limit N          Max tournaments to sync (useful for testing)
     --repair           Re-fetch standings/pairings for tournaments missing results
     --clean            Delete existing Limitless data before sync (for fresh re-import)
 
 Prerequisites:
-    pip install duckdb python-dotenv requests
-    MOTHERDUCK_TOKEN in .env file (for MotherDuck sync)
+    pip install psycopg2-binary python-dotenv requests
+    NEON_HOST and NEON_PASSWORD env vars required (in .env file)
     Stores with limitless_organizer_id must exist in database before syncing
 """
 
@@ -49,7 +39,8 @@ import time
 import json
 import argparse
 import requests
-import duckdb
+import psycopg2
+from psycopg2.extras import execute_values
 from datetime import datetime, timedelta
 from dotenv import load_dotenv
 
@@ -58,10 +49,6 @@ load_dotenv()
 # =============================================================================
 # Configuration
 # =============================================================================
-
-MOTHERDUCK_DB = os.getenv("MOTHERDUCK_DATABASE", "digimon_tcg_dfw")
-MOTHERDUCK_TOKEN = os.getenv("MOTHERDUCK_TOKEN")
-LOCAL_DB = "data/local.duckdb"
 
 API_BASE = "https://play.limitlesstcg.com/api"
 REQUEST_DELAY = 1.5  # seconds between API calls
@@ -74,6 +61,31 @@ TIER1_ORGANIZERS = {
     559: "DMV Drakes",
     578: "MasterRukasu",
 }
+
+
+# =============================================================================
+# Database Connection
+# =============================================================================
+
+def get_connection():
+    """Connect to Neon PostgreSQL."""
+    host = os.getenv("NEON_HOST")
+    dbname = os.getenv("NEON_DATABASE", "neondb")
+    user = os.getenv("NEON_USER")
+    password = os.getenv("NEON_PASSWORD")
+
+    if not host or not password:
+        print("Error: NEON_HOST and NEON_PASSWORD env vars required")
+        sys.exit(1)
+
+    return psycopg2.connect(
+        host=host,
+        dbname=dbname,
+        user=user,
+        password=password,
+        port=5432,
+        sslmode="require"
+    )
 
 
 # =============================================================================
@@ -212,7 +224,7 @@ def fetch_tournament_pairings(tournament_id):
 # Format Inference
 # =============================================================================
 
-def infer_format(tournament_name, event_date, conn):
+def infer_format(tournament_name, event_date, cursor):
     """Infer format from tournament name or date.
 
     Strategy 1: Parse set code from tournament name (e.g., "BT19 Weekly")
@@ -221,7 +233,7 @@ def infer_format(tournament_name, event_date, conn):
     Args:
         tournament_name: Tournament name string
         event_date: Event date string (YYYY-MM-DD)
-        conn: DuckDB connection
+        cursor: psycopg2 cursor
 
     Returns:
         Format ID string (e.g., "BT19") or None
@@ -236,12 +248,13 @@ def infer_format(tournament_name, event_date, conn):
 
     # Strategy 2: Date-based fallback
     try:
-        result = conn.execute("""
+        cursor.execute("""
             SELECT format_id FROM formats
-            WHERE release_date <= ?
+            WHERE release_date <= %s
             ORDER BY release_date DESC
             LIMIT 1
-        """, [event_date]).fetchone()
+        """, (event_date,))
+        result = cursor.fetchone()
         return result[0] if result else None
     except Exception as e:
         print(f"    Warning: Could not infer format from date: {e}")
@@ -252,11 +265,11 @@ def infer_format(tournament_name, event_date, conn):
 # Player Resolution
 # =============================================================================
 
-def resolve_player(conn, limitless_username, display_name, player_cache):
+def resolve_player(cursor, limitless_username, display_name, player_cache):
     """Find or create a player by Limitless username.
 
     Args:
-        conn: DuckDB connection
+        cursor: psycopg2 cursor
         limitless_username: Limitless username string
         display_name: Player's display name from Limitless
         player_cache: Dict mapping limitless_username -> player_id (updated in place)
@@ -269,24 +282,26 @@ def resolve_player(conn, limitless_username, display_name, player_cache):
         return player_cache[limitless_username]
 
     # Check database by limitless_username
-    row = conn.execute(
-        "SELECT player_id FROM players WHERE limitless_username = ?",
-        [limitless_username]
-    ).fetchone()
+    cursor.execute(
+        "SELECT player_id FROM players WHERE limitless_username = %s",
+        (limitless_username,)
+    )
+    row = cursor.fetchone()
 
     if row:
         player_cache[limitless_username] = row[0]
         return row[0]
 
     # Create new player
-    next_id = conn.execute(
+    cursor.execute(
         "SELECT COALESCE(MAX(player_id), 0) + 1 FROM players"
-    ).fetchone()[0]
+    )
+    next_id = cursor.fetchone()[0]
 
-    conn.execute("""
+    cursor.execute("""
         INSERT INTO players (player_id, display_name, limitless_username, is_active)
-        VALUES (?, ?, ?, TRUE)
-    """, [next_id, display_name, limitless_username])
+        VALUES (%s, %s, %s, TRUE)
+    """, (next_id, display_name, limitless_username))
 
     player_cache[limitless_username] = next_id
     return next_id
@@ -300,11 +315,11 @@ def resolve_player(conn, limitless_username, display_name, player_cache):
 UNKNOWN_ARCHETYPE_ID = 50
 
 
-def resolve_deck(conn, deck_info, deck_map_cache):
+def resolve_deck(cursor, deck_info, deck_map_cache):
     """Map a Limitless deck to a local archetype, creating deck_request if needed.
 
     Args:
-        conn: DuckDB connection
+        cursor: psycopg2 cursor
         deck_info: Deck dict from Limitless standing (may have 'id' and 'name')
         deck_map_cache: Dict mapping limitless_deck_id -> archetype_id or None
 
@@ -329,10 +344,11 @@ def resolve_deck(conn, deck_info, deck_map_cache):
         return deck_map_cache[deck_id], None
 
     # Check limitless_deck_map table
-    row = conn.execute(
-        "SELECT archetype_id FROM limitless_deck_map WHERE limitless_deck_id = ?",
-        [deck_id]
-    ).fetchone()
+    cursor.execute(
+        "SELECT archetype_id FROM limitless_deck_map WHERE limitless_deck_id = %s",
+        (deck_id,)
+    )
+    row = cursor.fetchone()
 
     if row:
         # Entry exists in map
@@ -341,20 +357,21 @@ def resolve_deck(conn, deck_info, deck_map_cache):
         return archetype_id, None
 
     # Not in map at all — insert with null archetype and create deck request
-    conn.execute("""
+    cursor.execute("""
         INSERT INTO limitless_deck_map (limitless_deck_id, limitless_deck_name, archetype_id)
-        VALUES (?, ?, NULL)
-    """, [deck_id, deck_name])
+        VALUES (%s, %s, NULL)
+    """, (deck_id, deck_name))
 
     # Create a deck request for admin review
-    next_request_id = conn.execute(
+    cursor.execute(
         "SELECT COALESCE(MAX(request_id), 0) + 1 FROM deck_requests"
-    ).fetchone()[0]
+    )
+    next_request_id = cursor.fetchone()[0]
 
-    conn.execute("""
+    cursor.execute("""
         INSERT INTO deck_requests (request_id, deck_name, primary_color, status, submitted_at)
-        VALUES (?, ?, 'Unknown', 'pending', CURRENT_TIMESTAMP)
-    """, [next_request_id, f"[Limitless] {deck_name}"])
+        VALUES (%s, %s, 'Unknown', 'pending', CURRENT_TIMESTAMP)
+    """, (next_request_id, f"[Limitless] {deck_name}"))
 
     deck_map_cache[deck_id] = None
     return None, next_request_id
@@ -388,11 +405,11 @@ def count_total_rounds(details):
     return total_rounds if total_rounds > 0 else None
 
 
-def sync_tournament(conn, tournament, organizer_id, store_id, dry_run=False):
+def sync_tournament(cursor, tournament, organizer_id, store_id, dry_run=False):
     """Sync a single tournament: details, standings, pairings.
 
     Args:
-        conn: DuckDB connection
+        cursor: psycopg2 cursor
         tournament: Tournament dict from API listing
         organizer_id: Limitless organizer ID
         store_id: Local store_id to associate with
@@ -410,10 +427,11 @@ def sync_tournament(conn, tournament, organizer_id, store_id, dry_run=False):
     print(f"      Limitless ID: {limitless_id}, Players: {player_count}")
 
     # Check if already synced
-    existing = conn.execute(
-        "SELECT tournament_id FROM tournaments WHERE limitless_id = ?",
-        [limitless_id]
-    ).fetchone()
+    cursor.execute(
+        "SELECT tournament_id FROM tournaments WHERE limitless_id = %s",
+        (limitless_id,)
+    )
+    existing = cursor.fetchone()
 
     if existing:
         print("      SKIPPED: Already synced")
@@ -436,7 +454,7 @@ def sync_tournament(conn, tournament, organizer_id, store_id, dry_run=False):
     total_rounds = count_total_rounds(details)
 
     # Infer format
-    format_id = infer_format(tournament_name, event_date, conn)
+    format_id = infer_format(tournament_name, event_date, cursor)
     print(f"      Format: {format_id or '(unknown)'}, Rounds: {total_rounds or '(unknown)'}")
 
     if dry_run:
@@ -466,16 +484,17 @@ def sync_tournament(conn, tournament, organizer_id, store_id, dry_run=False):
             return None
 
     # Insert tournament
-    next_tournament_id = conn.execute(
+    cursor.execute(
         "SELECT COALESCE(MAX(tournament_id), 0) + 1 FROM tournaments"
-    ).fetchone()[0]
+    )
+    next_tournament_id = cursor.fetchone()[0]
 
-    conn.execute("""
+    cursor.execute("""
         INSERT INTO tournaments
             (tournament_id, store_id, event_date, event_type, format, player_count,
              rounds, limitless_id, notes, created_at, updated_at)
-        VALUES (?, ?, ?, 'online', ?, ?, ?, ?, ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
-    """, [
+        VALUES (%s, %s, %s, 'online', %s, %s, %s, %s, %s, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+    """, (
         next_tournament_id,
         store_id,
         event_date,
@@ -484,7 +503,7 @@ def sync_tournament(conn, tournament, organizer_id, store_id, dry_run=False):
         total_rounds,
         limitless_id,
         f"Imported from Limitless TCG (organizer {organizer_id})",
-    ])
+    ))
 
     print(f"      Inserted tournament_id={next_tournament_id}")
 
@@ -495,16 +514,18 @@ def sync_tournament(conn, tournament, organizer_id, store_id, dry_run=False):
     deck_requests_created = 0
 
     # Pre-load player cache with existing limitless usernames
-    existing_players = conn.execute(
+    cursor.execute(
         "SELECT limitless_username, player_id FROM players WHERE limitless_username IS NOT NULL"
-    ).fetchall()
+    )
+    existing_players = cursor.fetchall()
     for row in existing_players:
         player_cache[row[0]] = row[1]
 
     # Pre-load deck map cache
-    existing_maps = conn.execute(
+    cursor.execute(
         "SELECT limitless_deck_id, archetype_id FROM limitless_deck_map"
-    ).fetchall()
+    )
+    existing_maps = cursor.fetchall()
     for row in existing_maps:
         deck_map_cache[row[0]] = row[1]
 
@@ -526,10 +547,10 @@ def sync_tournament(conn, tournament, organizer_id, store_id, dry_run=False):
             continue
 
         # Resolve player
-        player_id = resolve_player(conn, limitless_username, display_name, player_cache)
+        player_id = resolve_player(cursor, limitless_username, display_name, player_cache)
 
         # Resolve deck — default to UNKNOWN if no deck info available
-        archetype_id, pending_request_id = resolve_deck(conn, deck_info, deck_map_cache)
+        archetype_id, pending_request_id = resolve_deck(cursor, deck_info, deck_map_cache)
         if archetype_id is None and pending_request_id is None:
             archetype_id = UNKNOWN_ARCHETYPE_ID
         if pending_request_id:
@@ -549,18 +570,19 @@ def sync_tournament(conn, tournament, organizer_id, store_id, dry_run=False):
         decklist_url = f"https://limitlesstcg.com/decks/{limitless_id}?player={limitless_username}" if decklist_json else None
 
         # Insert result
-        next_result_id = conn.execute(
+        cursor.execute(
             "SELECT COALESCE(MAX(result_id), 0) + 1 FROM results"
-        ).fetchone()[0]
+        )
+        next_result_id = cursor.fetchone()[0]
 
         try:
-            conn.execute("""
+            cursor.execute("""
                 INSERT INTO results
                     (result_id, tournament_id, player_id, archetype_id, pending_deck_request_id,
                      placement, wins, losses, ties, decklist_json, decklist_url, notes,
                      created_at, updated_at)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
-            """, [
+                VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+            """, (
                 next_result_id,
                 next_tournament_id,
                 player_id,
@@ -573,7 +595,7 @@ def sync_tournament(conn, tournament, organizer_id, store_id, dry_run=False):
                 decklist_json,
                 decklist_url,
                 notes,
-            ])
+            ))
             results_inserted += 1
         except Exception as e:
             if "unique" in str(e).lower() or "duplicate" in str(e).lower():
@@ -626,26 +648,27 @@ def sync_tournament(conn, tournament, organizer_id, store_id, dry_run=False):
             p1_points, p2_points = 1, 1
 
         # Insert two match rows (one per player perspective)
-        next_match_id = conn.execute(
+        cursor.execute(
             "SELECT COALESCE(MAX(match_id), 0) + 1 FROM matches"
-        ).fetchone()[0]
+        )
+        next_match_id = cursor.fetchone()[0]
 
         try:
             # Player 1's perspective
-            conn.execute("""
+            cursor.execute("""
                 INSERT INTO matches
                     (match_id, tournament_id, round_number, player_id, opponent_id,
                      games_won, games_lost, games_tied, match_points, submitted_at)
-                VALUES (?, ?, ?, ?, ?, 0, 0, 0, ?, CURRENT_TIMESTAMP)
-            """, [next_match_id, next_tournament_id, round_number, player1_id, player2_id, p1_points])
+                VALUES (%s, %s, %s, %s, %s, 0, 0, 0, %s, CURRENT_TIMESTAMP)
+            """, (next_match_id, next_tournament_id, round_number, player1_id, player2_id, p1_points))
 
             # Player 2's perspective
-            conn.execute("""
+            cursor.execute("""
                 INSERT INTO matches
                     (match_id, tournament_id, round_number, player_id, opponent_id,
                      games_won, games_lost, games_tied, match_points, submitted_at)
-                VALUES (?, ?, ?, ?, ?, 0, 0, 0, ?, CURRENT_TIMESTAMP)
-            """, [next_match_id + 1, next_tournament_id, round_number, player2_id, player1_id, p2_points])
+                VALUES (%s, %s, %s, %s, %s, 0, 0, 0, %s, CURRENT_TIMESTAMP)
+            """, (next_match_id + 1, next_tournament_id, round_number, player2_id, player1_id, p2_points))
 
             matches_inserted += 2
         except Exception as e:
@@ -672,41 +695,42 @@ def sync_tournament(conn, tournament, organizer_id, store_id, dry_run=False):
 # Sync State Management
 # =============================================================================
 
-def update_sync_state(conn, organizer_id, tournaments_synced, last_tournament_date):
+def update_sync_state(cursor, organizer_id, tournaments_synced, last_tournament_date):
     """Update or insert the sync state for an organizer.
 
     Args:
-        conn: DuckDB connection
+        cursor: psycopg2 cursor
         organizer_id: Limitless organizer ID
         tournaments_synced: Number of tournaments synced in this run
         last_tournament_date: Date string of the most recent tournament synced
     """
-    existing = conn.execute(
-        "SELECT organizer_id FROM limitless_sync_state WHERE organizer_id = ?",
-        [organizer_id]
-    ).fetchone()
+    cursor.execute(
+        "SELECT organizer_id FROM limitless_sync_state WHERE organizer_id = %s",
+        (organizer_id,)
+    )
+    existing = cursor.fetchone()
 
     if existing:
-        conn.execute("""
+        cursor.execute("""
             UPDATE limitless_sync_state
             SET last_synced_at = CURRENT_TIMESTAMP,
-                last_tournament_date = ?,
-                tournaments_synced = tournaments_synced + ?
-            WHERE organizer_id = ?
-        """, [last_tournament_date, tournaments_synced, organizer_id])
+                last_tournament_date = %s,
+                tournaments_synced = tournaments_synced + %s
+            WHERE organizer_id = %s
+        """, (last_tournament_date, tournaments_synced, organizer_id))
     else:
-        conn.execute("""
+        cursor.execute("""
             INSERT INTO limitless_sync_state
                 (organizer_id, last_synced_at, last_tournament_date, tournaments_synced)
-            VALUES (?, CURRENT_TIMESTAMP, ?, ?)
-        """, [organizer_id, last_tournament_date, tournaments_synced])
+            VALUES (%s, CURRENT_TIMESTAMP, %s, %s)
+        """, (organizer_id, last_tournament_date, tournaments_synced))
 
 
-def log_ingestion(conn, organizer_id, action, status, records_affected, error_message=None, metadata=None):
+def log_ingestion(cursor, organizer_id, action, status, records_affected, error_message=None, metadata=None):
     """Write an entry to the ingestion_log table.
 
     Args:
-        conn: DuckDB connection
+        cursor: psycopg2 cursor
         organizer_id: Limitless organizer ID
         action: Action description
         status: 'success' or 'error'
@@ -714,17 +738,18 @@ def log_ingestion(conn, organizer_id, action, status, records_affected, error_me
         error_message: Optional error message
         metadata: Optional metadata dict (will be JSON-serialized)
     """
-    next_log_id = conn.execute(
+    cursor.execute(
         "SELECT COALESCE(MAX(log_id), 0) + 1 FROM ingestion_log"
-    ).fetchone()[0]
+    )
+    next_log_id = cursor.fetchone()[0]
 
     metadata_str = json.dumps(metadata) if metadata else None
 
-    conn.execute("""
+    cursor.execute("""
         INSERT INTO ingestion_log
             (log_id, source, action, status, records_affected, error_message, metadata, created_at)
-        VALUES (?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
-    """, [
+        VALUES (%s, %s, %s, %s, %s, %s, %s, CURRENT_TIMESTAMP)
+    """, (
         next_log_id,
         f"limitless_organizer_{organizer_id}",
         action,
@@ -732,18 +757,19 @@ def log_ingestion(conn, organizer_id, action, status, records_affected, error_me
         records_affected,
         error_message,
         metadata_str,
-    ])
+    ))
 
 
 # =============================================================================
 # Organizer Sync Orchestration
 # =============================================================================
 
-def sync_organizer(conn, organizer_id, since_date, dry_run=False, limit=None):
+def sync_organizer(conn, cursor, organizer_id, since_date, dry_run=False, limit=None):
     """Sync all tournaments for an organizer.
 
     Args:
-        conn: DuckDB connection
+        conn: psycopg2 connection (for commits)
+        cursor: psycopg2 cursor
         organizer_id: Limitless organizer ID
         since_date: Only sync tournaments on or after this date (YYYY-MM-DD)
         dry_run: If True, don't write to database
@@ -758,17 +784,19 @@ def sync_organizer(conn, organizer_id, since_date, dry_run=False, limit=None):
     print(f"{'=' * 60}")
 
     # Resolve store
-    store_row = conn.execute(
-        "SELECT store_id, name FROM stores WHERE limitless_organizer_id = ?",
-        [organizer_id]
-    ).fetchone()
+    cursor.execute(
+        "SELECT store_id, name FROM stores WHERE limitless_organizer_id = %s",
+        (organizer_id,)
+    )
+    store_row = cursor.fetchone()
 
     if not store_row:
         print(f"  ERROR: No store found with limitless_organizer_id = {organizer_id}")
         print(f"  Create the store in the admin panel first, then set its limitless_organizer_id.")
         if not dry_run:
-            log_ingestion(conn, organizer_id, "sync", "error", 0,
+            log_ingestion(cursor, organizer_id, "sync", "error", 0,
                           f"No store found for organizer {organizer_id}")
+            conn.commit()
         return {"error": f"No store for organizer {organizer_id}"}
 
     store_id = store_row[0]
@@ -800,7 +828,7 @@ def sync_organizer(conn, organizer_id, since_date, dry_run=False, limit=None):
 
     for tournament in tournaments:
         try:
-            result = sync_tournament(conn, tournament, organizer_id, store_id, dry_run)
+            result = sync_tournament(cursor, tournament, organizer_id, store_id, dry_run)
 
             if result is None:
                 stats["tournaments_skipped"] += 1
@@ -816,20 +844,26 @@ def sync_organizer(conn, organizer_id, since_date, dry_run=False, limit=None):
                     if stats["last_tournament_date"] is None or event_date > stats["last_tournament_date"]:
                         stats["last_tournament_date"] = event_date
 
+            # Commit after each tournament to avoid losing progress
+            if not dry_run:
+                conn.commit()
+
         except Exception as e:
             print(f"      ERROR syncing tournament: {e}")
+            conn.rollback()
             stats["tournaments_skipped"] += 1
             if not dry_run:
-                log_ingestion(conn, organizer_id, "sync_tournament", "error", 0,
+                log_ingestion(cursor, organizer_id, "sync_tournament", "error", 0,
                               str(e), {"tournament_id": tournament.get("id")})
+                conn.commit()
 
     # Update sync state and log
     if not dry_run and stats["tournaments_synced"] > 0:
-        update_sync_state(conn, organizer_id,
+        update_sync_state(cursor, organizer_id,
                           stats["tournaments_synced"],
                           stats["last_tournament_date"])
 
-        log_ingestion(conn, organizer_id, "sync", "success",
+        log_ingestion(cursor, organizer_id, "sync", "success",
                       stats["total_results"],
                       metadata={
                           "tournaments_synced": stats["tournaments_synced"],
@@ -837,6 +871,7 @@ def sync_organizer(conn, organizer_id, since_date, dry_run=False, limit=None):
                           "players_created": stats["total_players_created"],
                           "deck_requests_created": stats["total_deck_requests"],
                       })
+        conn.commit()
 
     # Print summary for this organizer
     print(f"\n  Summary for {organizer_name}:")
@@ -854,11 +889,11 @@ def sync_organizer(conn, organizer_id, since_date, dry_run=False, limit=None):
 # Repair Mode
 # =============================================================================
 
-def repair_tournament(conn, tournament_id, limitless_id):
+def repair_tournament(cursor, tournament_id, limitless_id):
     """Re-fetch standings and pairings for a tournament missing results.
 
     Args:
-        conn: DuckDB connection
+        cursor: psycopg2 cursor
         tournament_id: Local tournament ID
         limitless_id: Limitless tournament ID
 
@@ -871,16 +906,18 @@ def repair_tournament(conn, tournament_id, limitless_id):
     deck_map_cache = {}
 
     # Pre-load player cache
-    existing_players = conn.execute(
+    cursor.execute(
         "SELECT limitless_username, player_id FROM players WHERE limitless_username IS NOT NULL"
-    ).fetchall()
+    )
+    existing_players = cursor.fetchall()
     for row in existing_players:
         player_cache[row[0]] = row[1]
 
     # Pre-load deck map cache
-    existing_maps = conn.execute(
+    cursor.execute(
         "SELECT limitless_deck_id, archetype_id FROM limitless_deck_map"
-    ).fetchall()
+    )
+    existing_maps = cursor.fetchall()
     for row in existing_maps:
         deck_map_cache[row[0]] = row[1]
 
@@ -914,10 +951,10 @@ def repair_tournament(conn, tournament_id, limitless_id):
             continue
 
         # Resolve player
-        player_id = resolve_player(conn, limitless_username, display_name, player_cache)
+        player_id = resolve_player(cursor, limitless_username, display_name, player_cache)
 
         # Resolve deck — default to UNKNOWN if no deck info available
-        archetype_id, pending_request_id = resolve_deck(conn, deck_info, deck_map_cache)
+        archetype_id, pending_request_id = resolve_deck(cursor, deck_info, deck_map_cache)
         if archetype_id is None and pending_request_id is None:
             archetype_id = UNKNOWN_ARCHETYPE_ID
         if pending_request_id:
@@ -929,26 +966,28 @@ def repair_tournament(conn, tournament_id, limitless_id):
             notes = f"Dropped at round {drop_info}" if isinstance(drop_info, int) else f"Dropped: {drop_info}"
 
         # Check if result already exists
-        existing = conn.execute(
-            "SELECT result_id FROM results WHERE tournament_id = ? AND player_id = ?",
-            [tournament_id, player_id]
-        ).fetchone()
+        cursor.execute(
+            "SELECT result_id FROM results WHERE tournament_id = %s AND player_id = %s",
+            (tournament_id, player_id)
+        )
+        existing = cursor.fetchone()
 
         if existing:
             continue  # Already have this result
 
         # Insert result
-        next_result_id = conn.execute(
+        cursor.execute(
             "SELECT COALESCE(MAX(result_id), 0) + 1 FROM results"
-        ).fetchone()[0]
+        )
+        next_result_id = cursor.fetchone()[0]
 
         try:
-            conn.execute("""
+            cursor.execute("""
                 INSERT INTO results
                     (result_id, tournament_id, player_id, archetype_id, pending_deck_request_id,
                      placement, wins, losses, ties, notes, created_at, updated_at)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
-            """, [
+                VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+            """, (
                 next_result_id,
                 tournament_id,
                 player_id,
@@ -959,7 +998,7 @@ def repair_tournament(conn, tournament_id, limitless_id):
                 losses,
                 ties,
                 notes,
-            ])
+            ))
             results_inserted += 1
         except Exception as e:
             if "unique" not in str(e).lower() and "duplicate" not in str(e).lower():
@@ -989,10 +1028,11 @@ def repair_tournament(conn, tournament_id, limitless_id):
         player2_id = player_cache[player2_username]
 
         # Check if match already exists
-        existing = conn.execute(
-            "SELECT match_id FROM matches WHERE tournament_id = ? AND round_number = ? AND player_id = ? AND opponent_id = ?",
-            [tournament_id, round_number, player1_id, player2_id]
-        ).fetchone()
+        cursor.execute(
+            "SELECT match_id FROM matches WHERE tournament_id = %s AND round_number = %s AND player_id = %s AND opponent_id = %s",
+            (tournament_id, round_number, player1_id, player2_id)
+        )
+        existing = cursor.fetchone()
 
         if existing:
             continue
@@ -1009,24 +1049,25 @@ def repair_tournament(conn, tournament_id, limitless_id):
         else:
             p1_points, p2_points = 1, 1
 
-        next_match_id = conn.execute(
+        cursor.execute(
             "SELECT COALESCE(MAX(match_id), 0) + 1 FROM matches"
-        ).fetchone()[0]
+        )
+        next_match_id = cursor.fetchone()[0]
 
         try:
-            conn.execute("""
+            cursor.execute("""
                 INSERT INTO matches
                     (match_id, tournament_id, round_number, player_id, opponent_id,
                      games_won, games_lost, games_tied, match_points, submitted_at)
-                VALUES (?, ?, ?, ?, ?, 0, 0, 0, ?, CURRENT_TIMESTAMP)
-            """, [next_match_id, tournament_id, round_number, player1_id, player2_id, p1_points])
+                VALUES (%s, %s, %s, %s, %s, 0, 0, 0, %s, CURRENT_TIMESTAMP)
+            """, (next_match_id, tournament_id, round_number, player1_id, player2_id, p1_points))
 
-            conn.execute("""
+            cursor.execute("""
                 INSERT INTO matches
                     (match_id, tournament_id, round_number, player_id, opponent_id,
                      games_won, games_lost, games_tied, match_points, submitted_at)
-                VALUES (?, ?, ?, ?, ?, 0, 0, 0, ?, CURRENT_TIMESTAMP)
-            """, [next_match_id + 1, tournament_id, round_number, player2_id, player1_id, p2_points])
+                VALUES (%s, %s, %s, %s, %s, 0, 0, 0, %s, CURRENT_TIMESTAMP)
+            """, (next_match_id + 1, tournament_id, round_number, player2_id, player1_id, p2_points))
 
             matches_inserted += 2
         except Exception as e:
@@ -1043,11 +1084,12 @@ def repair_tournament(conn, tournament_id, limitless_id):
     }
 
 
-def run_repair_mode(conn):
+def run_repair_mode(conn, cursor):
     """Find and repair tournaments with missing results/pairings.
 
     Args:
-        conn: DuckDB connection
+        conn: psycopg2 connection (for commits)
+        cursor: psycopg2 cursor
 
     Returns:
         Dict with overall repair stats
@@ -1057,7 +1099,7 @@ def run_repair_mode(conn):
     print("=" * 60)
 
     # Find tournaments with limitless_id but 0 results
-    missing_results = conn.execute("""
+    cursor.execute("""
         SELECT t.tournament_id, t.limitless_id, t.player_count, t.event_date,
                COUNT(r.result_id) as result_count
         FROM tournaments t
@@ -1066,10 +1108,11 @@ def run_repair_mode(conn):
         GROUP BY t.tournament_id, t.limitless_id, t.player_count, t.event_date
         HAVING COUNT(r.result_id) = 0
         ORDER BY t.event_date DESC
-    """).fetchall()
+    """)
+    missing_results = cursor.fetchall()
 
     # Find tournaments with results but 0 matches
-    missing_matches = conn.execute("""
+    cursor.execute("""
         SELECT t.tournament_id, t.limitless_id, t.player_count, t.event_date,
                COUNT(r.result_id) as result_count, COUNT(m.match_id) as match_count
         FROM tournaments t
@@ -1079,7 +1122,8 @@ def run_repair_mode(conn):
         GROUP BY t.tournament_id, t.limitless_id, t.player_count, t.event_date
         HAVING COUNT(r.result_id) > 0 AND COUNT(m.match_id) = 0
         ORDER BY t.event_date DESC
-    """).fetchall()
+    """)
+    missing_matches = cursor.fetchall()
 
     print(f"\nTournaments missing results: {len(missing_results)}")
     for t in missing_results:
@@ -1104,21 +1148,23 @@ def run_repair_mode(conn):
     # Repair tournaments missing results
     for t in missing_results:
         tournament_id, limitless_id = t[0], t[1]
-        stats = repair_tournament(conn, tournament_id, limitless_id)
+        stats = repair_tournament(cursor, tournament_id, limitless_id)
         if stats.get("results", 0) > 0 or stats.get("matches", 0) > 0:
             repaired += 1
             total_results += stats.get("results", 0)
             total_matches += stats.get("matches", 0)
             total_players += stats.get("players_created", 0)
             total_decks += stats.get("deck_requests", 0)
+        conn.commit()
 
     # Repair tournaments missing only matches
     for t in missing_matches:
         tournament_id, limitless_id = t[0], t[1]
-        stats = repair_tournament(conn, tournament_id, limitless_id)
+        stats = repair_tournament(cursor, tournament_id, limitless_id)
         if stats.get("matches", 0) > 0:
             repaired += 1
             total_matches += stats.get("matches", 0)
+        conn.commit()
 
     print("\n" + "=" * 60)
     print("REPAIR COMPLETE")
@@ -1142,61 +1188,62 @@ def run_repair_mode(conn):
 # Clean Mode
 # =============================================================================
 
-def clean_limitless_data(conn, organizer_ids=None):
+def clean_limitless_data(conn, cursor, organizer_ids=None):
     """Delete all Limitless-imported data for a fresh re-sync.
 
     Args:
-        conn: DuckDB connection
+        conn: psycopg2 connection (for commits)
+        cursor: psycopg2 cursor
         organizer_ids: Optional list of organizer IDs to clean (None = all Limitless data)
     """
     if organizer_ids:
         # Get store_ids for these organizers
-        placeholders = ",".join(["?" for _ in organizer_ids])
-        store_ids = conn.execute(f"""
+        placeholders = ",".join(["%s" for _ in organizer_ids])
+        cursor.execute(f"""
             SELECT store_id FROM stores
             WHERE limitless_organizer_id IN ({placeholders})
-        """, organizer_ids).fetchall()
-        store_ids = [r[0] for r in store_ids]
+        """, organizer_ids)
+        store_ids = [r[0] for r in cursor.fetchall()]
 
         if not store_ids:
             print("  No stores found for specified organizers")
             return
 
-        store_placeholders = ",".join(["?" for _ in store_ids])
+        store_placeholders = ",".join(["%s" for _ in store_ids])
 
         # Get tournament_ids for these stores
-        tournament_ids = conn.execute(f"""
+        cursor.execute(f"""
             SELECT tournament_id FROM tournaments
             WHERE store_id IN ({store_placeholders})
             AND limitless_id IS NOT NULL
-        """, store_ids).fetchall()
-        tournament_ids = [r[0] for r in tournament_ids]
+        """, store_ids)
+        tournament_ids = [r[0] for r in cursor.fetchall()]
 
         if not tournament_ids:
             print("  No Limitless tournaments found for specified organizers")
             return
 
-        tournament_placeholders = ",".join(["?" for _ in tournament_ids])
+        tournament_placeholders = ",".join(["%s" for _ in tournament_ids])
         print(f"  Cleaning {len(tournament_ids)} tournaments from {len(store_ids)} stores...")
 
         # Delete in order: matches, results, tournaments, sync_state
-        deleted_matches = conn.execute(f"""
+        cursor.execute(f"""
             DELETE FROM matches WHERE tournament_id IN ({tournament_placeholders})
-        """, tournament_ids).fetchone()
+        """, tournament_ids)
         print(f"    Deleted matches")
 
-        deleted_results = conn.execute(f"""
+        cursor.execute(f"""
             DELETE FROM results WHERE tournament_id IN ({tournament_placeholders})
-        """, tournament_ids).fetchone()
+        """, tournament_ids)
         print(f"    Deleted results")
 
-        deleted_tournaments = conn.execute(f"""
+        cursor.execute(f"""
             DELETE FROM tournaments WHERE tournament_id IN ({tournament_placeholders})
-        """, tournament_ids).fetchone()
+        """, tournament_ids)
         print(f"    Deleted tournaments")
 
         # Clear sync state for these organizers
-        conn.execute(f"""
+        cursor.execute(f"""
             DELETE FROM limitless_sync_state WHERE organizer_id IN ({placeholders})
         """, organizer_ids)
         print(f"    Cleared sync state")
@@ -1206,33 +1253,34 @@ def clean_limitless_data(conn, organizer_ids=None):
         print("  Cleaning ALL Limitless data...")
 
         # Get all Limitless tournament IDs
-        tournament_ids = conn.execute("""
+        cursor.execute("""
             SELECT tournament_id FROM tournaments WHERE limitless_id IS NOT NULL
-        """).fetchall()
-        tournament_ids = [r[0] for r in tournament_ids]
+        """)
+        tournament_ids = [r[0] for r in cursor.fetchall()]
 
         if tournament_ids:
-            tournament_placeholders = ",".join(["?" for _ in tournament_ids])
+            tournament_placeholders = ",".join(["%s" for _ in tournament_ids])
 
-            conn.execute(f"""
+            cursor.execute(f"""
                 DELETE FROM matches WHERE tournament_id IN ({tournament_placeholders})
             """, tournament_ids)
             print(f"    Deleted matches from {len(tournament_ids)} tournaments")
 
-            conn.execute(f"""
+            cursor.execute(f"""
                 DELETE FROM results WHERE tournament_id IN ({tournament_placeholders})
             """, tournament_ids)
             print(f"    Deleted results")
 
-            conn.execute("""
+            cursor.execute("""
                 DELETE FROM tournaments WHERE limitless_id IS NOT NULL
             """)
             print(f"    Deleted {len(tournament_ids)} tournaments")
 
         # Clear all sync state
-        conn.execute("DELETE FROM limitless_sync_state")
+        cursor.execute("DELETE FROM limitless_sync_state")
         print(f"    Cleared sync state")
 
+    conn.commit()
     # Note: We keep limitless_deck_map and deck_requests as those are curated mappings
 
 
@@ -1240,21 +1288,28 @@ def clean_limitless_data(conn, organizer_ids=None):
 # Main
 # =============================================================================
 
-def get_incremental_since_date(conn):
+def get_incremental_since_date(cursor):
     """Get the earliest last_tournament_date from sync state for incremental sync.
 
     Returns a date 1 day before the oldest last sync to ensure we catch everything.
     Falls back to 30 days ago if no sync state exists.
     """
     try:
-        result = conn.execute("""
+        cursor.execute("""
             SELECT MIN(last_tournament_date) FROM limitless_sync_state
             WHERE last_tournament_date IS NOT NULL
-        """).fetchone()
+        """)
+        result = cursor.fetchone()
 
         if result and result[0]:
             # Parse the date and subtract 1 day for safety overlap
-            last_date = datetime.strptime(result[0], "%Y-%m-%d")
+            # psycopg2 may return a date object or string depending on column type
+            last_date_val = result[0]
+            if isinstance(last_date_val, str):
+                last_date = datetime.strptime(last_date_val, "%Y-%m-%d")
+            else:
+                # It's a date/datetime object
+                last_date = datetime(last_date_val.year, last_date_val.month, last_date_val.day)
             since_date = last_date - timedelta(days=1)
             return since_date.strftime("%Y-%m-%d")
     except Exception as e:
@@ -1265,7 +1320,7 @@ def get_incremental_since_date(conn):
     return default_date.strftime("%Y-%m-%d")
 
 
-def run_classify_decklists(conn):
+def run_classify_decklists(cursor):
     """Run deck archetype auto-classification on UNKNOWN decklists."""
     print("\n" + "=" * 60)
     print("AUTO-CLASSIFYING UNKNOWN DECKLISTS")
@@ -1275,13 +1330,14 @@ def run_classify_decklists(conn):
     from classify_decklists import CLASSIFICATION_RULES, classify_decklist
 
     # Get archetype name to ID mapping
-    archetypes = conn.execute('''
+    cursor.execute('''
         SELECT archetype_id, archetype_name FROM deck_archetypes
-    ''').fetchall()
+    ''')
+    archetypes = cursor.fetchall()
     archetype_map = {name: id for id, name in archetypes}
 
     # Get UNKNOWN decklist results from online tournaments
-    results = conn.execute('''
+    cursor.execute('''
         SELECT r.result_id, r.decklist_json
         FROM results r
         JOIN tournaments t ON r.tournament_id = t.tournament_id
@@ -1291,7 +1347,8 @@ def run_classify_decklists(conn):
           AND d.archetype_name = 'UNKNOWN'
           AND r.decklist_json IS NOT NULL
           AND r.decklist_json != ''
-    ''').fetchall()
+    ''')
+    results = cursor.fetchall()
 
     print(f"  Found {len(results)} UNKNOWN results with decklists")
 
@@ -1310,9 +1367,9 @@ def run_classify_decklists(conn):
 
     # Apply updates
     for archetype_id, result_id in updates:
-        conn.execute(
-            "UPDATE results SET archetype_id = ? WHERE result_id = ?",
-            [archetype_id, result_id]
+        cursor.execute(
+            "UPDATE results SET archetype_id = %s WHERE result_id = %s",
+            (archetype_id, result_id)
         )
 
     print(f"  Classified {len(updates)} decklists")
@@ -1337,10 +1394,6 @@ def main():
                         help="Run deck archetype auto-classification after sync")
     parser.add_argument("--dry-run", action="store_true",
                         help="Show what would be synced without writing to DB")
-    parser.add_argument("--local", action="store_true", default=True,
-                        help="Sync to local DuckDB (default)")
-    parser.add_argument("--motherduck", action="store_true",
-                        help="Sync to MotherDuck instead of local DuckDB")
     parser.add_argument("--limit", type=int, default=None,
                         help="Max tournaments to sync (useful for testing)")
     parser.add_argument("--repair", action="store_true",
@@ -1362,39 +1415,27 @@ def main():
         except ValueError:
             parser.error(f"Invalid date format: {args.since} (expected YYYY-MM-DD)")
 
-    # Determine database target
-    use_local = not args.motherduck
-
     print("=" * 60)
     print("LimitlessTCG Sync")
     print("=" * 60)
     print(f"Time: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
+    print(f"Database: Neon PostgreSQL")
+
+    # Connect to database
+    print(f"\nConnecting to database...", end=" ", flush=True)
+    try:
+        conn = get_connection()
+        cursor = conn.cursor()
+        print("OK")
+    except Exception as e:
+        print(f"FAILED: {e}")
+        sys.exit(1)
 
     # Handle repair mode separately
     if args.repair:
         print("Mode: REPAIR (re-fetch missing standings/pairings)")
-
-        if use_local:
-            db_path = LOCAL_DB
-            print(f"Database: {db_path} (local)")
-        else:
-            if not MOTHERDUCK_TOKEN:
-                print("Error: MOTHERDUCK_TOKEN not set in .env")
-                sys.exit(1)
-            print(f"Database: {MOTHERDUCK_DB} (MotherDuck)")
-
-        print(f"\nConnecting to database...", end=" ", flush=True)
-        try:
-            if use_local:
-                conn = duckdb.connect(db_path)
-            else:
-                conn = duckdb.connect(f"md:{MOTHERDUCK_DB}?motherduck_token={MOTHERDUCK_TOKEN}")
-            print("OK")
-        except Exception as e:
-            print(f"FAILED: {e}")
-            sys.exit(1)
-
-        run_repair_mode(conn)
+        run_repair_mode(conn, cursor)
+        cursor.close()
         conn.close()
         print("=" * 60)
         return
@@ -1405,32 +1446,10 @@ def main():
     else:
         organizer_ids = [args.organizer]
 
-    if use_local:
-        db_path = LOCAL_DB
-        print(f"Database: {db_path} (local)")
-    else:
-        if not MOTHERDUCK_TOKEN:
-            print("Error: MOTHERDUCK_TOKEN not set in .env")
-            print("Use --local flag (default) to sync to local DuckDB instead")
-            sys.exit(1)
-        print(f"Database: {MOTHERDUCK_DB} (MotherDuck)")
-
-    # Connect to database
-    print(f"\nConnecting to database...", end=" ", flush=True)
-    try:
-        if use_local:
-            conn = duckdb.connect(db_path)
-        else:
-            conn = duckdb.connect(f"md:{MOTHERDUCK_DB}?motherduck_token={MOTHERDUCK_TOKEN}")
-        print("OK")
-    except Exception as e:
-        print(f"FAILED: {e}")
-        sys.exit(1)
-
     # Determine since date (incremental mode auto-detects from sync state)
     since_date = args.since
     if args.incremental:
-        since_date = get_incremental_since_date(conn)
+        since_date = get_incremental_since_date(cursor)
         print(f"Mode: INCREMENTAL (auto-detected since date)")
 
     print(f"Since: {since_date}")
@@ -1445,25 +1464,28 @@ def main():
     # Clean existing Limitless data if --clean flag is set
     if args.clean:
         print("\n*** CLEAN MODE: Deleting existing Limitless data ***")
-        clean_limitless_data(conn, organizer_ids if not args.all_tier1 else None)
+        clean_limitless_data(conn, cursor, organizer_ids if not args.all_tier1 else None)
         print("Clean complete.\n")
 
     # Sync each organizer
     all_stats = []
     for organizer_id in organizer_ids:
         try:
-            stats = sync_organizer(conn, organizer_id, since_date, args.dry_run, args.limit)
+            stats = sync_organizer(conn, cursor, organizer_id, since_date, args.dry_run, args.limit)
             all_stats.append(stats)
         except Exception as e:
             print(f"\nERROR syncing organizer {organizer_id}: {e}")
+            conn.rollback()
             all_stats.append({"error": str(e), "organizer_id": organizer_id})
 
     # Run auto-classification if requested
     classified_count = 0
     if args.classify and not args.dry_run:
-        classified_count = run_classify_decklists(conn)
+        classified_count = run_classify_decklists(cursor)
+        conn.commit()
 
     # Close connection
+    cursor.close()
     conn.close()
 
     # Print overall summary
@@ -1495,12 +1517,8 @@ def main():
 
     if args.dry_run:
         print("\n[DRY RUN] No changes were written to the database.")
-    elif total_synced > 0 and use_local:
-        print(f"\nNext steps:")
-        print(f"  1. Review the data in the app (shiny::runApp())")
-        print(f"  2. Push to cloud: python scripts/sync_to_motherduck.py")
 
-    if total_decks > 0 and use_local:
+    if total_decks > 0:
         print(f"\nNote: {total_decks} new deck request(s) created.")
         print(f"  Review in admin panel: Deck Requests > Map Limitless decks to archetypes")
 

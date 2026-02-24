@@ -9,18 +9,16 @@ Usage:
     python scripts/sync_cards.py --by-set --incremental  # Only add new cards (fast)
     python scripts/sync_cards.py --set BT-21 --by-set    # Sync specific set
     python scripts/sync_cards.py --discover         # Find new set prefixes
-    python scripts/sync_cards.py --local            # Sync to local DuckDB
 
 Flags:
     --by-set       Fetch by set/pack instead of color (more comprehensive)
     --incremental  Skip cards already in database (faster for updates)
     --discover     Scan API for new/unknown set prefixes
     --set X        Sync only a specific set (e.g., BT-21, ST-15)
-    --local        Sync to local DuckDB instead of MotherDuck
 
 Prerequisites:
-    pip install duckdb python-dotenv requests
-    MOTHERDUCK_TOKEN in .env file (for MotherDuck sync)
+    pip install psycopg2-binary python-dotenv requests
+    NEON_HOST and NEON_PASSWORD in .env file
 """
 
 import os
@@ -29,20 +27,40 @@ import sys
 import time
 import argparse
 import requests
-import duckdb
+import psycopg2
+from psycopg2.extras import execute_values
 from dotenv import load_dotenv
 from datetime import datetime
 
 load_dotenv()
 
 # Configuration
-MOTHERDUCK_DB = os.getenv("MOTHERDUCK_DATABASE", "digimon_tcg_dfw")
-MOTHERDUCK_TOKEN = os.getenv("MOTHERDUCK_TOKEN")
 API_BASE = "https://digimoncard.io/index.php/api-public"
 COLORS = ["Red", "Blue", "Yellow", "Green", "Purple", "Black", "White"]
 
 # Rate limiting: 15 requests per 10 seconds
 REQUEST_DELAY = 0.7  # ~14 requests per 10 seconds (safe margin)
+
+
+def get_connection():
+    """Connect to Neon PostgreSQL."""
+    host = os.getenv("NEON_HOST")
+    dbname = os.getenv("NEON_DATABASE", "neondb")
+    user = os.getenv("NEON_USER")
+    password = os.getenv("NEON_PASSWORD")
+
+    if not host or not password:
+        print("Error: NEON_HOST and NEON_PASSWORD env vars required")
+        sys.exit(1)
+
+    return psycopg2.connect(
+        host=host,
+        dbname=dbname,
+        user=user,
+        password=password,
+        port=5432,
+        sslmode="require"
+    )
 
 
 def is_standard_art(card_id: str) -> bool:
@@ -255,7 +273,7 @@ def process_card(card: dict) -> dict:
     }
 
 
-def sync_cards(conn, set_filter: str = None, by_set: bool = False, incremental: bool = False):
+def sync_cards(conn, cursor, set_filter: str = None, by_set: bool = False, incremental: bool = False):
     """Fetch cards from API and upsert to database."""
     all_cards = []
 
@@ -263,7 +281,8 @@ def sync_cards(conn, set_filter: str = None, by_set: bool = False, incremental: 
     existing_ids = set()
     if incremental:
         print("\nFetching existing card IDs from database...")
-        result = conn.execute("SELECT card_id FROM cards").fetchall()
+        cursor.execute("SELECT card_id FROM cards")
+        result = cursor.fetchall()
         existing_ids = {row[0] for row in result}
         print(f"  Found {len(existing_ids)} existing cards")
 
@@ -338,19 +357,33 @@ def sync_cards(conn, set_filter: str = None, by_set: bool = False, incremental: 
         return 0
 
     # Process and upsert cards
-    print("\nUpserting to MotherDuck...")
+    print("\nUpserting to database...")
 
     processed = 0
     for card in unique_cards:
         try:
             card_data = process_card(card)
 
-            # Upsert using INSERT OR REPLACE
-            conn.execute("""
-                INSERT OR REPLACE INTO cards
+            # Upsert using INSERT ... ON CONFLICT DO UPDATE
+            cursor.execute("""
+                INSERT INTO cards
                 (card_id, name, display_name, card_type, color, color2,
                  level, dp, play_cost, digi_type, stage, rarity, set_code, updated_at)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
+                VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, CURRENT_TIMESTAMP)
+                ON CONFLICT (card_id) DO UPDATE SET
+                    name = EXCLUDED.name,
+                    display_name = EXCLUDED.display_name,
+                    card_type = EXCLUDED.card_type,
+                    color = EXCLUDED.color,
+                    color2 = EXCLUDED.color2,
+                    level = EXCLUDED.level,
+                    dp = EXCLUDED.dp,
+                    play_cost = EXCLUDED.play_cost,
+                    digi_type = EXCLUDED.digi_type,
+                    stage = EXCLUDED.stage,
+                    rarity = EXCLUDED.rarity,
+                    set_code = EXCLUDED.set_code,
+                    updated_at = CURRENT_TIMESTAMP
             """, [
                 card_data["card_id"],
                 card_data["name"],
@@ -371,13 +404,14 @@ def sync_cards(conn, set_filter: str = None, by_set: bool = False, incremental: 
         except Exception as e:
             print(f"  Error processing {card.get('id', 'unknown')}: {e}")
 
+    conn.commit()
+
     return processed
 
 
 def main():
     parser = argparse.ArgumentParser(description="Sync DigimonCard.io cards to database")
     parser.add_argument("--set", help="Sync specific set only (e.g., BT-21)")
-    parser.add_argument("--local", action="store_true", help="Sync to local DuckDB instead of MotherDuck")
     parser.add_argument("--by-set", action="store_true", help="Fetch by set/pack instead of by color (more comprehensive)")
     parser.add_argument("--incremental", action="store_true", help="Only add cards not already in database (faster)")
     parser.add_argument("--discover", action="store_true", help="Discover new set prefixes from API")
@@ -412,20 +446,11 @@ def main():
 
         return
 
-    if not args.local and not MOTHERDUCK_TOKEN:
-        print("Error: MOTHERDUCK_TOKEN not set in .env")
-        print("Use --local flag to sync to local DuckDB instead")
-        sys.exit(1)
-
     print("=" * 60)
     print("DigimonCard.io Card Sync")
     print("=" * 60)
 
-    if args.local:
-        db_path = "data/local.duckdb"
-        print(f"Database: {db_path} (local)")
-    else:
-        print(f"Database: {MOTHERDUCK_DB} (MotherDuck)")
+    print("Database: Neon PostgreSQL")
 
     mode_parts = []
     if args.set:
@@ -442,16 +467,14 @@ def main():
     print(f"Time: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
 
     # Connect to database
-    if args.local:
-        print(f"\nConnecting to local DuckDB...")
-        conn = duckdb.connect(db_path)
-    else:
-        print(f"\nConnecting to MotherDuck...")
-        conn = duckdb.connect(f"md:{MOTHERDUCK_DB}?motherduck_token={MOTHERDUCK_TOKEN}")
+    print("\nConnecting to Neon PostgreSQL...")
+    conn = get_connection()
+    conn.autocommit = False
+    cursor = conn.cursor()
     print("Connected!")
 
     # Ensure table exists
-    conn.execute("""
+    cursor.execute("""
         CREATE TABLE IF NOT EXISTS cards (
             card_id VARCHAR PRIMARY KEY,
             name VARCHAR NOT NULL,
@@ -470,17 +493,21 @@ def main():
             updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
         )
     """)
+    conn.commit()
 
     # Get count before sync
-    before_count = conn.execute("SELECT COUNT(*) FROM cards").fetchone()[0]
+    cursor.execute("SELECT COUNT(*) FROM cards")
+    before_count = cursor.fetchone()[0]
     print(f"Cards in database before sync: {before_count}")
 
     # Sync cards
-    processed = sync_cards(conn, args.set, args.by_set, args.incremental)
+    processed = sync_cards(conn, cursor, args.set, args.by_set, args.incremental)
 
     # Get count after sync
-    after_count = conn.execute("SELECT COUNT(*) FROM cards").fetchone()[0]
+    cursor.execute("SELECT COUNT(*) FROM cards")
+    after_count = cursor.fetchone()[0]
 
+    cursor.close()
     conn.close()
 
     print("\n" + "=" * 60)
