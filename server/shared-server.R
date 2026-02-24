@@ -760,10 +760,18 @@ safe_query <- function(pool, query, params = NULL, default = data.frame()) {
       DBI::dbGetQuery(pool, query)
     }
   }, error = function(e) {
-    query_preview <- substr(gsub("\\s+", " ", query), 1, 200)
-    message("[safe_query] Error: ", conditionMessage(e), " | Query: ", query_preview)
+    query_preview <- substr(gsub("\\s+", " ", query), 1, 500)
+    params_preview <- if (!is.null(params)) paste(sapply(params, as.character), collapse = ", ") else "NULL"
+    message("[safe_query] Error: ", conditionMessage(e), " | Query: ", query_preview, " | Params: ", params_preview)
     if (sentry_enabled) {
-      tryCatch(sentryR::capture_exception(e, tags = sentry_context_tags()), error = function(se) NULL)
+      # Include query context in Sentry for debugging
+      tryCatch(
+        sentryR::capture_exception(e, tags = c(
+          sentry_context_tags(),
+          list(query_preview = query_preview, params = params_preview)
+        )),
+        error = function(se) NULL
+      )
     }
     default
   })
