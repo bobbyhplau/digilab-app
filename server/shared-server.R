@@ -775,13 +775,17 @@ safe_query <- function(db_con, query, params = NULL, default = data.frame(), max
     }, error = function(e) {
       msg <- conditionMessage(e)
 
-      # On MotherDuck "catalog changed" errors, get a fresh connection and retry.
-      # IMPORTANT: Do NOT set rv$db_con here — that triggers the startup observer.
-      if (attempt < max_retries && grepl("catalog", msg, ignore.case = TRUE)) {
-        message("[safe_query] Catalog changed (attempt ", attempt, "/", max_retries, "), reconnecting...")
+      # On catalog errors or invalid connections, close old and get fresh connection
+      if (attempt < max_retries &&
+          (grepl("catalog", msg, ignore.case = TRUE) || !DBI::dbIsValid(con))) {
+        reason <- if (grepl("catalog", msg, ignore.case = TRUE)) "catalog changed" else "connection invalid"
+        message("[safe_query] ", reason, " (attempt ", attempt, "/", max_retries, "), reconnecting...")
         tryCatch({
+          # Close old connection to avoid multiple open connections
+          tryCatch(DBI::dbDisconnect(con), error = function(dc) NULL)
           new_con <- connect_db()
           con <<- new_con
+          rv$db_con <- new_con
           message("[safe_query] Reconnected, retrying...")
         }, error = function(re) {
           message("[safe_query] Reconnection failed: ", conditionMessage(re))
@@ -798,25 +802,6 @@ safe_query <- function(db_con, query, params = NULL, default = data.frame(), max
           error = function(se) NULL
         )
       }
-
-      # Attempt reconnection if connection is invalid
-      if (!DBI::dbIsValid(con)) {
-        message("[safe_query] Connection invalid, attempting reconnection...")
-        tryCatch({
-          new_con <- connect_db()
-          con <<- new_con
-          message("[safe_query] Reconnected successfully")
-          if (!is.null(params) && length(params) > 0) {
-            return(DBI::dbGetQuery(new_con, query, params = params))
-          } else {
-            return(DBI::dbGetQuery(new_con, query))
-          }
-        }, error = function(e2) {
-          message("[safe_query] Reconnection failed: ", conditionMessage(e2))
-          return(NULL)
-        })
-      }
-
       NULL
     })
     if (!identical(result, "__RETRY__")) {
@@ -851,14 +836,15 @@ safe_execute <- function(db_con, query, params = NULL, max_retries = 3) {
         DBI::dbExecute(con, query)
       }
     }, error = function(e) {
-      # On MotherDuck "catalog changed" errors, get a fresh connection and retry.
-      # IMPORTANT: Do NOT set rv$db_con here — that triggers the startup observer
-      # which creates yet another connection, causing a cascade of catalog changes.
+      # On catalog errors, close old connection and get a fresh one
       if (attempt < max_retries && grepl("catalog", conditionMessage(e), ignore.case = TRUE)) {
         message("[safe_execute] Catalog changed (attempt ", attempt, "/", max_retries, "), reconnecting...")
         tryCatch({
+          # Close old connection to avoid multiple open connections
+          tryCatch(DBI::dbDisconnect(con), error = function(dc) NULL)
           new_con <- connect_db()
           con <<- new_con
+          rv$db_con <- new_con
           message("[safe_execute] Reconnected, retrying...")
         }, error = function(re) {
           message("[safe_execute] Reconnection failed: ", conditionMessage(re))
@@ -875,14 +861,7 @@ safe_execute <- function(db_con, query, params = NULL, max_retries = 3) {
       }
       0
     })
-    if (!identical(result, "__RETRY__")) {
-      # If we reconnected, update rv$db_con AFTER the successful write
-      if (!identical(con, db_con)) {
-        message("[safe_execute] Updating app connection after successful write")
-        rv$db_con <- con
-      }
-      return(result)
-    }
+    if (!identical(result, "__RETRY__")) return(result)
   }
   0
 }
