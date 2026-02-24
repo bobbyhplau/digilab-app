@@ -8,55 +8,32 @@
 # ---------------------------------------------------------------------------
 
 observe({
-  con <- connect_db()
-  rv$db_con <- con
-
-  # Once database is connected, check and populate ratings cache if empty
-  if (!is.null(con) && dbIsValid(con)) {
-    # Check if ratings cache is empty and populate if needed
-    tryCatch({
-      cache_count <- DBI::dbGetQuery(con,
-        "SELECT COUNT(*) as n FROM player_ratings_cache")$n
-      if (is.na(cache_count) || cache_count == 0) {
-        message("[startup] Ratings cache empty, populating...")
-        recalculate_ratings_cache(con)
-        message("[startup] Ratings cache populated")
-      }
-    }, error = function(e) {
-      message("[startup] Could not check/populate ratings cache: ", e$message)
-    })
-
-    # Check if admin_users table needs bootstrap (first-ever setup)
-    admin_count <- safe_query(con,
-      "SELECT COUNT(*) as n FROM admin_users",
-      default = data.frame(n = 0))
-    if (nrow(admin_count) > 0 && admin_count$n[1] == 0) {
-      rv$needs_bootstrap <- TRUE
+  tryCatch({
+    cache_count <- dbGetQuery(db_pool,
+      "SELECT COUNT(*) as n FROM player_ratings_cache")$n
+    if (is.na(cache_count) || cache_count == 0) {
+      message("[startup] Ratings cache empty, populating...")
+      recalculate_ratings_cache(db_pool)
+      message("[startup] Ratings cache populated")
     }
+  }, error = function(e) {
+    message("[startup] Could not check/populate ratings cache: ", e$message)
+  })
 
-    # Hide loading screen - data is ready after cache check
-    session$sendCustomMessage("hideLoading", list())
+  admin_count <- tryCatch(
+    dbGetQuery(db_pool, "SELECT COUNT(*) as n FROM admin_users"),
+    error = function(e) data.frame(n = 0))
+  if (nrow(admin_count) > 0 && admin_count$n[1] == 0) {
+    rv$needs_bootstrap <- TRUE
   }
-})
+
+  session$sendCustomMessage("hideLoading", list())
+}) |> bindEvent(TRUE, once = TRUE)
 
 # Keepalive handler - receiving the input is enough to keep connection alive
 observeEvent(input$keepalive_ping, {
   # No-op: just receiving this keeps the WebSocket active
 }, ignoreInit = TRUE)
-
-# Clean shutdown: close database connection when app stops
-onStop(function() {
-  isolate({
-    if (!is.null(rv$db_con) && DBI::dbIsValid(rv$db_con)) {
-      tryCatch({
-        DBI::dbDisconnect(rv$db_con)
-        message("[shutdown] Database connection closed")
-      }, error = function(e) {
-        message("[shutdown] Error closing connection: ", conditionMessage(e))
-      })
-    }
-  })
-})
 
 # ---------------------------------------------------------------------------
 # Navigation
@@ -327,27 +304,23 @@ observeEvent(input$goto_faq_score, {
 # ---------------------------------------------------------------------------
 
 output$about_scene_count <- renderText({
-  req(rv$db_con)
-  count <- safe_query(rv$db_con, "SELECT COUNT(*) as n FROM scenes WHERE slug != 'all'",
+  count <- safe_query(db_pool, "SELECT COUNT(*) as n FROM scenes WHERE slug != 'all'",
                       default = data.frame(n = 0))$n
   as.character(count)
 })
 
 output$about_store_count <- renderText({
-  req(rv$db_con)
-  count <- dbGetQuery(rv$db_con, "SELECT COUNT(*) FROM stores WHERE is_active = TRUE")[[1]]
+  count <- dbGetQuery(db_pool, "SELECT COUNT(*) FROM stores WHERE is_active = TRUE")[[1]]
   as.character(count)
 })
 
 output$about_player_count <- renderText({
-  req(rv$db_con)
-  count <- dbGetQuery(rv$db_con, "SELECT COUNT(*) FROM players WHERE is_active = TRUE")[[1]]
+  count <- dbGetQuery(db_pool, "SELECT COUNT(*) FROM players WHERE is_active = TRUE")[[1]]
   as.character(count)
 })
 
 output$about_tournament_count <- renderText({
-  req(rv$db_con)
-  count <- dbGetQuery(rv$db_con, "SELECT COUNT(*) FROM tournaments")[[1]]
+  count <- dbGetQuery(db_pool, "SELECT COUNT(*) FROM tournaments")[[1]]
   as.character(count)
 })
 
@@ -375,8 +348,8 @@ observeEvent(input$admin_login_link, {
     # Get scene name for display
     scene_display <- "All Scenes"
     if (!is.null(rv$admin_user$scene_id)) {
-      scene_row <- safe_query(rv$db_con,
-        "SELECT display_name FROM scenes WHERE scene_id = ?",
+      scene_row <- safe_query(db_pool,
+        "SELECT display_name FROM scenes WHERE scene_id = $1",
         params = list(rv$admin_user$scene_id),
         default = data.frame())
       if (nrow(scene_row) > 0) scene_display <- scene_row$display_name[1]
@@ -530,9 +503,9 @@ observeEvent(input$login_btn, {
   }
 
   # Look up user
-  user <- safe_query(rv$db_con,
+  user <- safe_query(db_pool,
     "SELECT user_id, username, password_hash, display_name, role, scene_id
-     FROM admin_users WHERE username = ? AND is_active = TRUE",
+     FROM admin_users WHERE username = $1 AND is_active = TRUE",
     params = list(username),
     default = data.frame())
 
@@ -563,8 +536,8 @@ observeEvent(input$login_btn, {
 
   # Force scene for scene admins
   if (rv$admin_user$role == "scene_admin" && !is.null(rv$admin_user$scene_id)) {
-    scene_slug <- safe_query(rv$db_con,
-      "SELECT slug FROM scenes WHERE scene_id = ?",
+    scene_slug <- safe_query(db_pool,
+      "SELECT slug FROM scenes WHERE scene_id = $1",
       params = list(rv$admin_user$scene_id),
       default = data.frame())
     if (nrow(scene_slug) > 0) {
@@ -574,7 +547,7 @@ observeEvent(input$login_btn, {
 
   # Update dropdowns with data
   updateSelectInput(session, "tournament_store",
-                    choices = get_store_choices(rv$db_con, include_none = TRUE))
+                    choices = get_store_choices(db_pool, include_none = TRUE))
 })
 
 # Handle bootstrap (first super admin creation)
@@ -603,7 +576,7 @@ observeEvent(input$bootstrap_btn, {
   }
 
   # Double-check table is still empty
-  admin_count <- safe_query(rv$db_con,
+  admin_count <- safe_query(db_pool,
     "SELECT COUNT(*) as n FROM admin_users",
     default = data.frame(n = 0))
   if (admin_count$n[1] > 0) {
@@ -615,17 +588,15 @@ observeEvent(input$bootstrap_btn, {
 
   # Create super admin
   hash <- bcrypt::hashpw(password)
-  max_id <- safe_query(rv$db_con,
-    "SELECT COALESCE(MAX(user_id), 0) as max_id FROM admin_users",
-    default = data.frame(max_id = 0))
-  new_id <- max_id$max_id[1] + 1
 
-  result <- safe_execute(rv$db_con,
-    "INSERT INTO admin_users (user_id, username, password_hash, display_name, role, scene_id)
-     VALUES (?, ?, ?, ?, 'super_admin', NULL)",
-    params = list(new_id, username, hash, display_name))
+  result <- safe_query(db_pool,
+    "INSERT INTO admin_users (username, password_hash, display_name, role, scene_id)
+     VALUES ($1, $2, $3, 'super_admin', NULL) RETURNING user_id",
+    params = list(username, hash, display_name),
+    default = data.frame())
 
-  if (result > 0) {
+  if (nrow(result) > 0) {
+    new_id <- result$user_id[1]
     rv$needs_bootstrap <- FALSE
     rv$is_admin <- TRUE
     rv$is_superadmin <- TRUE
@@ -641,7 +612,7 @@ observeEvent(input$bootstrap_btn, {
 
     # Update dropdowns with data
     updateSelectInput(session, "tournament_store",
-                      choices = get_store_choices(rv$db_con, include_none = TRUE))
+                      choices = get_store_choices(db_pool, include_none = TRUE))
   } else {
     notify("Failed to create account. Please try again.", type = "error")
   }
@@ -681,8 +652,8 @@ observeEvent(input$change_password_btn, {
   }
 
   # Verify current password
-  user <- safe_query(rv$db_con,
-    "SELECT password_hash FROM admin_users WHERE user_id = ?",
+  user <- safe_query(db_pool,
+    "SELECT password_hash FROM admin_users WHERE user_id = $1",
     params = list(rv$admin_user$user_id),
     default = data.frame())
 
@@ -696,15 +667,15 @@ observeEvent(input$change_password_btn, {
     return()
   }
 
-  # Update password (DuckDB: DELETE + INSERT)
-  old <- safe_query(rv$db_con,
-    "SELECT * FROM admin_users WHERE user_id = ?",
+  # Update password
+  old <- safe_query(db_pool,
+    "SELECT * FROM admin_users WHERE user_id = $1",
     params = list(rv$admin_user$user_id),
     default = data.frame())
 
   new_hash <- bcrypt::hashpw(new_pw)
-  safe_execute(rv$db_con,
-    "UPDATE admin_users SET password_hash = ? WHERE user_id = ?",
+  safe_execute(db_pool,
+    "UPDATE admin_users SET password_hash = $1 WHERE user_id = $2",
     params = list(new_hash, rv$admin_user$user_id))
 
   notify("Password updated successfully", type = "message")
@@ -754,61 +725,30 @@ sentry_context_tags <- function() {
 #'
 #' @examples
 #' # Simple query
-#' result <- safe_query(rv$db_con, "SELECT * FROM players")
+#' result <- safe_query(db_pool, "SELECT * FROM players")
 #'
 #' # Parameterized query
-#' result <- safe_query(rv$db_con, "SELECT * FROM players WHERE player_id = ?",
+#' result <- safe_query(db_pool, "SELECT * FROM players WHERE player_id = $1",
 #'                      params = list(42))
 #'
 #' # Custom default for aggregations
-#' result <- safe_query(rv$db_con, "SELECT COUNT(*) as n FROM results",
+#' result <- safe_query(db_pool, "SELECT COUNT(*) as n FROM results",
 #'                      default = data.frame(n = 0))
-safe_query <- function(db_con, query, params = NULL, default = data.frame(), max_retries = 3) {
-  con <- db_con
-  for (attempt in seq_len(max_retries)) {
-    result <- tryCatch({
-      if (!is.null(params) && length(params) > 0) {
-        DBI::dbGetQuery(con, query, params = params)
-      } else {
-        DBI::dbGetQuery(con, query)
-      }
-    }, error = function(e) {
-      msg <- conditionMessage(e)
-
-      # On catalog errors or invalid connections, close old and get fresh connection
-      if (attempt < max_retries &&
-          (grepl("catalog", msg, ignore.case = TRUE) || !DBI::dbIsValid(con))) {
-        reason <- if (grepl("catalog", msg, ignore.case = TRUE)) "catalog changed" else "connection invalid"
-        message("[safe_query] ", reason, " (attempt ", attempt, "/", max_retries, "), reconnecting...")
-        tryCatch({
-          # Close old connection to avoid multiple open connections
-          tryCatch(DBI::dbDisconnect(con), error = function(dc) NULL)
-          new_con <- connect_db()
-          con <<- new_con
-          rv$db_con <- new_con
-          message("[safe_query] Reconnected, retrying...")
-        }, error = function(re) {
-          message("[safe_query] Reconnection failed: ", conditionMessage(re))
-        })
-        return("__RETRY__")
-      }
-
-      query_preview <- substr(gsub("\\s+", " ", query), 1, 200)
-      message("[safe_query] Error: ", msg, " | Query: ", query_preview)
-
-      if (sentry_enabled) {
-        tryCatch(
-          sentryR::capture_exception(e, tags = sentry_context_tags()),
-          error = function(se) NULL
-        )
-      }
-      NULL
-    })
-    if (!identical(result, "__RETRY__")) {
-      return(if (is.null(result)) default else result)
+safe_query <- function(pool, query, params = NULL, default = data.frame()) {
+  tryCatch({
+    if (!is.null(params) && length(params) > 0) {
+      DBI::dbGetQuery(pool, query, params = params)
+    } else {
+      DBI::dbGetQuery(pool, query)
     }
-  }
-  default
+  }, error = function(e) {
+    query_preview <- substr(gsub("\\s+", " ", query), 1, 200)
+    message("[safe_query] Error: ", conditionMessage(e), " | Query: ", query_preview)
+    if (sentry_enabled) {
+      tryCatch(sentryR::capture_exception(e, tags = sentry_context_tags()), error = function(se) NULL)
+    }
+    default
+  })
 }
 
 #' Safe Database Execute Wrapper
@@ -824,58 +764,27 @@ safe_query <- function(db_con, query, params = NULL, default = data.frame(), max
 #'
 #' @examples
 #' # Simple execute
-#' rows <- safe_execute(rv$db_con, "DELETE FROM results WHERE result_id = ?",
+#' rows <- safe_execute(db_pool, "DELETE FROM results WHERE result_id = $1",
 #'                      params = list(42))
-safe_execute <- function(db_con, query, params = NULL, max_retries = 3) {
-  con <- db_con
-  for (attempt in seq_len(max_retries)) {
-    result <- tryCatch({
-      if (!is.null(params) && length(params) > 0) {
-        DBI::dbExecute(con, query, params = params)
-      } else {
-        DBI::dbExecute(con, query)
-      }
-    }, error = function(e) {
-      # On catalog errors, close old connection and get a fresh one
-      if (attempt < max_retries && grepl("catalog", conditionMessage(e), ignore.case = TRUE)) {
-        message("[safe_execute] Catalog changed (attempt ", attempt, "/", max_retries, "), reconnecting...")
-        tryCatch({
-          # Close old connection to avoid multiple open connections
-          tryCatch(DBI::dbDisconnect(con), error = function(dc) NULL)
-          new_con <- connect_db()
-          con <<- new_con
-          rv$db_con <- new_con
-          message("[safe_execute] Reconnected, retrying...")
-        }, error = function(re) {
-          message("[safe_execute] Reconnection failed: ", conditionMessage(re))
-        })
-        return("__RETRY__")
-      }
-      message("[safe_execute] Error: ", conditionMessage(e))
-      message("[safe_execute] Query: ", substr(gsub("\\s+", " ", query), 1, 200))
-      if (sentry_enabled) {
-        tryCatch(
-          sentryR::capture_exception(e, tags = sentry_context_tags()),
-          error = function(se) NULL
-        )
-      }
-      0
-    })
-    if (!identical(result, "__RETRY__")) return(result)
-  }
-  0
+safe_execute <- function(pool, query, params = NULL) {
+  tryCatch({
+    if (!is.null(params) && length(params) > 0) {
+      DBI::dbExecute(pool, query, params = params)
+    } else {
+      DBI::dbExecute(pool, query)
+    }
+  }, error = function(e) {
+    message("[safe_execute] Error: ", conditionMessage(e))
+    message("[safe_execute] Query: ", substr(gsub("\\s+", " ", query), 1, 200))
+    if (sentry_enabled) {
+      tryCatch(sentryR::capture_exception(e, tags = sentry_context_tags()), error = function(se) NULL)
+    }
+    0
+  })
 }
 
-# Generate next ID for a table (atomic MAX+1)
-next_id <- function(con, table, id_column) {
-  result <- safe_query(con, sprintf("SELECT COALESCE(MAX(%s), 0) + 1 as next_id FROM %s", id_column, table),
-                       default = data.frame(next_id = 1))
-  result$next_id[1]
-}
-
-get_store_choices <- function(con, include_none = FALSE) {
-  if (is.null(con) || !dbIsValid(con)) return(c("Loading..." = ""))
-  stores <- safe_query(con, "SELECT store_id, name FROM stores WHERE is_active = TRUE ORDER BY name", default = data.frame())
+get_store_choices <- function(pool, include_none = FALSE) {
+  stores <- safe_query(pool, "SELECT store_id, name FROM stores WHERE is_active = TRUE ORDER BY name", default = data.frame())
   choices <- setNames(stores$store_id, stores$name)
   if (include_none) {
     choices <- c("Select a store..." = "", choices)
@@ -883,25 +792,20 @@ get_store_choices <- function(con, include_none = FALSE) {
   return(choices)
 }
 
-get_archetype_choices <- function(con) {
-  if (is.null(con) || !dbIsValid(con)) return(c("Loading..." = ""))
-  archetypes <- safe_query(con, "SELECT archetype_id, archetype_name FROM deck_archetypes WHERE is_active = TRUE ORDER BY archetype_name", default = data.frame())
+get_archetype_choices <- function(pool) {
+  archetypes <- safe_query(pool, "SELECT archetype_id, archetype_name FROM deck_archetypes WHERE is_active = TRUE ORDER BY archetype_name", default = data.frame())
   choices <- setNames(archetypes$archetype_id, archetypes$archetype_name)
   return(choices)
 }
 
-get_player_choices <- function(con) {
-  if (is.null(con) || !dbIsValid(con)) return(character(0))
-  players <- safe_query(con, "SELECT player_id, display_name FROM players WHERE is_active = TRUE ORDER BY display_name", default = data.frame())
+get_player_choices <- function(pool) {
+  players <- safe_query(pool, "SELECT player_id, display_name FROM players WHERE is_active = TRUE ORDER BY display_name", default = data.frame())
   choices <- setNames(players$player_id, players$display_name)
   return(choices)
 }
 
-get_format_choices <- function(con) {
-  if (is.null(con) || !dbIsValid(con)) {
-    return(c("Database unavailable" = ""))
-  }
-  formats <- safe_query(con, "
+get_format_choices <- function(pool) {
+  formats <- safe_query(pool, "
     SELECT format_id, display_name
     FROM formats
     WHERE is_active = TRUE
@@ -916,32 +820,28 @@ get_format_choices <- function(con) {
 
 # Update format dropdowns when database connects or formats change
 observe({
-  # Trigger on db connection and format refresh
-  rv$db_con
+  # Trigger on format refresh
   rv$format_refresh
 
-  if (!is.null(rv$db_con) && dbIsValid(rv$db_con)) {
-    format_choices <- get_format_choices(rv$db_con)
+  format_choices <- get_format_choices(db_pool)
 
-    # Format choices with "All Formats" option
-    format_choices_with_all <- list(
-      "All Formats" = "",
-      "Recent Formats" = format_choices
-    )
+  # Format choices with "All Formats" option
+  format_choices_with_all <- list(
+    "All Formats" = "",
+    "Recent Formats" = format_choices
+  )
 
-    # Update all format dropdowns (default to All Formats to avoid empty results when new format has no data)
-    updateSelectInput(session, "dashboard_format", choices = format_choices_with_all, selected = "")
-    updateSelectInput(session, "players_format", choices = format_choices_with_all)
-    updateSelectInput(session, "meta_format", choices = format_choices_with_all)
-    updateSelectInput(session, "tournaments_format", choices = format_choices_with_all)
-    updateSelectInput(session, "tournament_format", choices = format_choices)
-  }
+  # Update all format dropdowns (default to All Formats to avoid empty results when new format has no data)
+  updateSelectInput(session, "dashboard_format", choices = format_choices_with_all, selected = "")
+  updateSelectInput(session, "players_format", choices = format_choices_with_all)
+  updateSelectInput(session, "meta_format", choices = format_choices_with_all)
+  updateSelectInput(session, "tournaments_format", choices = format_choices_with_all)
+  updateSelectInput(session, "tournament_format", choices = format_choices)
 })
 
 # Reactive: get the latest (current) format_id
 get_latest_format_id <- reactive({
-  if (is.null(rv$db_con) || !DBI::dbIsValid(rv$db_con)) return(NULL)
-  result <- safe_query(rv$db_con,
+  result <- safe_query(db_pool,
     "SELECT format_id FROM formats WHERE is_active = TRUE ORDER BY release_date DESC NULLS LAST LIMIT 1",
     default = data.frame(format_id = character()))
   if (nrow(result) > 0) result$format_id[1] else NULL
@@ -956,8 +856,8 @@ output$community_banner <- renderUI({
   req(rv$community_filter)
 
   # Look up store name
-  store <- safe_query(rv$db_con,
-    "SELECT name FROM stores WHERE slug = ?",
+  store <- safe_query(db_pool,
+    "SELECT name FROM stores WHERE slug = $1",
     params = list(rv$community_filter))
 
   if (nrow(store) == 0) return(NULL)
@@ -1009,7 +909,7 @@ format_event_type <- function(et) {
 #' @param community_store Character or NULL. Store slug for community filtering (takes precedence over scene)
 #'
 #' @return List with:
-#'   - sql: SQL fragment with ? placeholders (e.g., "AND t.format = ?")
+#'   - sql: SQL fragment with $N placeholders (e.g., "AND t.format = $1")
 #'   - params: List of parameter values in order
 #'   - any_active: Boolean indicating if any filters are active
 #'
@@ -1021,7 +921,7 @@ format_event_type <- function(et) {
 #'   scene = "dfw",
 #'   store_alias = "s"
 #' )
-#' # filters$sql: "AND t.format = ? AND t.event_type = ? AND s.scene_id = (SELECT scene_id FROM scenes WHERE slug = ?)"
+#' # filters$sql: "AND t.format = $1 AND t.event_type = $2 AND s.scene_id = (SELECT scene_id FROM scenes WHERE slug = $3)"
 #' # filters$params: list("BT-19", "locals", "dfw")
 #'
 #' query <- paste("SELECT * FROM tournaments t JOIN stores s ON t.store_id = s.store_id WHERE 1=1", filters$sql)
@@ -1035,20 +935,24 @@ build_filters_param <- function(table_alias = "t",
                                  id_column = "id",
                                  scene = NULL,
                                  store_alias = NULL,
-                                 community_store = NULL) {
+                                 community_store = NULL,
+                                 start_idx = 1) {
   sql_parts <- character(0)
   params <- list()
+  idx <- start_idx
 
   # Format filter (exact match)
   if (!is.null(format) && format != "") {
-    sql_parts <- c(sql_parts, sprintf("AND %s.format = ?", table_alias))
+    sql_parts <- c(sql_parts, sprintf("AND %s.format = $%d", table_alias, idx))
     params <- c(params, list(format))
+    idx <- idx + 1
   }
 
   # Event type filter (exact match)
   if (!is.null(event_type) && event_type != "") {
-    sql_parts <- c(sql_parts, sprintf("AND %s.event_type = ?", table_alias))
+    sql_parts <- c(sql_parts, sprintf("AND %s.event_type = $%d", table_alias, idx))
     params <- c(params, list(event_type))
+    idx <- idx + 1
   }
 
   # Search filter (LIKE match, case-insensitive)
@@ -1060,8 +964,9 @@ build_filters_param <- function(table_alias = "t",
     } else {
       sprintf("%s.%s", table_alias, search_column)
     }
-    sql_parts <- c(sql_parts, sprintf("AND LOWER(%s) LIKE LOWER(?)", col_ref))
+    sql_parts <- c(sql_parts, sprintf("AND LOWER(%s) LIKE LOWER($%d)", col_ref, idx))
     params <- c(params, list(paste0("%", search_term, "%")))
+    idx <- idx + 1
   }
 
   # ID filter (exact match)
@@ -1072,14 +977,16 @@ build_filters_param <- function(table_alias = "t",
     } else {
       sprintf("%s.%s", table_alias, id_column)
     }
-    sql_parts <- c(sql_parts, sprintf("AND %s = ?", col_ref))
+    sql_parts <- c(sql_parts, sprintf("AND %s = $%d", col_ref, idx))
     params <- c(params, list(as.integer(id)))
+    idx <- idx + 1
   }
 
   # Community filter (store-specific filtering - takes precedence over scene filter)
   if (!is.null(community_store) && community_store != "" && !is.null(store_alias)) {
-    sql_parts <- c(sql_parts, sprintf("AND %s.slug = ?", store_alias))
+    sql_parts <- c(sql_parts, sprintf("AND %s.slug = $%d", store_alias, idx))
     params <- c(params, list(community_store))
+    idx <- idx + 1
   } else {
     # Scene filter (requires store_alias to be set)
     if (!is.null(scene) && scene != "" && scene != "all" && !is.null(store_alias)) {
@@ -1089,10 +996,11 @@ build_filters_param <- function(table_alias = "t",
       } else {
         # Regular scene filters by scene_id via slug lookup
         sql_parts <- c(sql_parts, sprintf(
-          "AND %s.scene_id = (SELECT scene_id FROM scenes WHERE slug = ?)",
-          store_alias
+          "AND %s.scene_id = (SELECT scene_id FROM scenes WHERE slug = $%d)",
+          store_alias, idx
         ))
         params <- c(params, list(scene))
+        idx <- idx + 1
       }
     }
   }
@@ -1100,6 +1008,7 @@ build_filters_param <- function(table_alias = "t",
   list(
     sql = paste(sql_parts, collapse = " "),
     params = params,
-    any_active = length(params) > 0
+    any_active = length(params) > 0,
+    next_idx = idx
   )
 }

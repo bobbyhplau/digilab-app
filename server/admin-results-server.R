@@ -36,13 +36,13 @@ output$active_tournament_info <- renderText({
     return("No active tournament. Create one to start entering results.")
   }
 
-  if (is.null(rv$db_con) || !dbIsValid(rv$db_con)) return("Database not connected")
 
-  info <- dbGetQuery(rv$db_con, "
+
+  info <- dbGetQuery(db_pool, "
     SELECT t.tournament_id, s.name as store_name, t.event_date, t.event_type, t.format, t.player_count
     FROM tournaments t
     JOIN stores s ON t.store_id = s.store_id
-    WHERE t.tournament_id = ?
+    WHERE t.tournament_id = $1
   ", params = list(rv$active_tournament_id))
 
   if (nrow(info) == 0) return("Tournament not found")
@@ -55,7 +55,7 @@ output$active_tournament_info <- renderText({
 # Create tournament
 observeEvent(input$create_tournament, {
   clear_all_field_errors(session)
-  req(rv$is_admin, rv$db_con)
+  req(rv$is_admin, db_pool)
 
   store_id <- input$tournament_store
   event_date <- as.character(input$tournament_date)
@@ -112,13 +112,13 @@ observeEvent(input$create_tournament, {
   }
 
   # Check for duplicate tournament (same store and date)
-  existing <- dbGetQuery(rv$db_con, "
+  existing <- dbGetQuery(db_pool, "
     SELECT t.tournament_id, t.player_count, t.event_type,
            (SELECT COUNT(*) FROM results WHERE tournament_id = t.tournament_id) as result_count,
            s.name as store_name
     FROM tournaments t
     JOIN stores s ON t.store_id = s.store_id
-    WHERE t.store_id = ? AND t.event_date = ?
+    WHERE t.store_id = $1 AND t.event_date = $2
   ", params = list(store_id, event_date))
 
   if (nrow(existing) > 0) {
@@ -153,13 +153,12 @@ observeEvent(input$create_tournament, {
   }
 
   tryCatch({
-    # Get next ID
-    new_id <- next_id(rv$db_con, "tournaments", "tournament_id")
-
-    dbExecute(rv$db_con, "
-      INSERT INTO tournaments (tournament_id, store_id, event_date, event_type, format, player_count, rounds)
-      VALUES (?, ?, ?, ?, ?, ?, ?)
-    ", params = list(new_id, store_id, event_date, event_type, format, player_count, rounds))
+    result <- dbGetQuery(db_pool, "
+      INSERT INTO tournaments (store_id, event_date, event_type, format, player_count, rounds)
+      VALUES ($1, $2, $3, $4, $5, $6)
+      RETURNING tournament_id
+    ", params = list(store_id, event_date, event_type, format, player_count, rounds))
+    new_id <- result$tournament_id[1]
 
     rv$active_tournament_id <- new_id
     rv$current_results <- data.frame()
@@ -181,11 +180,9 @@ observeEvent(input$clear_tournament, {
 
   # Count current results for this tournament
   result_count <- 0
-  if (!is.null(rv$db_con)) {
-    result_count <- dbGetQuery(rv$db_con,
-      "SELECT COUNT(*) as cnt FROM results WHERE tournament_id = ?",
+  result_count <- dbGetQuery(db_pool,
+      "SELECT COUNT(*) as cnt FROM results WHERE tournament_id = $1",
       params = list(rv$active_tournament_id))$cnt
-  }
 
   output$start_over_message <- renderUI({
     if (result_count > 0) {
@@ -231,23 +228,23 @@ observeEvent(input$clear_tournament, {
 
 # Clear results only - keep tournament, remove results
 observeEvent(input$clear_results_only, {
-  req(rv$active_tournament_id, rv$db_con)
+  req(rv$active_tournament_id, db_pool)
 
   tryCatch({
-    dbExecute(rv$db_con,
-      "DELETE FROM results WHERE tournament_id = ?",
+    dbExecute(db_pool,
+      "DELETE FROM results WHERE tournament_id = $1",
       params = list(rv$active_tournament_id))
 
     rv$current_results <- data.frame()
     # Re-initialize grid with blank rows
-    player_count <- dbGetQuery(rv$db_con, "SELECT player_count FROM tournaments WHERE tournament_id = ?",
+    player_count <- dbGetQuery(db_pool, "SELECT player_count FROM tournaments WHERE tournament_id = $1",
                                params = list(rv$active_tournament_id))$player_count
     rv$admin_grid_data <- init_grid_data(player_count)
     rv$admin_player_matches <- list()
     rv$results_refresh <- (rv$results_refresh %||% 0) + 1
 
     # Recalculate ratings cache
-    recalculate_ratings_cache(rv$db_con)
+    recalculate_ratings_cache(db_pool)
     rv$data_refresh <- (rv$data_refresh %||% 0) + 1
 
     removeModal()
@@ -260,17 +257,17 @@ observeEvent(input$clear_results_only, {
 
 # Delete tournament and all results
 observeEvent(input$delete_tournament_confirm, {
-  req(rv$active_tournament_id, rv$db_con)
+  req(rv$active_tournament_id, db_pool)
 
   tryCatch({
     # Delete results first (child records)
-    dbExecute(rv$db_con,
-      "DELETE FROM results WHERE tournament_id = ?",
+    dbExecute(db_pool,
+      "DELETE FROM results WHERE tournament_id = $1",
       params = list(rv$active_tournament_id))
 
     # Delete tournament (parent record)
-    dbExecute(rv$db_con,
-      "DELETE FROM tournaments WHERE tournament_id = ?",
+    dbExecute(db_pool,
+      "DELETE FROM tournaments WHERE tournament_id = $1",
       params = list(rv$active_tournament_id))
 
     # Reset state
@@ -284,7 +281,7 @@ observeEvent(input$delete_tournament_confirm, {
     notify("Tournament deleted.", type = "message")
 
     # Recalculate ratings cache
-    recalculate_ratings_cache(rv$db_con)
+    recalculate_ratings_cache(db_pool)
 
     # Trigger refresh of public tables
     rv$data_refresh <- (rv$data_refresh %||% 0) + 1
@@ -342,12 +339,12 @@ observeEvent(input$create_anyway, {
   rounds <- input$tournament_rounds
 
   tryCatch({
-    new_id <- next_id(rv$db_con, "tournaments", "tournament_id")
-
-    dbExecute(rv$db_con, "
-      INSERT INTO tournaments (tournament_id, store_id, event_date, event_type, format, player_count, rounds)
-      VALUES (?, ?, ?, ?, ?, ?, ?)
-    ", params = list(new_id, store_id, event_date, event_type, format, player_count, rounds))
+    result <- dbGetQuery(db_pool, "
+      INSERT INTO tournaments (store_id, event_date, event_type, format, player_count, rounds)
+      VALUES ($1, $2, $3, $4, $5, $6)
+      RETURNING tournament_id
+    ", params = list(store_id, event_date, event_type, format, player_count, rounds))
+    new_id <- result$tournament_id[1]
 
     rv$active_tournament_id <- new_id
     rv$current_results <- data.frame()
@@ -366,13 +363,13 @@ observeEvent(input$create_anyway, {
 
 # Tournament summary bar for wizard step 2
 output$tournament_summary_bar <- renderUI({
-  req(rv$active_tournament_id, rv$db_con)
+  req(rv$active_tournament_id, db_pool)
 
-  info <- dbGetQuery(rv$db_con, "
+  info <- dbGetQuery(db_pool, "
     SELECT s.name as store_name, t.event_date, t.event_type, t.format, t.player_count
     FROM tournaments t
     JOIN stores s ON t.store_id = s.store_id
-    WHERE t.tournament_id = ?
+    WHERE t.tournament_id = $1
   ", params = list(rv$active_tournament_id))
 
   if (nrow(info) == 0) return(NULL)
@@ -424,13 +421,13 @@ output$admin_grid_table <- renderUI({
 
   # Check if release event
   is_release <- FALSE
-  if (!is.null(rv$active_tournament_id) && !is.null(rv$db_con) && dbIsValid(rv$db_con)) {
-    t_info <- dbGetQuery(rv$db_con, "SELECT event_type FROM tournaments WHERE tournament_id = ?",
+  if (!is.null(rv$active_tournament_id)) {
+    t_info <- dbGetQuery(db_pool, "SELECT event_type FROM tournaments WHERE tournament_id = $1",
                          params = list(rv$active_tournament_id))
     if (nrow(t_info) > 0) is_release <- t_info$event_type[1] == "release_event"
   }
 
-  deck_choices <- build_deck_choices(rv$db_con)
+  deck_choices <- build_deck_choices(db_pool)
   render_grid_ui(grid, record_format, is_release, deck_choices, rv$admin_player_matches, "admin_")
 })
 
@@ -499,7 +496,7 @@ observe({
 })
 
 observeEvent(input$admin_player_blur, {
-  req(rv$db_con, rv$admin_grid_data)
+  req(db_pool, rv$admin_grid_data)
 
   info <- input$admin_player_blur
   row_num <- info$row
@@ -519,7 +516,7 @@ observeEvent(input$admin_player_blur, {
     return()
   }
 
-  match_info <- match_player(name, rv$db_con)
+  match_info <- match_player(name, db_pool)
   rv$admin_player_matches[[as.character(row_num)]] <- match_info
   rv$admin_grid_data$match_status[row_num] <- match_info$status
   if (match_info$status == "matched") {
@@ -581,7 +578,7 @@ observeEvent(input$paste_apply, {
   grid <- rv$admin_grid_data
 
   # Parse pasted data using shared helper
-  all_decks <- dbGetQuery(rv$db_con, "
+  all_decks <- dbGetQuery(db_pool, "
     SELECT archetype_id, archetype_name FROM deck_archetypes WHERE is_active = TRUE
   ")
   parsed <- parse_paste_data(paste_text, all_decks)
@@ -613,7 +610,7 @@ observeEvent(input$paste_apply, {
     name <- trimws(grid$player_name[idx])
     if (nchar(name) == 0) next
 
-    match_info <- match_player(name, rv$db_con)
+    match_info <- match_player(name, db_pool)
     rv$admin_player_matches[[as.character(idx)]] <- match_info
     grid$match_status[idx] <- match_info$status
     if (match_info$status == "matched") {
@@ -663,7 +660,7 @@ observe({
 })
 
 observeEvent(input$admin_deck_request_submit, {
-  req(rv$db_con)
+
 
   deck_name <- trimws(input$admin_deck_request_name)
   if (nchar(deck_name) == 0) {
@@ -681,20 +678,18 @@ observeEvent(input$admin_deck_request_submit, {
   } else NA_character_
 
   # Check for existing pending request
-  existing <- dbGetQuery(rv$db_con, "
+  existing <- dbGetQuery(db_pool, "
     SELECT request_id FROM deck_requests
-    WHERE LOWER(deck_name) = LOWER(?) AND status = 'pending'
+    WHERE LOWER(deck_name) = LOWER($1) AND status = 'pending'
   ", params = list(deck_name))
 
   if (nrow(existing) > 0) {
     notify(sprintf("A pending request for '%s' already exists", deck_name), type = "warning")
   } else {
-    new_id <- next_id(rv$db_con, "deck_requests", "request_id")
-
-    dbExecute(rv$db_con, "
-      INSERT INTO deck_requests (request_id, deck_name, primary_color, secondary_color, display_card_id, status)
-      VALUES (?, ?, ?, ?, ?, 'pending')
-    ", params = list(new_id, deck_name, primary_color, secondary_color, card_id))
+    dbExecute(db_pool, "
+      INSERT INTO deck_requests (deck_name, primary_color, secondary_color, display_card_id, status)
+      VALUES ($1, $2, $3, $4, 'pending')
+    ", params = list(deck_name, primary_color, secondary_color, card_id))
 
     notify(sprintf("Deck request submitted: %s", deck_name), type = "message")
   }
@@ -710,15 +705,15 @@ observeEvent(input$admin_deck_request_submit, {
 # =============================================================================
 
 observeEvent(input$admin_submit_results, {
-  req(rv$is_admin, rv$db_con, rv$active_tournament_id)
+  req(rv$is_admin, db_pool, rv$active_tournament_id)
 
   rv$admin_grid_data <- sync_grid_inputs(input, rv$admin_grid_data, rv$admin_record_format %||% "points", "admin_")
   grid <- rv$admin_grid_data
   record_format <- rv$admin_record_format %||% "points"
 
   # Get tournament info
-  tournament <- dbGetQuery(rv$db_con, "
-    SELECT tournament_id, event_type, rounds FROM tournaments WHERE tournament_id = ?
+  tournament <- dbGetQuery(db_pool, "
+    SELECT tournament_id, event_type, rounds FROM tournaments WHERE tournament_id = $1
   ", params = list(rv$active_tournament_id))
 
   if (nrow(tournament) == 0) {
@@ -738,7 +733,7 @@ observeEvent(input$admin_submit_results, {
   }
 
   # Get UNKNOWN archetype ID for release events or fallback
-  unknown_row <- dbGetQuery(rv$db_con, "SELECT archetype_id FROM deck_archetypes WHERE archetype_name = 'UNKNOWN' LIMIT 1")
+  unknown_row <- dbGetQuery(db_pool, "SELECT archetype_id FROM deck_archetypes WHERE archetype_name = 'UNKNOWN' LIMIT 1")
   unknown_id <- if (nrow(unknown_row) > 0) unknown_row$archetype_id[1] else NA_integer_
 
   if (is_release && is.na(unknown_id)) {
@@ -748,23 +743,22 @@ observeEvent(input$admin_submit_results, {
 
   tryCatch({
     result_count <- 0L
-    max_result_id <- next_id(rv$db_con, "results", "result_id") - 1
 
     for (idx in seq_len(nrow(filled_rows))) {
       row <- filled_rows[idx, ]
       name <- trimws(row$player_name)
 
       # 1. Resolve player
-      player <- dbGetQuery(rv$db_con, "
-        SELECT player_id FROM players WHERE LOWER(display_name) = LOWER(?) LIMIT 1
+      player <- dbGetQuery(db_pool, "
+        SELECT player_id FROM players WHERE LOWER(display_name) = LOWER($1) LIMIT 1
       ", params = list(name))
 
       if (nrow(player) > 0) {
         player_id <- player$player_id
       } else {
-        player_id <- next_id(rv$db_con, "players", "player_id")
-        dbExecute(rv$db_con, "INSERT INTO players (player_id, display_name) VALUES (?, ?)",
-                  params = list(player_id, name))
+        new_player <- dbGetQuery(db_pool, "INSERT INTO players (display_name) VALUES ($1) RETURNING player_id",
+                  params = list(name))
+        player_id <- new_player$player_id[1]
       }
 
       # 2. Convert record
@@ -797,19 +791,18 @@ observeEvent(input$admin_submit_results, {
       }
 
       # 4. Insert result
-      max_result_id <- max_result_id + 1
-      dbExecute(rv$db_con, "
-        INSERT INTO results (result_id, tournament_id, player_id, archetype_id, pending_deck_request_id,
+      dbExecute(db_pool, "
+        INSERT INTO results (tournament_id, player_id, archetype_id, pending_deck_request_id,
                              placement, wins, losses, ties)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
-      ", params = list(max_result_id, rv$active_tournament_id, player_id, archetype_id,
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+      ", params = list(rv$active_tournament_id, player_id, archetype_id,
                        pending_deck_request_id, row$placement, wins, losses, ties))
 
       result_count <- result_count + 1L
     }
 
     # Recalculate ratings
-    recalculate_ratings_cache(rv$db_con)
+    recalculate_ratings_cache(db_pool)
     rv$data_refresh <- (rv$data_refresh %||% 0) + 1
 
     notify(sprintf("Tournament submitted! %d results recorded.", result_count),

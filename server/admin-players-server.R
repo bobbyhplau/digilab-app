@@ -7,7 +7,7 @@ player_search_debounced <- reactive(input$player_search) |> debounce(300)
 
 # Player list
 output$player_list <- renderReactable({
-  if (is.null(rv$db_con) || !dbIsValid(rv$db_con)) return(NULL)
+
 
   # Refresh triggers
   input$update_player
@@ -39,7 +39,7 @@ output$player_list <- renderReactable({
           JOIN tournaments t2 ON r2.tournament_id = t2.tournament_id
           JOIN stores s2 ON t2.store_id = s2.store_id
           WHERE r2.player_id = p.player_id
-            AND s2.scene_id = (SELECT scene_id FROM scenes WHERE slug = ?)
+            AND s2.scene_id = (SELECT scene_id FROM scenes WHERE slug = $1)
         )
       "
       query_params <- c(query_params, list(scene))
@@ -49,7 +49,8 @@ output$player_list <- renderReactable({
   # Build search filter
   search_filter <- ""
   if (nchar(search_term) > 0) {
-    search_filter <- " AND LOWER(p.display_name) LIKE LOWER(?)"
+    next_idx <- if (length(query_params) > 0) length(query_params) + 1 else 1
+    search_filter <- sprintf(" AND LOWER(p.display_name) LIKE LOWER($%d)", next_idx)
     query_params <- c(query_params, list(paste0("%", search_term, "%")))
   }
 
@@ -67,7 +68,7 @@ output$player_list <- renderReactable({
     ORDER BY p.display_name
   ", scene_filter, search_filter)
 
-  data <- dbGetQuery(rv$db_con, query, params = query_params)
+  data <- dbGetQuery(db_pool, query, params = query_params)
 
   if (nrow(data) == 0) {
     return(admin_empty_state("No players found", "// add players via tournament entry", "people"))
@@ -99,14 +100,14 @@ output$player_list <- renderReactable({
 
 # Handle player selection for editing
 observeEvent(input$player_list_clicked, {
-  req(rv$db_con)
+
   player_id <- input$player_list_clicked$player_id
 
   if (is.null(player_id)) return()
 
   # Look up player directly by ID
-  player <- dbGetQuery(rv$db_con, "
-    SELECT player_id, display_name FROM players WHERE player_id = ?
+  player <- dbGetQuery(db_pool, "
+    SELECT player_id, display_name FROM players WHERE player_id = $1
   ", params = list(as.integer(player_id)))
 
   if (nrow(player) == 0) return()
@@ -130,7 +131,7 @@ output$player_stats_info <- renderUI({
 
   player_id <- as.integer(input$editing_player_id)
 
-  stats <- dbGetQuery(rv$db_con, "
+  stats <- dbGetQuery(db_pool, "
     SELECT
       COUNT(DISTINCT r.tournament_id) as tournaments,
       COUNT(r.result_id) as total_results,
@@ -138,7 +139,7 @@ output$player_stats_info <- renderUI({
       SUM(r.wins) as match_wins,
       SUM(r.losses) as match_losses
     FROM results r
-    WHERE r.player_id = ?
+    WHERE r.player_id = $1
   ", params = list(player_id))
 
   if (stats$total_results == 0) {
@@ -179,7 +180,7 @@ observeEvent(input$cancel_edit_player, {
 
 # Update player
 observeEvent(input$update_player, {
-  req(rv$is_admin, rv$db_con, input$editing_player_id)
+  req(rv$is_admin, db_pool, input$editing_player_id)
 
   clear_all_field_errors(session)
 
@@ -199,9 +200,9 @@ observeEvent(input$update_player, {
   }
 
   # Check for duplicate name (excluding current player)
-  existing <- dbGetQuery(rv$db_con, "
+  existing <- dbGetQuery(db_pool, "
     SELECT player_id FROM players
-    WHERE LOWER(display_name) = LOWER(?) AND player_id != ?
+    WHERE LOWER(display_name) = LOWER($1) AND player_id != $2
   ", params = list(new_name, player_id))
 
   if (nrow(existing) > 0) {
@@ -210,10 +211,10 @@ observeEvent(input$update_player, {
   }
 
   tryCatch({
-    dbExecute(rv$db_con, "
+    dbExecute(db_pool, "
       UPDATE players
-      SET display_name = ?, updated_at = CURRENT_TIMESTAMP
-      WHERE player_id = ?
+      SET display_name = $1, updated_at = CURRENT_TIMESTAMP
+      WHERE player_id = $2
     ", params = list(new_name, player_id))
 
     notify(sprintf("Updated player: %s", new_name), type = "message")
@@ -235,11 +236,11 @@ observeEvent(input$update_player, {
 
 # Check if player can be deleted (no results)
 observe({
-  req(input$editing_player_id, rv$db_con)
+  req(input$editing_player_id, db_pool)
   player_id <- as.integer(input$editing_player_id)
 
-  count <- dbGetQuery(rv$db_con, "
-    SELECT COUNT(*) as cnt FROM results WHERE player_id = ?
+  count <- dbGetQuery(db_pool, "
+    SELECT COUNT(*) as cnt FROM results WHERE player_id = $1
   ", params = list(player_id))$cnt
 
   rv$player_result_count <- count
@@ -251,7 +252,7 @@ observeEvent(input$delete_player, {
   req(rv$is_admin, input$editing_player_id)
 
   player_id <- as.integer(input$editing_player_id)
-  player <- dbGetQuery(rv$db_con, "SELECT display_name FROM players WHERE player_id = ?",
+  player <- dbGetQuery(db_pool, "SELECT display_name FROM players WHERE player_id = $1",
                        params = list(player_id))
 
   if (rv$can_delete_player) {
@@ -279,12 +280,12 @@ observeEvent(input$delete_player, {
 
 # Confirm delete
 observeEvent(input$confirm_delete_player, {
-  req(rv$is_admin, rv$db_con, input$editing_player_id)
+  req(rv$is_admin, db_pool, input$editing_player_id)
   player_id <- as.integer(input$editing_player_id)
 
   # Re-check for referential integrity
-  count <- dbGetQuery(rv$db_con, "
-    SELECT COUNT(*) as cnt FROM results WHERE player_id = ?
+  count <- dbGetQuery(db_pool, "
+    SELECT COUNT(*) as cnt FROM results WHERE player_id = $1
   ", params = list(player_id))$cnt
 
   if (count > 0) {
@@ -294,7 +295,7 @@ observeEvent(input$confirm_delete_player, {
   }
 
   tryCatch({
-    dbExecute(rv$db_con, "DELETE FROM players WHERE player_id = ?",
+    dbExecute(db_pool, "DELETE FROM players WHERE player_id = $1",
               params = list(player_id))
     notify("Player deleted", type = "message")
 
@@ -346,8 +347,8 @@ observeEvent(input$show_merge_modal, {
 # Re-fires on tab navigation (ensures UI exists after lazy-load)
 observe({
   rv$current_nav
-  req(rv$db_con, rv$is_admin)
-  choices <- get_player_choices(rv$db_con)
+  req(db_pool, rv$is_admin)
+  choices <- get_player_choices(db_pool)
   updateSelectizeInput(session, "merge_source_player", choices = choices)
   updateSelectizeInput(session, "merge_target_player", choices = choices)
 })
@@ -368,18 +369,18 @@ output$merge_preview <- renderUI({
   src <- as.integer(source_id)
   tgt <- as.integer(target_id)
 
-  source_count <- dbGetQuery(rv$db_con, "
-    SELECT COUNT(*) as cnt FROM results WHERE player_id = ?
+  source_count <- dbGetQuery(db_pool, "
+    SELECT COUNT(*) as cnt FROM results WHERE player_id = $1
   ", params = list(src))$cnt
 
-  match_count <- dbGetQuery(rv$db_con, "
-    SELECT COUNT(*) as cnt FROM matches WHERE player_id = ? OR opponent_id = ?
+  match_count <- dbGetQuery(db_pool, "
+    SELECT COUNT(*) as cnt FROM matches WHERE player_id = $1 OR opponent_id = $2
   ", params = list(src, src))$cnt
 
-  conflict_count <- dbGetQuery(rv$db_con, "
+  conflict_count <- dbGetQuery(db_pool, "
     SELECT COUNT(*) as cnt
     FROM results r1 INNER JOIN results r2 ON r1.tournament_id = r2.tournament_id
-    WHERE r1.player_id = ? AND r2.player_id = ?
+    WHERE r1.player_id = $1 AND r2.player_id = $2
   ", params = list(src, tgt))$cnt
 
   tagList(
@@ -400,7 +401,7 @@ output$merge_preview <- renderUI({
 
 # Confirm merge
 observeEvent(input$confirm_merge_players, {
-  req(rv$is_admin, rv$db_con)
+  req(rv$is_admin, db_pool)
 
   clear_all_field_errors(session)
 
@@ -421,19 +422,19 @@ observeEvent(input$confirm_merge_players, {
 
   tryCatch({
     # Check for conflicting results (both players in same tournament)
-    conflicts <- dbGetQuery(rv$db_con, "
+    conflicts <- dbGetQuery(db_pool, "
       SELECT r1.tournament_id
       FROM results r1
       INNER JOIN results r2 ON r1.tournament_id = r2.tournament_id
-      WHERE r1.player_id = ? AND r2.player_id = ?
+      WHERE r1.player_id = $1 AND r2.player_id = $2
     ", params = list(source_id, target_id))
 
     if (nrow(conflicts) > 0) {
       # Delete source results that conflict (target's result takes priority)
-      safe_execute(rv$db_con, "
+      safe_execute(db_pool, "
         DELETE FROM results
-        WHERE player_id = ? AND tournament_id IN (
-          SELECT r2.tournament_id FROM results r2 WHERE r2.player_id = ?
+        WHERE player_id = $1 AND tournament_id IN (
+          SELECT r2.tournament_id FROM results r2 WHERE r2.player_id = $2
         )
       ", params = list(source_id, target_id))
       notify(
@@ -443,31 +444,31 @@ observeEvent(input$confirm_merge_players, {
     }
 
     # Move remaining results from source to target
-    safe_execute(rv$db_con, "
-      UPDATE results SET player_id = ? WHERE player_id = ?
+    safe_execute(db_pool, "
+      UPDATE results SET player_id = $1 WHERE player_id = $2
     ", params = list(target_id, source_id))
 
     # Transfer matches (as player)
-    safe_execute(rv$db_con, "
-      UPDATE matches SET player_id = ? WHERE player_id = ?
+    safe_execute(db_pool, "
+      UPDATE matches SET player_id = $1 WHERE player_id = $2
     ", params = list(target_id, source_id))
 
     # Transfer matches (as opponent)
-    safe_execute(rv$db_con, "
-      UPDATE matches SET opponent_id = ? WHERE opponent_id = ?
+    safe_execute(db_pool, "
+      UPDATE matches SET opponent_id = $1 WHERE opponent_id = $2
     ", params = list(target_id, source_id))
 
     # Copy limitless_username from source to target (if target doesn't have one)
-    safe_execute(rv$db_con, "
+    safe_execute(db_pool, "
       UPDATE players
       SET limitless_username = (
-        SELECT limitless_username FROM players WHERE player_id = ?
+        SELECT limitless_username FROM players WHERE player_id = $1
       )
-      WHERE player_id = ? AND (limitless_username IS NULL OR limitless_username = '')
+      WHERE player_id = $2 AND (limitless_username IS NULL OR limitless_username = '')
     ", params = list(source_id, target_id))
 
-    # Soft-delete source player instead of hard DELETE to avoid MotherDuck catalog errors
-    safe_execute(rv$db_con, "UPDATE players SET is_active = FALSE WHERE player_id = ?",
+    # Soft-delete source player instead of hard DELETE
+    safe_execute(db_pool, "UPDATE players SET is_active = FALSE WHERE player_id = $1",
                  params = list(source_id))
 
     notify("Players merged successfully", type = "message")

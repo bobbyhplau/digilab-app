@@ -47,7 +47,7 @@ load_grid_from_results <- function(tournament_id, con) {
            p.member_number
     FROM results r
     JOIN players p ON r.player_id = p.player_id
-    WHERE r.tournament_id = ?
+    WHERE r.tournament_id = $1
     ORDER BY r.placement ASC
   ", params = list(tournament_id))
 
@@ -384,7 +384,7 @@ build_deck_choices <- function(con) {
 match_player <- function(name, con) {
   player <- DBI::dbGetQuery(con, "
     SELECT player_id, display_name, member_number
-    FROM players WHERE LOWER(display_name) = LOWER(?)
+    FROM players WHERE LOWER(display_name) = LOWER($1)
     LIMIT 1
   ", params = list(name))
 

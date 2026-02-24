@@ -21,8 +21,8 @@ rv$submit_ocr_row_indices <- NULL
 
 # Populate store dropdown
 observe({
-  req(rv$db_con)
-  stores <- safe_query(rv$db_con, "
+
+  stores <- safe_query(db_pool, "
     SELECT store_id, name FROM stores
     WHERE is_active = TRUE
     ORDER BY name
@@ -34,8 +34,8 @@ observe({
 
 # Populate format dropdown - sorted by release_date DESC (most recent first)
 observe({
-  req(rv$db_con)
-  formats <- safe_query(rv$db_con, "
+
+  formats <- safe_query(db_pool, "
     SELECT format_id, display_name FROM formats
     WHERE is_active = TRUE
     ORDER BY release_date DESC, sort_order ASC
@@ -47,16 +47,16 @@ observe({
 
 # Check for existing tournament when store and date are selected
 output$submit_duplicate_warning <- renderUI({
-  req(rv$db_con)
+
   req(input$submit_store, input$submit_store != "")
   req(input$submit_date, !is.na(input$submit_date))
 
   # Check for existing tournaments on this store/date
-  existing <- safe_query(rv$db_con, "
+  existing <- safe_query(db_pool, "
     SELECT t.tournament_id, t.event_type, t.player_count, s.name as store_name
     FROM tournaments t
     JOIN stores s ON t.store_id = s.store_id
-    WHERE t.store_id = ? AND t.event_date = ?
+    WHERE t.store_id = $1 AND t.event_date = $2
   ", params = list(as.integer(input$submit_store), as.character(input$submit_date)))
 
   if (nrow(existing) == 0) {
@@ -190,8 +190,7 @@ complete_ocr_processing <- function(combined, total_players, total_rounds, parse
   combined$match_status <- "new"  # "matched", "possible", "new"
   combined$matched_player_name <- NA_character_
 
-  if (!is.null(rv$db_con) && dbIsValid(rv$db_con)) {
-    for (i in seq_len(nrow(combined))) {
+  for (i in seq_len(nrow(combined))) {
       member_num <- combined$member_number[i]
       username <- combined$username[i]
 
@@ -201,9 +200,9 @@ complete_ocr_processing <- function(combined, total_players, total_rounds, parse
 
       # First try to match by member number (skip if GUEST ID - those aren't real)
       if (!is_guest_id && !is.null(member_num) && !is.na(member_num) && nchar(member_num) > 0) {
-        player_by_member <- safe_query(rv$db_con, "
+        player_by_member <- safe_query(db_pool, "
           SELECT player_id, display_name FROM players
-          WHERE member_number = ?
+          WHERE member_number = $1
           LIMIT 1
         ", params = list(member_num))
 
@@ -221,9 +220,9 @@ complete_ocr_processing <- function(combined, total_players, total_rounds, parse
 
         # Look up by username to find their real member number
         if (!is.null(username) && !is.na(username) && nchar(username) > 0) {
-          guest_lookup <- safe_query(rv$db_con, "
+          guest_lookup <- safe_query(db_pool, "
             SELECT player_id, display_name, member_number FROM players
-            WHERE LOWER(display_name) = LOWER(?)
+            WHERE LOWER(display_name) = LOWER($1)
             LIMIT 1
           ", params = list(username))
 
@@ -247,9 +246,9 @@ complete_ocr_processing <- function(combined, total_players, total_rounds, parse
 
       # Try to match by username
       if (!is.null(username) && !is.na(username) && nchar(username) > 0) {
-        player_by_name <- safe_query(rv$db_con, "
+        player_by_name <- safe_query(db_pool, "
           SELECT player_id, display_name, member_number FROM players
-          WHERE LOWER(display_name) = LOWER(?)
+          WHERE LOWER(display_name) = LOWER($1)
           LIMIT 1
         ", params = list(username))
 
@@ -260,7 +259,6 @@ complete_ocr_processing <- function(combined, total_players, total_rounds, parse
         }
       }
     }
-  }
 
   rv$submit_ocr_results <- combined
   rv$submit_parsed_count <- parsed_count
@@ -561,7 +559,7 @@ output$submit_summary_banner <- renderUI({
   # Get store name
   store_name <- "Not selected"
   if (!is.null(input$submit_store) && input$submit_store != "") {
-    store <- safe_query(rv$db_con, "SELECT name FROM stores WHERE store_id = ?",
+    store <- safe_query(db_pool, "SELECT name FROM stores WHERE store_id = $1",
                         params = list(as.integer(input$submit_store)))
     if (nrow(store) > 0) store_name <- store$name[1]
   }
@@ -582,7 +580,7 @@ output$submit_summary_banner <- renderUI({
   # Get format display name
   format_name <- ""
   if (!is.null(input$submit_format) && input$submit_format != "") {
-    fmt <- safe_query(rv$db_con, "SELECT display_name FROM formats WHERE format_id = ?",
+    fmt <- safe_query(db_pool, "SELECT display_name FROM formats WHERE format_id = $1",
                       params = list(input$submit_format))
     if (nrow(fmt) > 0) format_name <- fmt$display_name[1]
   }
@@ -717,7 +715,7 @@ output$submit_results_table <- renderUI({
   rv$submit_refresh_trigger
 
   grid <- rv$submit_grid_data
-  deck_choices <- build_deck_choices(rv$db_con)
+  deck_choices <- build_deck_choices(db_pool)
 
   render_grid_ui(
     grid_data = grid,
@@ -763,7 +761,7 @@ observe({
 })
 
 observeEvent(input$submit_player_blur, {
-  req(rv$db_con, rv$submit_grid_data)
+  req(db_pool, rv$submit_grid_data)
 
   info <- input$submit_player_blur
   row_num <- info$row
@@ -783,7 +781,7 @@ observeEvent(input$submit_player_blur, {
     return()
   }
 
-  match_info <- match_player(name, rv$db_con)
+  match_info <- match_player(name, db_pool)
   rv$submit_player_matches[[as.character(row_num)]] <- match_info
   rv$submit_grid_data$match_status[row_num] <- match_info$status
   if (match_info$status == "matched") {
@@ -850,7 +848,7 @@ observe({
 
 # Handle deck request form submission
 observeEvent(input$deck_request_submit, {
-  req(rv$db_con)
+
 
   # Validate required fields
   if (is.null(input$deck_request_name) || trimws(input$deck_request_name) == "") {
@@ -876,9 +874,9 @@ observeEvent(input$deck_request_submit, {
   }
 
   # Check if deck with this name already exists
-  existing <- safe_query(rv$db_con, "
+  existing <- safe_query(db_pool, "
     SELECT archetype_id FROM deck_archetypes
-    WHERE LOWER(archetype_name) = LOWER(?)
+    WHERE LOWER(archetype_name) = LOWER($1)
   ", params = list(deck_name), default = data.frame())
 
   if (nrow(existing) > 0) {
@@ -888,9 +886,9 @@ observeEvent(input$deck_request_submit, {
   }
 
   # Check if there's already a pending request with this name
-  pending <- safe_query(rv$db_con, "
+  pending <- safe_query(db_pool, "
     SELECT request_id FROM deck_requests
-    WHERE LOWER(deck_name) = LOWER(?) AND status = 'pending'
+    WHERE LOWER(deck_name) = LOWER($1) AND status = 'pending'
   ", params = list(deck_name), default = data.frame())
 
   if (nrow(pending) > 0) {
@@ -899,22 +897,21 @@ observeEvent(input$deck_request_submit, {
     return()
   }
 
-  # Get next request_id
-  request_id <- next_id(rv$db_con, "deck_requests", "request_id")
-
   # Insert the deck request
-  safe_execute(rv$db_con, "
-    INSERT INTO deck_requests (request_id, deck_name, primary_color, secondary_color, display_card_id, status)
-    VALUES (?, ?, ?, ?, ?, 'pending')
-  ", params = list(request_id, deck_name, primary_color, secondary_color, card_id))
+  request_result <- safe_query(db_pool, "
+    INSERT INTO deck_requests (deck_name, primary_color, secondary_color, display_card_id, status)
+    VALUES ($1, $2, $3, $4, 'pending')
+    RETURNING request_id
+  ", params = list(deck_name, primary_color, secondary_color, card_id), default = data.frame())
+  request_id <- if (nrow(request_result) > 0) request_result$request_id[1] else NA_integer_
 
   # Build updated deck choices with the new pending request
-  decks <- safe_query(rv$db_con, "
+  decks <- safe_query(db_pool, "
     SELECT archetype_id, archetype_name FROM deck_archetypes
     WHERE is_active = TRUE
     ORDER BY archetype_name
   ", default = data.frame())
-  pending_requests <- safe_query(rv$db_con, "
+  pending_requests <- safe_query(db_pool, "
     SELECT request_id, deck_name FROM deck_requests
     WHERE status = 'pending'
     ORDER BY deck_name
@@ -959,7 +956,7 @@ observeEvent(input$deck_request_submit, {
 # Handle final submission
 observeEvent(input$submit_tournament, {
   req(rv$submit_ocr_results)
-  req(rv$db_con)
+
 
   # Validate confirmation checkbox
   if (!isTRUE(input$submit_confirm)) {
@@ -1011,9 +1008,9 @@ observeEvent(input$submit_tournament, {
   }
 
   # Check for duplicate tournament
-  existing <- safe_query(rv$db_con, "
+  existing <- safe_query(db_pool, "
     SELECT tournament_id FROM tournaments
-    WHERE store_id = ? AND event_date = ? AND event_type = ?
+    WHERE store_id = $1 AND event_date = $2 AND event_type = $3
   ", params = list(
     as.integer(input$submit_store),
     as.character(input$submit_date),
@@ -1027,17 +1024,18 @@ observeEvent(input$submit_tournament, {
   }
 
   tryCatch({
+    # Check out a dedicated connection for the transaction
+    conn <- pool::localCheckout(db_pool)
+
     # Begin transaction for atomic tournament + results insert
-    dbExecute(rv$db_con, "BEGIN TRANSACTION")
+    DBI::dbExecute(conn, "BEGIN")
 
-    # Create tournament - must generate ID since DuckDB doesn't auto-increment
-    tournament_id <- next_id(rv$db_con, "tournaments", "tournament_id")
-
-    DBI::dbExecute(rv$db_con, "
-      INSERT INTO tournaments (tournament_id, store_id, event_date, event_type, format, player_count, rounds)
-      VALUES (?, ?, ?, ?, ?, ?, ?)
+    # Create tournament (PostgreSQL auto-generates tournament_id)
+    tourney_result <- DBI::dbGetQuery(conn, "
+      INSERT INTO tournaments (store_id, event_date, event_type, format, player_count, rounds)
+      VALUES ($1, $2, $3, $4, $5, $6)
+      RETURNING tournament_id
     ", params = list(
-      tournament_id,
       as.integer(input$submit_store),
       as.character(input$submit_date),
       input$submit_event_type,
@@ -1045,6 +1043,7 @@ observeEvent(input$submit_tournament, {
       nrow(results),
       input$submit_rounds
     ))
+    tournament_id <- tourney_result$tournament_id[1]
     total_rounds <- input$submit_rounds
 
     # Insert each result
@@ -1086,31 +1085,32 @@ observeEvent(input$submit_tournament, {
       if (!is.na(row$matched_player_id) && row$match_status %in% c("matched", "possible")) {
         player_id <- row$matched_player_id
         if (!is.na(member_number)) {
-          DBI::dbExecute(rv$db_con, "
-            UPDATE players SET member_number = ?
-            WHERE player_id = ? AND member_number IS NULL
+          DBI::dbExecute(conn, "
+            UPDATE players SET member_number = $1
+            WHERE player_id = $2 AND member_number IS NULL
           ", params = list(member_number, player_id))
         }
       } else {
-        player <- safe_query(rv$db_con, "
+        player <- DBI::dbGetQuery(conn, "
           SELECT player_id FROM players
-          WHERE (member_number IS NOT NULL AND member_number = ?) OR LOWER(display_name) = LOWER(?)
+          WHERE (member_number IS NOT NULL AND member_number = $1) OR LOWER(display_name) = LOWER($2)
           LIMIT 1
-        ", params = list(member_number, username), default = data.frame())
+        ", params = list(member_number, username))
 
         if (nrow(player) == 0) {
-          # Generate player_id since DuckDB doesn't auto-increment
-          player_id <- next_id(rv$db_con, "players", "player_id")
-          DBI::dbExecute(rv$db_con, "
-            INSERT INTO players (player_id, display_name, member_number)
-            VALUES (?, ?, ?)
-          ", params = list(player_id, username, member_number))
+          # Create new player (PostgreSQL auto-generates player_id)
+          new_player <- DBI::dbGetQuery(conn, "
+            INSERT INTO players (display_name, member_number)
+            VALUES ($1, $2)
+            RETURNING player_id
+          ", params = list(username, member_number))
+          player_id <- new_player$player_id[1]
         } else {
           player_id <- player$player_id[1]
           if (!is.na(member_number)) {
-            DBI::dbExecute(rv$db_con, "
-              UPDATE players SET member_number = ?
-              WHERE player_id = ? AND member_number IS NULL
+            DBI::dbExecute(conn, "
+              UPDATE players SET member_number = $1
+              WHERE player_id = $2 AND member_number IS NULL
             ", params = list(member_number, player_id))
           }
         }
@@ -1118,23 +1118,22 @@ observeEvent(input$submit_tournament, {
 
       # Get UNKNOWN archetype_id if no deck selected
       if (is.na(deck_id)) {
-        unknown <- safe_query(rv$db_con, "SELECT archetype_id FROM deck_archetypes WHERE archetype_name = 'UNKNOWN'", default = data.frame())
+        unknown <- DBI::dbGetQuery(conn, "SELECT archetype_id FROM deck_archetypes WHERE archetype_name = 'UNKNOWN'")
         deck_id <- if (nrow(unknown) > 0) unknown$archetype_id[1] else NA_integer_
       }
 
-      # Generate result_id since DuckDB doesn't auto-increment
-      result_id <- next_id(rv$db_con, "results", "result_id")
-      DBI::dbExecute(rv$db_con, "
-        INSERT INTO results (result_id, tournament_id, player_id, archetype_id, pending_deck_request_id, placement, wins, losses, ties)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+      # Insert result (PostgreSQL auto-generates result_id)
+      DBI::dbExecute(conn, "
+        INSERT INTO results (tournament_id, player_id, archetype_id, pending_deck_request_id, placement, wins, losses, ties)
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
       ", params = list(
-        result_id, tournament_id, player_id, deck_id, pending_deck_request_id,
+        tournament_id, player_id, deck_id, pending_deck_request_id,
         row$placement, wins, losses, ties
       ))
     }
 
     # Commit transaction
-    dbExecute(rv$db_con, "COMMIT")
+    DBI::dbExecute(conn, "COMMIT")
 
     # Trigger refresh
     rv$data_refresh <- (rv$data_refresh %||% 0) + 1
@@ -1175,7 +1174,7 @@ observeEvent(input$submit_tournament, {
     session$sendCustomMessage("updateSidebarNav", "nav_tournaments")
 
   }, error = function(e) {
-    tryCatch(dbExecute(rv$db_con, "ROLLBACK"), error = function(re) NULL)
+    tryCatch(DBI::dbExecute(conn, "ROLLBACK"), error = function(re) NULL)
     message("[SUBMIT] Transaction error: ", conditionMessage(e))
     if (sentry_enabled) {
       tryCatch(
@@ -1223,8 +1222,8 @@ rv$match_total_rounds <- 0
 
 # Populate store dropdown for match history
 observe({
-  req(rv$db_con)
-  stores <- safe_query(rv$db_con, "
+
+  stores <- safe_query(db_pool, "
     SELECT store_id, name FROM stores
     WHERE is_active = TRUE
     ORDER BY name
@@ -1236,22 +1235,22 @@ observe({
 
 # Populate tournament dropdown based on store selection
 observe({
-  req(rv$db_con)
+
 
   # Use parameterized query for store filter
   has_store_filter <- !is.null(input$match_store) && input$match_store != ""
 
   if (has_store_filter) {
-    tournaments <- safe_query(rv$db_con, "
+    tournaments <- safe_query(db_pool, "
       SELECT t.tournament_id, t.event_date, t.event_type, s.name as store_name
       FROM tournaments t
       JOIN stores s ON t.store_id = s.store_id
-      WHERE t.store_id = ?
+      WHERE t.store_id = $1
       ORDER BY t.event_date DESC
       LIMIT 50
     ", params = list(as.integer(input$match_store)))
   } else {
-    tournaments <- safe_query(rv$db_con, "
+    tournaments <- safe_query(db_pool, "
       SELECT t.tournament_id, t.event_date, t.event_type, s.name as store_name
       FROM tournaments t
       JOIN stores s ON t.store_id = s.store_id
@@ -1277,13 +1276,13 @@ observe({
 output$match_tournament_info <- renderUI({
   req(input$match_tournament)
   req(input$match_tournament != "")
-  req(rv$db_con)
 
-  tournament <- safe_query(rv$db_con, "
+
+  tournament <- safe_query(db_pool, "
     SELECT t.*, s.name as store_name
     FROM tournaments t
     JOIN stores s ON t.store_id = s.store_id
-    WHERE t.tournament_id = ?
+    WHERE t.tournament_id = $1
   ", params = list(as.integer(input$match_tournament)))
 
   if (nrow(tournament) == 0) return(NULL)
@@ -1365,8 +1364,8 @@ observeEvent(input$match_process_ocr, {
   }
 
   # Get the round count from the selected tournament
-  tournament <- safe_query(rv$db_con, "
-    SELECT rounds FROM tournaments WHERE tournament_id = ?
+  tournament <- safe_query(db_pool, "
+    SELECT rounds FROM tournaments WHERE tournament_id = $1
   ", params = list(as.integer(input$match_tournament)))
 
   total_rounds <- if (nrow(tournament) > 0 && !is.na(tournament$rounds[1])) {
@@ -1578,7 +1577,7 @@ output$match_final_button <- renderUI({
 # Handle match history submission
 observeEvent(input$match_submit, {
   req(rv$match_ocr_results)
-  req(rv$db_con)
+
   req(input$match_tournament)
 
   if (is.null(input$match_player_username) || trimws(input$match_player_username) == "") {
@@ -1597,44 +1596,31 @@ observeEvent(input$match_submit, {
   submitter_member <- trimws(input$match_player_member)
 
   tryCatch({
-    # Ensure matches table exists
-    safe_execute(rv$db_con, "
-      CREATE TABLE IF NOT EXISTS matches (
-        match_id INTEGER PRIMARY KEY,
-        tournament_id INTEGER NOT NULL,
-        round_number INTEGER NOT NULL,
-        player_id INTEGER NOT NULL,
-        opponent_id INTEGER NOT NULL,
-        games_won INTEGER NOT NULL DEFAULT 0,
-        games_lost INTEGER NOT NULL DEFAULT 0,
-        games_tied INTEGER NOT NULL DEFAULT 0,
-        match_points INTEGER NOT NULL DEFAULT 0,
-        submitted_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-        UNIQUE(tournament_id, round_number, player_id)
-      )
-    ")
+    # Check out a dedicated connection for the transaction
+    conn <- pool::localCheckout(db_pool)
 
     # Begin transaction for atomic match history insert
-    dbExecute(rv$db_con, "BEGIN TRANSACTION")
+    DBI::dbExecute(conn, "BEGIN")
 
     # Find or create submitting player
-    player <- safe_query(rv$db_con, "
+    player <- DBI::dbGetQuery(conn, "
       SELECT player_id FROM players
-      WHERE (member_number IS NOT NULL AND member_number = ?) OR LOWER(display_name) = LOWER(?)
+      WHERE (member_number IS NOT NULL AND member_number = $1) OR LOWER(display_name) = LOWER($2)
       LIMIT 1
-    ", params = list(submitter_member, submitter_username), default = data.frame())
+    ", params = list(submitter_member, submitter_username))
 
     if (nrow(player) == 0) {
-      player_id <- next_id(rv$db_con, "players", "player_id")
-      safe_execute(rv$db_con, "
-        INSERT INTO players (player_id, display_name, member_number)
-        VALUES (?, ?, ?)
-      ", params = list(player_id, submitter_username, submitter_member))
+      new_player <- DBI::dbGetQuery(conn, "
+        INSERT INTO players (display_name, member_number)
+        VALUES ($1, $2)
+        RETURNING player_id
+      ", params = list(submitter_username, submitter_member))
+      player_id <- new_player$player_id[1]
     } else {
       player_id <- player$player_id[1]
-      safe_execute(rv$db_con, "
-        UPDATE players SET member_number = ?
-        WHERE player_id = ? AND member_number IS NULL
+      DBI::dbExecute(conn, "
+        UPDATE players SET member_number = $1
+        WHERE player_id = $2 AND member_number IS NULL
       ", params = list(submitter_member, player_id))
     }
 
@@ -1674,35 +1660,34 @@ observeEvent(input$match_submit, {
         as.integer(row$match_points)
       }
 
-      opponent <- safe_query(rv$db_con, "
+      opponent <- DBI::dbGetQuery(conn, "
         SELECT player_id FROM players
-        WHERE (member_number IS NOT NULL AND member_number = ?) OR LOWER(display_name) = LOWER(?)
+        WHERE (member_number IS NOT NULL AND member_number = $1) OR LOWER(display_name) = LOWER($2)
         LIMIT 1
-      ", params = list(opponent_member, opponent_username), default = data.frame())
+      ", params = list(opponent_member, opponent_username))
 
       if (nrow(opponent) == 0) {
-        opponent_id <- next_id(rv$db_con, "players", "player_id")
-        safe_execute(rv$db_con, "
-          INSERT INTO players (player_id, display_name, member_number)
-          VALUES (?, ?, ?)
-        ", params = list(opponent_id, opponent_username, opponent_member))
+        new_opponent <- DBI::dbGetQuery(conn, "
+          INSERT INTO players (display_name, member_number)
+          VALUES ($1, $2)
+          RETURNING player_id
+        ", params = list(opponent_username, opponent_member))
+        opponent_id <- new_opponent$player_id[1]
       } else {
         opponent_id <- opponent$player_id[1]
         if (!is.na(opponent_member)) {
-          safe_execute(rv$db_con, "
-            UPDATE players SET member_number = ?
-            WHERE player_id = ? AND member_number IS NULL
+          DBI::dbExecute(conn, "
+            UPDATE players SET member_number = $1
+            WHERE player_id = $2 AND member_number IS NULL
           ", params = list(opponent_member, opponent_id))
         }
       }
 
       tryCatch({
-        match_id <- next_id(rv$db_con, "matches", "match_id")
-        safe_execute(rv$db_con, "
-          INSERT INTO matches (match_id, tournament_id, round_number, player_id, opponent_id, games_won, games_lost, games_tied, match_points)
-          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+        DBI::dbExecute(conn, "
+          INSERT INTO matches (tournament_id, round_number, player_id, opponent_id, games_won, games_lost, games_tied, match_points)
+          VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
         ", params = list(
-          match_id,
           tournament_id,
           as.integer(row$round),
           player_id,
@@ -1719,7 +1704,7 @@ observeEvent(input$match_submit, {
     }
 
     # Commit transaction
-    dbExecute(rv$db_con, "COMMIT")
+    DBI::dbExecute(conn, "COMMIT")
 
     # Clear form
     rv$match_ocr_results <- NULL
@@ -1737,7 +1722,7 @@ observeEvent(input$match_submit, {
     )
 
   }, error = function(e) {
-    tryCatch(dbExecute(rv$db_con, "ROLLBACK"), error = function(re) NULL)
+    tryCatch(DBI::dbExecute(conn, "ROLLBACK"), error = function(re) NULL)
     notify(paste("Error submitting match history:", e$message), type = "error")
   })
 })

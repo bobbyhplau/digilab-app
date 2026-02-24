@@ -57,9 +57,9 @@ geocode_with_mapbox <- function(address) {
 observe({
   rv$current_nav
   rv$data_refresh
-  req(rv$db_con, rv$is_admin)
+  req(db_pool, rv$is_admin)
   scenes <- tryCatch(
-    dbGetQuery(rv$db_con,
+    dbGetQuery(db_pool,
       "SELECT scene_id, display_name FROM scenes
        WHERE is_active = TRUE
        ORDER BY scene_type, display_name"),
@@ -73,19 +73,19 @@ observe({
 })
 
 # --- Refresh tournament_store dropdown on data changes ---
-# Separated from add/update/delete handlers to prevent DuckDB "catalog changed"
-# race condition. The SELECT runs in the next reactive cycle, after writes complete.
+# Separated from add/update/delete handlers to prevent catalog race conditions.
+# The SELECT runs in the next reactive cycle, after writes complete.
 observe({
   rv$data_refresh
-  req(rv$db_con, rv$is_admin)
+  req(db_pool, rv$is_admin)
   updateSelectInput(session, "tournament_store",
-                    choices = get_store_choices(rv$db_con, include_none = TRUE))
+                    choices = get_store_choices(db_pool, include_none = TRUE))
 })
 
 # Add store
 observeEvent(input$add_store, {
 
-  req(rv$is_admin, rv$db_con)
+  req(rv$is_admin, db_pool)
   clear_all_field_errors(session)
 
   # Check if this is an online store
@@ -136,14 +136,14 @@ observeEvent(input$add_store, {
   # Check for duplicate store name in same city/region
   # For online stores with no region, check for duplicate name among online stores
   if (is_online && nchar(store_city) == 0) {
-    existing <- dbGetQuery(rv$db_con, "
+    existing <- dbGetQuery(db_pool, "
       SELECT store_id FROM stores
-      WHERE LOWER(name) = LOWER(?) AND is_online = TRUE AND (city IS NULL OR city = '')
+      WHERE LOWER(name) = LOWER($1) AND is_online = TRUE AND (city IS NULL OR city = '')
     ", params = list(store_name))
   } else {
-    existing <- dbGetQuery(rv$db_con, "
+    existing <- dbGetQuery(db_pool, "
       SELECT store_id FROM stores
-      WHERE LOWER(name) = LOWER(?) AND LOWER(city) = LOWER(?)
+      WHERE LOWER(name) = LOWER($1) AND LOWER(city) = LOWER($2)
     ", params = list(store_name, store_city))
   }
 
@@ -197,14 +197,11 @@ observeEvent(input$add_store, {
         lng <- NA_real_
       }
 
-      # Use NA instead of NULL for DuckDB parameterized queries
+      # Use NA instead of NULL for parameterized queries
       zip_code <- if (nchar(trimws(input$store_zip)) > 0) trimws(input$store_zip) else NA_character_
       address <- if (nchar(trimws(input$store_address)) > 0) trimws(input$store_address) else NA_character_
       state <- if (nchar(trimws(input$store_state)) > 0) trimws(input$store_state) else NA_character_
     }
-
-    max_id <- dbGetQuery(rv$db_con, "SELECT COALESCE(MAX(store_id), 0) as max_id FROM stores")$max_id
-    new_id <- max_id + 1
 
     # Common fields for both online and physical stores
     website <- if (nchar(input$store_website) > 0) input$store_website else NA_character_
@@ -213,23 +210,22 @@ observeEvent(input$add_store, {
     # Use NA for empty city/region
     store_city_db <- if (nchar(store_city) > 0) store_city else NA_character_
 
-    dbExecute(rv$db_con, "
-      INSERT INTO stores (store_id, name, address, city, state, zip_code, latitude, longitude, website, is_online, country, scene_id)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-    ", params = list(new_id, store_name, address, store_city_db,
+    store_result <- dbGetQuery(db_pool, "
+      INSERT INTO stores (name, address, city, state, zip_code, latitude, longitude, website, is_online, country, scene_id)
+      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
+      RETURNING store_id
+    ", params = list(store_name, address, store_city_db,
                      state, zip_code, lat, lng, website, is_online, store_country, scene_id))
+    new_id <- store_result$store_id[1]
 
     # Insert any pending schedules for physical stores
     if (!is_online && length(rv$pending_schedules) > 0) {
-      max_sched_id <- dbGetQuery(rv$db_con, "SELECT COALESCE(MAX(schedule_id), 0) as max_id FROM store_schedules")$max_id
-
       for (i in seq_along(rv$pending_schedules)) {
         sched <- rv$pending_schedules[[i]]
-        sched_id <- max_sched_id + i
-        dbExecute(rv$db_con, "
-          INSERT INTO store_schedules (schedule_id, store_id, day_of_week, start_time, frequency)
-          VALUES (?, ?, ?, ?, ?)
-        ", params = list(sched_id, new_id, sched$day_of_week, sched$start_time, sched$frequency))
+        dbExecute(db_pool, "
+          INSERT INTO store_schedules (store_id, day_of_week, start_time, frequency)
+          VALUES ($1, $2, $3, $4)
+        ", params = list(new_id, sched$day_of_week, sched$start_time, sched$frequency))
       }
 
       notify(paste("Added store:", store_name, "with", length(rv$pending_schedules), "schedule(s)"), type = "message")
@@ -262,11 +258,11 @@ observeEvent(input$add_store, {
 
 # Admin store list
 output$admin_store_list <- renderReactable({
-  if (is.null(rv$db_con) || !dbIsValid(rv$db_con)) return(NULL)
+
 
   # Trigger refresh via rv$data_refresh (set after add/update/delete complete)
   # Do NOT use input$add_store etc. directly — they fire simultaneously with
-  # the handler, racing on the same DuckDB connection ("catalog changed" error)
+  # the handler, racing on the same connection
   rv$data_refresh
   rv$schedules_refresh
   input$admin_stores_show_all_scenes
@@ -281,13 +277,13 @@ output$admin_store_list <- renderReactable({
     if (scene == "online") {
       scene_filter <- "AND s.is_online = TRUE"
     } else {
-      scene_filter <- "AND s.scene_id = (SELECT scene_id FROM scenes WHERE slug = ?)"
+      scene_filter <- "AND s.scene_id = (SELECT scene_id FROM scenes WHERE slug = $1)"
       scene_params <- list(scene)
     }
   }
 
   # Query stores with schedule count
-  data <- dbGetQuery(rv$db_con, sprintf("
+  data <- dbGetQuery(db_pool, sprintf("
     SELECT s.store_id, s.name as Store, s.city as City, s.state as State,
            s.is_online, s.zip_code,
            COUNT(ss.schedule_id) as schedule_count
@@ -390,7 +386,7 @@ output$admin_store_list <- renderReactable({
 
 # Handle store selection for editing
 observeEvent(input$admin_store_list__reactable__selected, {
-  req(rv$db_con)
+
   selected_idx <- input$admin_store_list__reactable__selected
 
   if (is.null(selected_idx) || length(selected_idx) == 0) {
@@ -404,10 +400,10 @@ observeEvent(input$admin_store_list__reactable__selected, {
   store_id <- table_data$store_id[selected_idx]
 
   # Fetch full store details by ID
-  store <- dbGetQuery(rv$db_con, "
+  store <- dbGetQuery(db_pool, "
     SELECT s.store_id, s.name, s.address, s.city, s.state, s.zip_code, s.website, s.is_online, s.country, s.scene_id
     FROM stores s
-    WHERE s.store_id = ?
+    WHERE s.store_id = $1
   ", params = list(store_id))
 
   if (nrow(store) == 0) return()
@@ -452,7 +448,7 @@ observeEvent(input$admin_store_list__reactable__selected, {
 
 # Update store
 observeEvent(input$update_store, {
-  req(rv$is_admin, rv$db_con)
+  req(rv$is_admin, db_pool)
   req(input$editing_store_id)
   clear_all_field_errors(session)
 
@@ -530,7 +526,7 @@ observeEvent(input$update_store, {
       if (is.na(lat) || is.na(lng)) {
         notify("Could not geocode address. Keeping existing coordinates.", type = "warning")
         # Keep existing coordinates
-        existing <- dbGetQuery(rv$db_con, "SELECT latitude, longitude FROM stores WHERE store_id = ?",
+        existing <- dbGetQuery(db_pool, "SELECT latitude, longitude FROM stores WHERE store_id = $1",
                                params = list(store_id))
         lat <- existing$latitude
         lng <- existing$longitude
@@ -545,11 +541,11 @@ observeEvent(input$update_store, {
     website <- if (nchar(input$store_website) > 0) input$store_website else NA_character_
     scene_id <- if (!is.null(input$store_scene) && input$store_scene != "") as.integer(input$store_scene) else NA_integer_
 
-    safe_execute(rv$db_con, "
+    safe_execute(db_pool, "
       UPDATE stores
-      SET name = ?, address = ?, city = ?, state = ?, zip_code = ?,
-          latitude = ?, longitude = ?, website = ?, is_online = ?, country = ?, scene_id = ?, updated_at = CURRENT_TIMESTAMP
-      WHERE store_id = ?
+      SET name = $1, address = $2, city = $3, state = $4, zip_code = $5,
+          latitude = $6, longitude = $7, website = $8, is_online = $9, country = $10, scene_id = $11, updated_at = CURRENT_TIMESTAMP
+      WHERE store_id = $12
     ", params = list(store_name, address, store_city_db, state, zip_code, lat, lng, website, is_online, store_country, scene_id, store_id))
 
     notify(sprintf("Updated store: %s", store_name), type = "message")
@@ -605,11 +601,11 @@ observeEvent(input$cancel_edit_store, {
 
 # Check if store can be deleted (no related tournaments)
 observe({
-  req(input$editing_store_id, rv$db_con)
+  req(input$editing_store_id, db_pool)
   store_id <- as.integer(input$editing_store_id)
 
-  result <- safe_query(rv$db_con, "
-    SELECT COUNT(*) as cnt FROM tournaments WHERE store_id = ?
+  result <- safe_query(db_pool, "
+    SELECT COUNT(*) as cnt FROM tournaments WHERE store_id = $1
   ", params = list(store_id), default = data.frame(cnt = 0))
   count <- result$cnt
 
@@ -622,7 +618,7 @@ observeEvent(input$delete_store, {
   req(rv$is_admin, input$editing_store_id)
 
   store_id <- as.integer(input$editing_store_id)
-  store <- dbGetQuery(rv$db_con, "SELECT name FROM stores WHERE store_id = ?",
+  store <- dbGetQuery(db_pool, "SELECT name FROM stores WHERE store_id = $1",
                       params = list(store_id))
 
   if (rv$can_delete_store) {
@@ -648,14 +644,13 @@ observeEvent(input$delete_store, {
 
 # Confirm delete
 observeEvent(input$confirm_delete_store, {
-  req(rv$is_admin, rv$db_con, input$editing_store_id)
+  req(rv$is_admin, db_pool, input$editing_store_id)
   store_id <- as.integer(input$editing_store_id)
 
   # Soft delete: set is_active = FALSE instead of hard DELETE.
-  # MotherDuck cannot handle sequential DELETEs (catalog changed error).
   # All queries already filter WHERE is_active = TRUE.
-  rows_updated <- safe_execute(rv$db_con,
-    "UPDATE stores SET is_active = FALSE, updated_at = CURRENT_TIMESTAMP WHERE store_id = ?",
+  rows_updated <- safe_execute(db_pool,
+    "UPDATE stores SET is_active = FALSE, updated_at = CURRENT_TIMESTAMP WHERE store_id = $1",
     params = list(store_id))
   delete_ok <- rows_updated > 0
 
@@ -759,17 +754,17 @@ observeEvent(input$remove_pending_schedule, {
 # Render schedules table for selected store
 output$store_schedules_table <- renderReactable({
   req(input$editing_store_id)
-  req(rv$db_con)
+
 
   store_id <- as.integer(input$editing_store_id)
 
   # Trigger refresh when schedules change
   rv$schedules_refresh
 
-  schedules <- dbGetQuery(rv$db_con, "
+  schedules <- dbGetQuery(db_pool, "
     SELECT schedule_id, day_of_week, start_time, frequency
     FROM store_schedules
-    WHERE store_id = ? AND is_active = TRUE
+    WHERE store_id = $1 AND is_active = TRUE
     ORDER BY day_of_week, start_time
   ", params = list(store_id))
 
@@ -814,7 +809,7 @@ output$store_schedules_table <- renderReactable({
 
 # Add schedule (handles both new stores and editing existing stores)
 observeEvent(input$add_schedule, {
-  req(rv$is_admin, rv$db_con)
+  req(rv$is_admin, db_pool)
   clear_all_field_errors(session)
 
   day_of_week <- as.integer(input$schedule_day)
@@ -837,9 +832,9 @@ observeEvent(input$add_schedule, {
 
     tryCatch({
       # Check for duplicate schedule
-      existing <- dbGetQuery(rv$db_con, "
+      existing <- dbGetQuery(db_pool, "
         SELECT schedule_id FROM store_schedules
-        WHERE store_id = ? AND day_of_week = ? AND start_time = ? AND is_active = TRUE
+        WHERE store_id = $1 AND day_of_week = $2 AND start_time = $3 AND is_active = TRUE
       ", params = list(store_id, day_of_week, start_time))
 
       if (nrow(existing) > 0) {
@@ -847,14 +842,10 @@ observeEvent(input$add_schedule, {
         return()
       }
 
-      # Get next ID
-      max_id <- dbGetQuery(rv$db_con, "SELECT COALESCE(MAX(schedule_id), 0) as max_id FROM store_schedules")$max_id
-      new_id <- max_id + 1
-
-      dbExecute(rv$db_con, "
-        INSERT INTO store_schedules (schedule_id, store_id, day_of_week, start_time, frequency)
-        VALUES (?, ?, ?, ?, ?)
-      ", params = list(new_id, store_id, day_of_week, start_time, frequency))
+      dbExecute(db_pool, "
+        INSERT INTO store_schedules (store_id, day_of_week, start_time, frequency)
+        VALUES ($1, $2, $3, $4)
+      ", params = list(store_id, day_of_week, start_time, frequency))
 
       notify(sprintf("Added %s schedule", DAY_LABELS[day_of_week + 1]), type = "message")
 
@@ -896,7 +887,7 @@ observeEvent(input$add_schedule, {
 
 # Delete schedule (triggered by clicking a row)
 observeEvent(input$schedule_to_delete, {
-  req(rv$is_admin, rv$db_con)
+  req(rv$is_admin, db_pool)
 
   schedule_id <- input$schedule_to_delete
 
@@ -916,12 +907,12 @@ observeEvent(input$schedule_to_delete, {
 
 # Confirm delete schedule
 observeEvent(input$confirm_delete_schedule, {
-  req(rv$is_admin, rv$db_con, rv$schedule_to_delete_id)
+  req(rv$is_admin, db_pool, rv$schedule_to_delete_id)
 
   tryCatch({
-    dbExecute(rv$db_con, "
+    dbExecute(db_pool, "
       UPDATE store_schedules SET is_active = FALSE, updated_at = CURRENT_TIMESTAMP
-      WHERE schedule_id = ?
+      WHERE schedule_id = $1
     ", params = list(rv$schedule_to_delete_id))
 
     notify("Schedule deleted", type = "message")

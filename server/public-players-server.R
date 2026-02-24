@@ -12,13 +12,13 @@ historical_snapshot_data <- reactive({
   is_historical <- !is.null(selected_format) && selected_format != "" &&
                    !is.null(latest_format) && selected_format != latest_format
 
-  if (!is_historical || is.null(rv$db_con) || !DBI::dbIsValid(rv$db_con)) {
+  if (!is_historical) {
     return(NULL)
   }
 
-  result <- safe_query(rv$db_con,
+  result <- safe_query(db_pool,
     "SELECT player_id, competitive_rating, achievement_score
-     FROM rating_snapshots WHERE format_id = ?",
+     FROM rating_snapshots WHERE format_id = $1",
     params = list(selected_format),
     default = data.frame(player_id = integer(), competitive_rating = integer(),
                          achievement_score = integer()))
@@ -90,13 +90,14 @@ output$historical_rating_badge <- renderUI({
 
 output$player_standings <- renderReactable({
   rv$data_refresh  # Trigger refresh on admin changes
-  if (is.null(rv$db_con) || !DBI::dbIsValid(rv$db_con)) return(NULL)
+
 
   # Build parameterized filters to prevent SQL injection
   search_filters <- build_filters_param(
     table_alias = "p",
     search = players_search_debounced(),
-    search_column = "display_name"
+    search_column = "display_name",
+    start_idx = 1
   )
 
   format_filters <- build_filters_param(
@@ -104,7 +105,8 @@ output$player_standings <- renderReactable({
     format = input$players_format,
     scene = rv$current_scene,
     store_alias = "s",
-    community_store = rv$community_filter
+    community_store = rv$community_filter,
+    start_idx = search_filters$next_idx
   )
 
   # Combine filter SQL and params
@@ -113,6 +115,9 @@ output$player_standings <- renderReactable({
 
   min_events <- as.numeric(input$players_min_events)
   if (is.na(min_events)) min_events <- 0
+
+  # HAVING clause parameter is numbered after all filter params
+  having_idx <- format_filters$next_idx
 
   # Build query with parameterized HAVING clause
   query <- sprintf("
@@ -128,10 +133,10 @@ output$player_standings <- renderReactable({
     JOIN stores s ON t.store_id = s.store_id
     WHERE 1=1 %s
     GROUP BY p.player_id, p.display_name
-    HAVING COUNT(DISTINCT r.tournament_id) >= ?
-  ", filter_sql)
+    HAVING COUNT(DISTINCT r.tournament_id) >= $%d
+  ", filter_sql, having_idx)
 
-  result <- safe_query(rv$db_con, query, params = c(filter_params, list(min_events)), default = data.frame())
+  result <- safe_query(db_pool, query, params = c(filter_params, list(min_events)), default = data.frame())
 
   # Get most played deck for each player (Main Deck)
   main_decks_query <- sprintf("
@@ -152,7 +157,7 @@ output$player_standings <- renderReactable({
     WHERE rn = 1
   ", filter_sql)
 
-  main_decks <- safe_query(rv$db_con, main_decks_query, params = filter_params, default = data.frame())
+  main_decks <- safe_query(db_pool, main_decks_query, params = filter_params, default = data.frame())
 
   if (nrow(result) == 0) {
     has_filters <- nchar(trimws(players_search_debounced() %||% "")) > 0 ||
@@ -293,20 +298,20 @@ output$player_detail_modal <- renderUI({
   req(rv$selected_player_id)
 
   player_id <- rv$selected_player_id
-  if (is.null(rv$db_con) || !dbIsValid(rv$db_con)) return(NULL)
+
 
   # Get player info (parameterized query)
-  player <- safe_query(rv$db_con, "
+  player <- safe_query(db_pool, "
     SELECT p.player_id, p.display_name, p.home_store_id, s.name as home_store
     FROM players p
     LEFT JOIN stores s ON p.home_store_id = s.store_id
-    WHERE p.player_id = ?
+    WHERE p.player_id = $1
   ", params = list(player_id), default = data.frame())
 
   if (nrow(player) == 0) return(NULL)
 
   # Get overall stats including ties and avg placement (parameterized query)
-  stats <- safe_query(rv$db_con, "
+  stats <- safe_query(db_pool, "
     SELECT COUNT(DISTINCT r.tournament_id) as events,
            SUM(r.wins) as wins, SUM(r.losses) as losses, SUM(r.ties) as ties,
            ROUND(SUM(r.wins) * 100.0 / NULLIF(SUM(r.wins) + SUM(r.losses), 0), 1) as win_pct,
@@ -314,7 +319,7 @@ output$player_detail_modal <- renderUI({
            COUNT(CASE WHEN r.placement <= 3 THEN 1 END) as top3,
            ROUND(AVG(r.placement), 1) as avg_placement
     FROM results r
-    WHERE r.player_id = ?
+    WHERE r.player_id = $1
   ", params = list(player_id), default = data.frame(events = 0, wins = 0, losses = 0, ties = 0, win_pct = NA, first_places = 0, top3 = 0, avg_placement = NA))
 
   # Get rating and achievement score
@@ -327,37 +332,37 @@ output$player_detail_modal <- renderUI({
 
   # Get favorite decks (most played, parameterized query)
   # Exclude UNKNOWN archetype from player profiles
-  favorite_decks <- safe_query(rv$db_con, "
+  favorite_decks <- safe_query(db_pool, "
     SELECT da.archetype_name as Deck, da.primary_color as color,
            COUNT(*) as Times,
            COUNT(CASE WHEN r.placement = 1 THEN 1 END) as Wins
     FROM results r
     JOIN deck_archetypes da ON r.archetype_id = da.archetype_id
-    WHERE r.player_id = ? AND da.archetype_name != 'UNKNOWN'
+    WHERE r.player_id = $1 AND da.archetype_name != 'UNKNOWN'
     GROUP BY da.archetype_id, da.archetype_name, da.primary_color
     ORDER BY COUNT(*) DESC
     LIMIT 5
   ", params = list(player_id), default = data.frame())
 
   # Get recent tournament results (parameterized query)
-  recent_results <- safe_query(rv$db_con, "
+  recent_results <- safe_query(db_pool, "
     SELECT t.event_date as Date, s.name as Store, da.archetype_name as Deck,
            r.placement as Place, r.wins as W, r.losses as L, r.decklist_url
     FROM results r
     JOIN tournaments t ON r.tournament_id = t.tournament_id
     JOIN stores s ON t.store_id = s.store_id
     JOIN deck_archetypes da ON r.archetype_id = da.archetype_id
-    WHERE r.player_id = ?
+    WHERE r.player_id = $1
     ORDER BY t.event_date DESC
     LIMIT 10
   ", params = list(player_id), default = data.frame())
 
   # Get placement history for sparkline
-  sparkline_data <- safe_query(rv$db_con, "
+  sparkline_data <- safe_query(db_pool, "
     SELECT r.placement, t.player_count
     FROM results r
     JOIN tournaments t ON r.tournament_id = t.tournament_id
-    WHERE r.player_id = ?
+    WHERE r.player_id = $1
       AND r.placement IS NOT NULL
       AND t.player_count IS NOT NULL
       AND t.player_count >= 4

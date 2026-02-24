@@ -13,8 +13,8 @@ outputOptions(output, "editing_admin", suspendWhenHidden = FALSE)
 # Re-fires when navigating to this tab (ensures UI exists after lazy-load)
 observe({
   rv$current_nav
-  req(rv$db_con, rv$is_superadmin)
-  scenes <- safe_query(rv$db_con,
+  req(db_pool, rv$is_superadmin)
+  scenes <- safe_query(db_pool,
     "SELECT scene_id, display_name FROM scenes
      WHERE scene_type IN ('metro', 'online') AND is_active = TRUE
      ORDER BY display_name",
@@ -29,8 +29,8 @@ observe({
 # --- Admin Users Table ---
 admin_users_data <- reactive({
   rv$data_refresh  # Trigger refresh
-  req(rv$db_con, rv$is_superadmin)
-  safe_query(rv$db_con,
+  req(db_pool, rv$is_superadmin)
+  safe_query(db_pool,
     "SELECT u.user_id, u.username, u.display_name, u.role,
             u.is_active, u.created_at, s.display_name as scene_name
      FROM admin_users u
@@ -90,8 +90,8 @@ observeEvent(getReactableState("admin_users_table", "selected"), {
   updateSelectInput(session, "admin_role", selected = row$role)
 
   # Set scene dropdown
-  admin_row <- safe_query(rv$db_con,
-    "SELECT scene_id FROM admin_users WHERE user_id = ?",
+  admin_row <- safe_query(db_pool,
+    "SELECT scene_id FROM admin_users WHERE user_id = $1",
     params = list(row$user_id),
     default = data.frame())
   if (nrow(admin_row) > 0 && !is.na(admin_row$scene_id[1])) {
@@ -174,8 +174,8 @@ observeEvent(input$save_admin_btn, {
     }
 
     # Check username uniqueness
-    existing <- safe_query(rv$db_con,
-      "SELECT COUNT(*) as n FROM admin_users WHERE username = ?",
+    existing <- safe_query(db_pool,
+      "SELECT COUNT(*) as n FROM admin_users WHERE username = $1",
       params = list(username),
       default = data.frame(n = 0))
     if (existing$n[1] > 0) {
@@ -184,18 +184,16 @@ observeEvent(input$save_admin_btn, {
     }
 
     hash <- bcrypt::hashpw(password)
-    max_id <- safe_query(rv$db_con,
-      "SELECT COALESCE(MAX(user_id), 0) as max_id FROM admin_users",
-      default = data.frame(max_id = 0))
-    new_id <- max_id$max_id[1] + 1
 
-    result <- safe_execute(rv$db_con,
-      "INSERT INTO admin_users (user_id, username, password_hash, display_name, role, scene_id)
-       VALUES (?, ?, ?, ?, ?, ?)",
-      params = list(new_id, username, hash, display_name, role,
-                    if (is.na(scene_id)) NA_integer_ else scene_id))
+    insert_result <- safe_query(db_pool,
+      "INSERT INTO admin_users (username, password_hash, display_name, role, scene_id)
+       VALUES ($1, $2, $3, $4, $5)
+       RETURNING user_id",
+      params = list(username, hash, display_name, role,
+                    if (is.na(scene_id)) NA_integer_ else scene_id),
+      default = data.frame())
 
-    if (result > 0) {
+    if (nrow(insert_result) > 0) {
       notify(paste0("Admin '", username, "' created"), type = "message")
       rv$data_refresh <- rv$data_refresh + 1
       # Clear form
@@ -221,8 +219,8 @@ observeEvent(input$save_admin_btn, {
     }
 
     # Check username uniqueness (excluding self)
-    existing <- safe_query(rv$db_con,
-      "SELECT COUNT(*) as n FROM admin_users WHERE username = ? AND user_id != ?",
+    existing <- safe_query(db_pool,
+      "SELECT COUNT(*) as n FROM admin_users WHERE username = $1 AND user_id != $2",
       params = list(username, uid),
       default = data.frame(n = 0))
     if (existing$n[1] > 0) {
@@ -237,16 +235,16 @@ observeEvent(input$save_admin_btn, {
         return()
       }
       hash <- bcrypt::hashpw(password)
-      safe_execute(rv$db_con,
-        "UPDATE admin_users SET username = ?, password_hash = ?, display_name = ?, role = ?, scene_id = ?
-         WHERE user_id = ?",
+      safe_execute(db_pool,
+        "UPDATE admin_users SET username = $1, password_hash = $2, display_name = $3, role = $4, scene_id = $5
+         WHERE user_id = $6",
         params = list(username, hash, display_name, role,
                       if (is.na(scene_id)) NA_integer_ else scene_id, uid))
     } else {
       # Update without changing password
-      safe_execute(rv$db_con,
-        "UPDATE admin_users SET username = ?, display_name = ?, role = ?, scene_id = ?
-         WHERE user_id = ?",
+      safe_execute(db_pool,
+        "UPDATE admin_users SET username = $1, display_name = $2, role = $3, scene_id = $4
+         WHERE user_id = $5",
         params = list(username, display_name, role,
                       if (is.na(scene_id)) NA_integer_ else scene_id, uid))
     }
@@ -274,16 +272,16 @@ observeEvent(input$toggle_admin_active_btn, {
   }
 
   # Get current status
-  current <- safe_query(rv$db_con,
-    "SELECT is_active, username FROM admin_users WHERE user_id = ?",
+  current <- safe_query(db_pool,
+    "SELECT is_active, username FROM admin_users WHERE user_id = $1",
     params = list(uid),
     default = data.frame())
   if (nrow(current) == 0) return()
 
   new_status <- !current$is_active[1]
 
-  safe_execute(rv$db_con,
-    "UPDATE admin_users SET is_active = ? WHERE user_id = ?",
+  safe_execute(db_pool,
+    "UPDATE admin_users SET is_active = $1 WHERE user_id = $2",
     params = list(new_status, uid))
 
   action <- if (new_status) "reactivated" else "deactivated"

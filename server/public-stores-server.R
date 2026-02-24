@@ -45,7 +45,7 @@ output$stores_view_hint <- renderUI({
 # Schedule view content
 output$stores_schedule_content <- renderUI({
 
-  req(rv$db_con)
+
   rv$data_refresh  # Trigger refresh on admin changes
 
   # Get current day of week (0=Sunday in JS, but R's wday returns 1=Sunday)
@@ -59,7 +59,7 @@ output$stores_schedule_content <- renderUI({
     if (scene == "online") {
       scene_sql <- "AND s.is_online = TRUE"
     } else {
-      scene_sql <- "AND s.scene_id = (SELECT scene_id FROM scenes WHERE slug = ?)"
+      scene_sql <- "AND s.scene_id = (SELECT scene_id FROM scenes WHERE slug = $1)"
       scene_params <- list(scene)
     }
   }
@@ -94,7 +94,7 @@ output$stores_schedule_content <- renderUI({
     ORDER BY ss.day_of_week, ss.start_time, s.name
   ", base_online_filter, scene_sql)
 
-  schedules <- safe_query(rv$db_con, schedules_query, params = scene_params)
+  schedules <- safe_query(db_pool, schedules_query, params = scene_params)
 
   # Get stores without schedules
   stores_without_query <- sprintf("
@@ -109,7 +109,7 @@ output$stores_schedule_content <- renderUI({
     ORDER BY s.name
   ", base_online_filter, scene_sql)
 
-  stores_without_schedules <- safe_query(rv$db_con, stores_without_query, params = scene_params)
+  stores_without_schedules <- safe_query(db_pool, stores_without_query, params = scene_params)
 
   # Build day sections, sorted starting from today
   day_order <- c(today_wday:6, if (today_wday > 0) 0:(today_wday - 1) else integer(0))
@@ -294,7 +294,7 @@ output$stores_cards_content <- renderUI({
 
   # For online scene, show online organizers
   if (!is.null(scene) && scene == "online") {
-    online_stores <- safe_query(rv$db_con, "
+    online_stores <- safe_query(db_pool, "
       SELECT s.store_id, s.name, s.city as region, s.country, s.website,
              COUNT(t.tournament_id) as tournament_count,
              COALESCE(ROUND(AVG(t.player_count), 1), 0) as avg_players,
@@ -393,7 +393,7 @@ output$store_detail_modal <- renderUI({
   # If store not found in filtered data (e.g. online store when viewing "all" scene),
   # query directly from the database
   if (nrow(store) == 0) {
-    store <- safe_query(rv$db_con, "
+    store <- safe_query(db_pool, "
       SELECT s.store_id, s.name, s.address, s.city, s.state, s.zip_code,
              s.latitude, s.longitude, s.website, s.schedule_info, s.slug,
              s.country, s.is_online,
@@ -402,7 +402,7 @@ output$store_detail_modal <- renderUI({
              MAX(t.event_date) as last_event
       FROM stores s
       LEFT JOIN tournaments t ON s.store_id = t.store_id
-      WHERE s.store_id = ?
+      WHERE s.store_id = $1
       GROUP BY s.store_id, s.name, s.address, s.city, s.state, s.zip_code,
                s.latitude, s.longitude, s.website, s.schedule_info, s.slug,
                s.country, s.is_online
@@ -412,7 +412,7 @@ output$store_detail_modal <- renderUI({
   if (nrow(store) == 0) return(NULL)
 
   # Get recent tournaments at this store
-  recent_tournaments <- safe_query(rv$db_con, "
+  recent_tournaments <- safe_query(db_pool, "
       SELECT t.event_date as Date, t.event_type as Type, t.format as Format,
              t.player_count as Players, p.display_name as Winner,
              da.archetype_name as Deck, r.decklist_url
@@ -420,20 +420,20 @@ output$store_detail_modal <- renderUI({
       LEFT JOIN results r ON t.tournament_id = r.tournament_id AND r.placement = 1
       LEFT JOIN players p ON r.player_id = p.player_id
       LEFT JOIN deck_archetypes da ON r.archetype_id = da.archetype_id
-      WHERE t.store_id = ?
+      WHERE t.store_id = $1
       ORDER BY t.event_date DESC
       LIMIT 5
     ", params = list(store_id))
 
   # Get top players at this store
-  top_players <- safe_query(rv$db_con, "
+  top_players <- safe_query(db_pool, "
       SELECT p.display_name as Player,
              COUNT(DISTINCT r.tournament_id) as Events,
              COUNT(CASE WHEN r.placement = 1 THEN 1 END) as Wins
       FROM players p
       JOIN results r ON p.player_id = r.player_id
       JOIN tournaments t ON r.tournament_id = t.tournament_id
-      WHERE t.store_id = ?
+      WHERE t.store_id = $1
       GROUP BY p.player_id, p.display_name
       ORDER BY COUNT(CASE WHEN r.placement = 1 THEN 1 END) DESC, COUNT(DISTINCT r.tournament_id) DESC
       LIMIT 5
@@ -445,19 +445,19 @@ output$store_detail_modal <- renderUI({
   if (length(avg_player_rating) == 0) avg_player_rating <- 0
 
   # Get total unique players
-  unique_players_result <- safe_query(rv$db_con, "
+  unique_players_result <- safe_query(db_pool, "
     SELECT COUNT(DISTINCT r.player_id) as cnt
     FROM results r
     JOIN tournaments t ON r.tournament_id = t.tournament_id
-    WHERE t.store_id = ?
+    WHERE t.store_id = $1
   ", params = list(store_id), default = data.frame(cnt = 0))
   unique_players <- unique_players_result$cnt
 
   # Get store schedules
-  store_schedules <- safe_query(rv$db_con, "
+  store_schedules <- safe_query(db_pool, "
     SELECT day_of_week, start_time, frequency
     FROM store_schedules
-    WHERE store_id = ? AND is_active = TRUE
+    WHERE store_id = $1 AND is_active = TRUE
     ORDER BY day_of_week, start_time
   ", params = list(store_id))
 
@@ -750,7 +750,7 @@ output$store_modal_map <- renderMapboxgl({
 
 # Online Tournament Organizers section
 output$online_stores_section <- renderUI({
-  req(rv$db_con)
+
 
   # Only show online stores section when scene is "all"
   # For regional scenes, we don't show online organizers
@@ -760,7 +760,7 @@ output$online_stores_section <- renderUI({
     return(NULL)
   }
 
-  online_stores <- safe_query(rv$db_con, "
+  online_stores <- safe_query(db_pool, "
     SELECT s.store_id, s.name, s.city as region, s.website, s.schedule_info,
            COUNT(t.tournament_id) as tournament_count,
            COALESCE(ROUND(AVG(t.player_count), 1), 0) as avg_players,
@@ -824,7 +824,7 @@ stores_data <- reactive({
     if (scene == "online") {
       scene_sql <- "AND s.is_online = TRUE"
     } else {
-      scene_sql <- "AND s.scene_id = (SELECT scene_id FROM scenes WHERE slug = ?)"
+      scene_sql <- "AND s.scene_id = (SELECT scene_id FROM scenes WHERE slug = $1)"
       scene_params <- list(scene)
     }
   }
@@ -855,7 +855,7 @@ stores_data <- reactive({
              s.country, s.is_online
   ", base_online_filter, scene_sql)
 
-  safe_query(rv$db_con, query, params = scene_params)
+  safe_query(db_pool, query, params = scene_params)
 })
 
 # Reset dashboard filters (reset to defaults: all formats + locals)
@@ -869,7 +869,7 @@ observeEvent(input$reset_dashboard_filters, {
 # Helper: Render world map for online organizers
 render_online_organizers_map <- function() {
   # Query online stores with country
-  online_stores <- safe_query(rv$db_con, "
+  online_stores <- safe_query(db_pool, "
     SELECT s.store_id, s.name, s.city as region, s.country, s.website,
            COUNT(t.tournament_id) as tournament_count,
            COALESCE(ROUND(AVG(t.player_count), 1), 0) as avg_players

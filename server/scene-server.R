@@ -49,10 +49,10 @@ get_scenes_for_map <- function(db_con) {
 # Populate Scene Dropdown from Database
 # -----------------------------------------------------------------------------
 
-observeEvent(rv$db_con, {
-  req(rv$db_con)
+observeEvent(db_pool, {
 
-  choices <- get_scene_choices(rv$db_con)
+
+  choices <- get_scene_choices(db_pool)
 
   # Use stored scene preference if available and valid
   stored <- input$scene_from_storage
@@ -71,7 +71,7 @@ observeEvent(rv$db_con, {
 # -----------------------------------------------------------------------------
 
 observeEvent(input$scene_from_storage, {
-  req(rv$db_con)
+
 
   stored <- input$scene_from_storage
   if (is.null(stored)) return()
@@ -87,7 +87,7 @@ observeEvent(input$scene_from_storage, {
   # If there's a stored scene preference, apply it
   if (!is.null(stored$scene) && stored$scene != "") {
     # Rebuild choices to ensure they include all DB scenes
-    choices <- get_scene_choices(rv$db_con)
+    choices <- get_scene_choices(db_pool)
     if (stored$scene %in% unlist(choices)) {
       rv$current_scene <- stored$scene
       updateSelectInput(session, "scene_selector", choices = choices, selected = stored$scene)
@@ -106,8 +106,8 @@ observeEvent(input$scene_selector, {
 
   # Scene admins cannot switch scenes — force back to their assigned scene
   if (rv$is_admin && !rv$is_superadmin && !is.null(rv$admin_user) && !is.null(rv$admin_user$scene_id)) {
-    scene_slug <- safe_query(rv$db_con,
-      "SELECT slug FROM scenes WHERE scene_id = ?",
+    scene_slug <- safe_query(db_pool,
+      "SELECT slug FROM scenes WHERE scene_id = $1",
       params = list(rv$admin_user$scene_id),
       default = data.frame())
     if (nrow(scene_slug) > 0 && new_scene != scene_slug$slug[1]) {
@@ -328,10 +328,10 @@ show_scene_confirmation <- function(display_name) {
 # -----------------------------------------------------------------------------
 
 output$onboarding_map <- mapgl::renderMapboxgl({
-  req(rv$db_con)
+
 
   # Get scenes with coordinates
-  scenes <- get_scenes_for_map(rv$db_con)
+  scenes <- get_scenes_for_map(db_pool)
 
   # Default center on USA
   center_lng <- -98.5
@@ -389,8 +389,8 @@ observeEvent(input$select_scene_from_map, {
   if (!is.null(scene_slug) && scene_slug != "") {
     select_scene(scene_slug)
     # Look up display name from DB
-    scene_info <- safe_query(rv$db_con,
-      "SELECT display_name FROM scenes WHERE slug = ? LIMIT 1",
+    scene_info <- safe_query(db_pool,
+      "SELECT display_name FROM scenes WHERE slug = $1 LIMIT 1",
       params = list(scene_slug))
     label <- if (nrow(scene_info) > 0) scene_info$display_name[1] else scene_slug
     show_scene_confirmation(label)
@@ -402,10 +402,10 @@ observeEvent(input$select_scene_from_map, {
 # -----------------------------------------------------------------------------
 
 observeEvent(input$find_my_scene, {
-  req(rv$db_con)
+
 
   # Get scenes with coordinates to send to JavaScript
-  scenes <- get_scenes_for_map(rv$db_con)
+  scenes <- get_scenes_for_map(db_pool)
 
   if (!is.null(scenes) && nrow(scenes) > 0) {
     scenes_list <- lapply(seq_len(nrow(scenes)), function(i) {

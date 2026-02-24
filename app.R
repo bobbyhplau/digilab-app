@@ -9,7 +9,8 @@ library(shinyjs)
 library(bslib)
 library(bsicons)
 library(DBI)
-library(duckdb)
+library(pool)
+library(RPostgres)
 library(jsonlite)
 library(reactable)
 library(htmltools)
@@ -46,6 +47,9 @@ if (file.exists(".env")) {
 if (Sys.getenv("MAPBOX_PUBLIC_TOKEN") == "" && Sys.getenv("MAPBOX_ACCESS_TOKEN") != "") {
   Sys.setenv(MAPBOX_PUBLIC_TOKEN = Sys.getenv("MAPBOX_ACCESS_TOKEN"))
 }
+
+# Create database connection pool
+db_pool <- create_db_pool()
 
 # Setup Atom Google Fonts
 setup_atom_google_fonts()
@@ -938,7 +942,6 @@ server <- function(input, output, session) {
 
   rv <- reactiveValues(
     # === CORE ===
-    db_con = NULL,
     is_admin = FALSE,
     is_superadmin = FALSE,
     admin_user = NULL,          # List: user_id, username, display_name, role, scene_id
@@ -1069,33 +1072,24 @@ server <- function(input, output, session) {
 
   # Reactive: Get cached competitive ratings for all players
   player_competitive_ratings <- reactive({
-    if (is.null(rv$db_con) || !DBI::dbIsValid(rv$db_con)) {
-      return(data.frame(player_id = integer(), competitive_rating = numeric()))
-    }
     rv$data_refresh  # Invalidate when cache is refreshed
-    safe_query(rv$db_con,
+    safe_query(db_pool,
       "SELECT player_id, competitive_rating FROM player_ratings_cache",
       default = data.frame(player_id = integer(), competitive_rating = numeric()))
   })
 
   # Reactive: Get cached achievement scores for all players
   player_achievement_scores <- reactive({
-    if (is.null(rv$db_con) || !DBI::dbIsValid(rv$db_con)) {
-      return(data.frame(player_id = integer(), achievement_score = numeric()))
-    }
     rv$data_refresh
-    safe_query(rv$db_con,
+    safe_query(db_pool,
       "SELECT player_id, achievement_score FROM player_ratings_cache",
       default = data.frame(player_id = integer(), achievement_score = numeric()))
   })
 
   # Reactive: Get cached average player rating per store
   store_avg_ratings <- reactive({
-    if (is.null(rv$db_con) || !DBI::dbIsValid(rv$db_con)) {
-      return(data.frame(store_id = integer(), avg_player_rating = numeric()))
-    }
     rv$data_refresh
-    safe_query(rv$db_con,
+    safe_query(db_pool,
       "SELECT store_id, avg_player_rating FROM store_ratings_cache",
       default = data.frame(store_id = integer(), avg_player_rating = numeric()))
   })
@@ -1106,5 +1100,7 @@ server <- function(input, output, session) {
 # =============================================================================
 # Run App
 # =============================================================================
+
+onStop(function() { close_db_pool(db_pool) })
 
 shinyApp(ui = ui, server = server)

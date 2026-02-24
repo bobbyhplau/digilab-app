@@ -13,15 +13,15 @@ rv$edit_grid_tournament_id <- NULL
 # Re-fires on tab navigation (ensures UI exists after lazy-load)
 observe({
   rv$current_nav
-  req(rv$db_con)
+
   rv$format_refresh
 
   # Update store dropdown for edit form
   updateSelectInput(session, "edit_tournament_store",
-                    choices = get_store_choices(rv$db_con, include_none = TRUE))
+                    choices = get_store_choices(db_pool, include_none = TRUE))
 
   # Update format dropdown for edit form
-  format_choices <- get_format_choices(rv$db_con)
+  format_choices <- get_format_choices(db_pool)
   updateSelectInput(session, "edit_tournament_format", choices = format_choices)
 })
 
@@ -34,11 +34,11 @@ observe({
   rv$navigate_to_tournament_id <- NULL  # Clear to prevent re-triggering
 
   # Get tournament details
-  tournament <- dbGetQuery(rv$db_con, "
+  tournament <- dbGetQuery(db_pool, "
     SELECT t.*, s.name as store_name
     FROM tournaments t
     LEFT JOIN stores s ON t.store_id = s.store_id
-    WHERE t.tournament_id = ?
+    WHERE t.tournament_id = $1
   ", params = list(tournament_id))
 
   if (nrow(tournament) == 0) return()
@@ -66,7 +66,7 @@ admin_tournament_search_debounced <- reactive(input$admin_tournament_search) |> 
 
 # Tournament list table
 output$admin_tournament_list <- renderReactable({
-  req(rv$db_con)
+
 
   # Trigger refresh
   input$update_tournament
@@ -85,7 +85,7 @@ output$admin_tournament_list <- renderReactable({
     if (scene == "online") {
       scene_filter <- "AND s.is_online = TRUE"
     } else {
-      scene_filter <- "AND s.scene_id = (SELECT scene_id FROM scenes WHERE slug = ?)"
+      scene_filter <- "AND s.scene_id = (SELECT scene_id FROM scenes WHERE slug = $1)"
       query_params <- c(query_params, list(scene))
     }
   }
@@ -107,14 +107,15 @@ output$admin_tournament_list <- renderReactable({
   ", scene_filter)
 
   if (nchar(search) > 0) {
-    query <- paste0(query, " AND LOWER(s.name) LIKE LOWER(?)")
+    next_idx <- if (length(query_params) > 0) length(query_params) + 1 else 1
+    query <- paste0(query, sprintf(" AND LOWER(s.name) LIKE LOWER($%d)", next_idx))
     query_params <- c(query_params, list(paste0("%", search, "%")))
   }
 
   query <- paste0(query, " GROUP BY t.tournament_id, s.name, t.event_date, t.event_type, t.format, t.player_count, t.rounds
                           ORDER BY t.event_date DESC")
 
-  data <- dbGetQuery(rv$db_con, query, params = query_params)
+  data <- dbGetQuery(db_pool, query, params = query_params)
 
   if (nrow(data) == 0) {
     return(reactable(data.frame(Message = "No tournaments found")))
@@ -164,17 +165,17 @@ output$admin_tournament_list <- renderReactable({
 
 # Click row to edit
 observeEvent(input$admin_tournament_list_clicked, {
-  req(rv$db_con)
+
   tournament_id <- input$admin_tournament_list_clicked$tournament_id
 
   if (is.null(tournament_id)) return()
 
   # Get tournament details
-  tournament <- dbGetQuery(rv$db_con, "
+  tournament <- dbGetQuery(db_pool, "
     SELECT t.*, s.name as store_name
     FROM tournaments t
     LEFT JOIN stores s ON t.store_id = s.store_id
-    WHERE t.tournament_id = ?
+    WHERE t.tournament_id = $1
   ", params = list(tournament_id))
 
   if (nrow(tournament) == 0) return()
@@ -205,22 +206,22 @@ observeEvent(input$admin_tournament_list_clicked, {
 
 # Tournament stats info
 output$tournament_stats_info <- renderUI({
-  req(rv$db_con, input$editing_tournament_id)
+  req(db_pool, input$editing_tournament_id)
 
   tid <- as.integer(input$editing_tournament_id)
 
   # Get results count
-  results_count <- dbGetQuery(rv$db_con, "
-    SELECT COUNT(*) as cnt FROM results WHERE tournament_id = ?
+  results_count <- dbGetQuery(db_pool, "
+    SELECT COUNT(*) as cnt FROM results WHERE tournament_id = $1
   ", params = list(tid))$cnt
 
   # Get winner info
-  winner <- dbGetQuery(rv$db_con, "
+  winner <- dbGetQuery(db_pool, "
     SELECT p.display_name, da.archetype_name
     FROM results r
     JOIN players p ON r.player_id = p.player_id
     LEFT JOIN deck_archetypes da ON r.archetype_id = da.archetype_id
-    WHERE r.tournament_id = ? AND r.placement = 1
+    WHERE r.tournament_id = $1 AND r.placement = 1
   ", params = list(tid))
 
   tagList(
@@ -237,7 +238,7 @@ output$tournament_stats_info <- renderUI({
 
 # Update tournament
 observeEvent(input$update_tournament, {
-  req(rv$is_admin, rv$db_con, input$editing_tournament_id)
+  req(rv$is_admin, db_pool, input$editing_tournament_id)
 
   clear_all_field_errors(session)
 
@@ -263,7 +264,7 @@ observeEvent(input$update_tournament, {
   }
 
   tryCatch({
-    dbExecute(rv$db_con, "
+    dbExecute(db_pool, "
       UPDATE tournaments
       SET store_id = $1, event_date = $2, event_type = $3, format = $4,
           player_count = $5, rounds = $6, updated_at = CURRENT_TIMESTAMP
@@ -318,12 +319,12 @@ observeEvent(input$delete_tournament, {
   tournament_id <- as.integer(input$editing_tournament_id)
 
   # Get tournament info and results count
-  tournament <- dbGetQuery(rv$db_con, "
+  tournament <- dbGetQuery(db_pool, "
     SELECT t.*, s.name as store_name,
            (SELECT COUNT(*) FROM results WHERE tournament_id = t.tournament_id) as results_count
     FROM tournaments t
     LEFT JOIN stores s ON t.store_id = s.store_id
-    WHERE t.tournament_id = ?
+    WHERE t.tournament_id = $1
   ", params = list(tournament_id))
 
   showModal(modalDialog(
@@ -348,15 +349,14 @@ observeEvent(input$delete_tournament, {
 
 # Confirm delete tournament
 observeEvent(input$confirm_delete_tournament, {
-  req(rv$is_admin, rv$db_con, input$editing_tournament_id)
+  req(rv$is_admin, db_pool, input$editing_tournament_id)
 
   tournament_id <- as.integer(input$editing_tournament_id)
 
   # Delete results first, then tournament.
-  # Uses safe_execute with retry logic for MotherDuck catalog errors.
-  safe_execute(rv$db_con, "DELETE FROM results WHERE tournament_id = ?",
+  safe_execute(db_pool, "DELETE FROM results WHERE tournament_id = $1",
                params = list(tournament_id))
-  rows <- safe_execute(rv$db_con, "DELETE FROM tournaments WHERE tournament_id = ?",
+  rows <- safe_execute(db_pool, "DELETE FROM tournaments WHERE tournament_id = $1",
                        params = list(tournament_id))
 
   if (rows == 0) {
@@ -394,13 +394,13 @@ observeEvent(input$cancel_edit_tournament, {
 
 # Open edit results grid
 observeEvent(input$view_edit_results, {
-  req(rv$db_con, input$editing_tournament_id)
+  req(db_pool, input$editing_tournament_id)
 
   tournament_id <- as.integer(input$editing_tournament_id)
   rv$edit_grid_tournament_id <- tournament_id
 
   # Load existing results into grid
-  grid <- load_grid_from_results(tournament_id, rv$db_con)
+  grid <- load_grid_from_results(tournament_id, db_pool)
 
   # Infer record format: if any row has ties > 0 or wins don't cleanly convert to points, use WLT
   has_ties <- any(grid$ties > 0)
@@ -444,26 +444,26 @@ output$edit_grid_table <- renderUI({
 
   # Check if release event
   is_release <- FALSE
-  if (!is.null(rv$edit_grid_tournament_id) && !is.null(rv$db_con) && dbIsValid(rv$db_con)) {
-    t_info <- dbGetQuery(rv$db_con, "SELECT event_type FROM tournaments WHERE tournament_id = ?",
+  if (!is.null(rv$edit_grid_tournament_id)) {
+    t_info <- dbGetQuery(db_pool, "SELECT event_type FROM tournaments WHERE tournament_id = $1",
                          params = list(rv$edit_grid_tournament_id))
     if (nrow(t_info) > 0) is_release <- t_info$event_type[1] == "release_event"
   }
 
-  deck_choices <- build_deck_choices(rv$db_con)
+  deck_choices <- build_deck_choices(db_pool)
 
   render_grid_ui(grid, record_format, is_release, deck_choices, rv$edit_player_matches, "edit_")
 })
 
 # Edit grid summary bar
 output$edit_grid_summary_bar <- renderUI({
-  req(rv$db_con, rv$edit_grid_tournament_id)
+  req(db_pool, rv$edit_grid_tournament_id)
 
-  tournament <- dbGetQuery(rv$db_con, "
+  tournament <- dbGetQuery(db_pool, "
     SELECT t.*, s.name as store_name
     FROM tournaments t
     LEFT JOIN stores s ON t.store_id = s.store_id
-    WHERE t.tournament_id = ?
+    WHERE t.tournament_id = $1
   ", params = list(rv$edit_grid_tournament_id))
 
   if (nrow(tournament) == 0) return(NULL)
@@ -564,7 +564,7 @@ observe({
 })
 
 observeEvent(input$edit_player_blur, {
-  req(rv$db_con, rv$edit_grid_data)
+  req(db_pool, rv$edit_grid_data)
 
   info <- input$edit_player_blur
   row_num <- info$row
@@ -583,7 +583,7 @@ observeEvent(input$edit_player_blur, {
     return()
   }
 
-  match_info <- match_player(name, rv$db_con)
+  match_info <- match_player(name, db_pool)
   rv$edit_player_matches[[as.character(row_num)]] <- match_info
   rv$edit_grid_data$match_status[row_num] <- match_info$status
   if (match_info$status == "matched") {
@@ -636,7 +636,7 @@ observeEvent(input$edit_paste_apply, {
   rv$edit_grid_data <- sync_grid_inputs(input, rv$edit_grid_data, rv$edit_record_format %||% "points", "edit_")
   grid <- rv$edit_grid_data
 
-  all_decks <- dbGetQuery(rv$db_con, "
+  all_decks <- dbGetQuery(db_pool, "
     SELECT archetype_id, archetype_name FROM deck_archetypes WHERE is_active = TRUE
   ")
 
@@ -664,7 +664,7 @@ observeEvent(input$edit_paste_apply, {
   notify(sprintf("Filled %d rows from pasted data", fill_count), type = "message")
 
   for (idx in seq_len(fill_count)) {
-    match_info <- match_player(grid$player_name[idx], rv$db_con)
+    match_info <- match_player(grid$player_name[idx], db_pool)
     if (!is.null(match_info)) {
       rv$edit_player_matches[[as.character(idx)]] <- match_info
       grid$match_status[idx] <- match_info$status
@@ -710,7 +710,7 @@ observe({
 })
 
 observeEvent(input$edit_deck_request_submit, {
-  req(rv$db_con)
+
 
   deck_name <- trimws(input$editgrid_deck_request_name)
   if (nchar(deck_name) == 0) {
@@ -727,21 +727,18 @@ observeEvent(input$edit_deck_request_submit, {
     trimws(input$editgrid_deck_request_card_id)
   } else NA_character_
 
-  existing <- dbGetQuery(rv$db_con, "
+  existing <- dbGetQuery(db_pool, "
     SELECT request_id FROM deck_requests
-    WHERE LOWER(deck_name) = LOWER(?) AND status = 'pending'
+    WHERE LOWER(deck_name) = LOWER($1) AND status = 'pending'
   ", params = list(deck_name))
 
   if (nrow(existing) > 0) {
     notify(sprintf("A pending request for '%s' already exists", deck_name), type = "warning")
   } else {
-    max_id <- dbGetQuery(rv$db_con, "SELECT COALESCE(MAX(request_id), 0) as max_id FROM deck_requests")$max_id
-    new_id <- max_id + 1
-
-    dbExecute(rv$db_con, "
-      INSERT INTO deck_requests (request_id, deck_name, primary_color, secondary_color, display_card_id, status)
-      VALUES (?, ?, ?, ?, ?, 'pending')
-    ", params = list(new_id, deck_name, primary_color, secondary_color, card_id))
+    dbExecute(db_pool, "
+      INSERT INTO deck_requests (deck_name, primary_color, secondary_color, display_card_id, status)
+      VALUES ($1, $2, $3, $4, 'pending')
+    ", params = list(deck_name, primary_color, secondary_color, card_id))
 
     notify(sprintf("Deck request submitted: %s", deck_name), type = "message")
   }
@@ -758,7 +755,7 @@ observeEvent(input$edit_deck_request_submit, {
 # =============================================================================
 
 observeEvent(input$edit_grid_save, {
-  req(rv$is_admin, rv$db_con, rv$edit_grid_tournament_id)
+  req(rv$is_admin, db_pool, rv$edit_grid_tournament_id)
 
   rv$edit_grid_data <- sync_grid_inputs(input, rv$edit_grid_data, rv$edit_record_format %||% "points", "edit_")
   grid <- rv$edit_grid_data
@@ -766,8 +763,8 @@ observeEvent(input$edit_grid_save, {
   tournament_id <- rv$edit_grid_tournament_id
 
   # Get tournament info
-  tournament <- dbGetQuery(rv$db_con, "
-    SELECT tournament_id, event_type, rounds FROM tournaments WHERE tournament_id = ?
+  tournament <- dbGetQuery(db_pool, "
+    SELECT tournament_id, event_type, rounds FROM tournaments WHERE tournament_id = $1
   ", params = list(tournament_id))
 
   if (nrow(tournament) == 0) {
@@ -779,7 +776,7 @@ observeEvent(input$edit_grid_save, {
   is_release <- tournament$event_type == "release_event"
 
   # Get UNKNOWN archetype ID
-  unknown_row <- dbGetQuery(rv$db_con, "SELECT archetype_id FROM deck_archetypes WHERE archetype_name = 'UNKNOWN' LIMIT 1")
+  unknown_row <- dbGetQuery(db_pool, "SELECT archetype_id FROM deck_archetypes WHERE archetype_name = 'UNKNOWN' LIMIT 1")
   unknown_id <- if (nrow(unknown_row) > 0) unknown_row$archetype_id[1] else NA_integer_
 
   if (is_release && is.na(unknown_id)) {
@@ -802,37 +799,34 @@ observeEvent(input$edit_grid_save, {
 
     # 1. DELETE: rows that were deleted via X button
     for (rid in rv$edit_deleted_result_ids) {
-      safe_execute(rv$db_con, "DELETE FROM results WHERE result_id = ?", params = list(rid))
+      safe_execute(db_pool, "DELETE FROM results WHERE result_id = $1", params = list(rid))
       delete_count <- delete_count + 1L
     }
 
     # 2. DELETE: original rows that are now empty (user cleared the name)
     empty_rows <- grid[nchar(trimws(grid$player_name)) == 0 & !is.na(grid$result_id), ]
     for (idx in seq_len(nrow(empty_rows))) {
-      safe_execute(rv$db_con, "DELETE FROM results WHERE result_id = ?",
+      safe_execute(db_pool, "DELETE FROM results WHERE result_id = $1",
                    params = list(empty_rows$result_id[idx]))
       delete_count <- delete_count + 1L
     }
 
     # 3. UPDATE or INSERT filled rows
-    max_result_id <- dbGetQuery(rv$db_con, "SELECT COALESCE(MAX(result_id), 0) as max_id FROM results")$max_id
-
     for (idx in seq_len(nrow(filled_rows))) {
       row <- filled_rows[idx, ]
       name <- trimws(row$player_name)
 
       # Resolve player
-      player <- dbGetQuery(rv$db_con, "
-        SELECT player_id FROM players WHERE LOWER(display_name) = LOWER(?) LIMIT 1
+      player <- dbGetQuery(db_pool, "
+        SELECT player_id FROM players WHERE LOWER(display_name) = LOWER($1) LIMIT 1
       ", params = list(name))
 
       if (nrow(player) > 0) {
         player_id <- player$player_id
       } else {
-        max_pid <- dbGetQuery(rv$db_con, "SELECT COALESCE(MAX(player_id), 0) as max_id FROM players")$max_id
-        player_id <- max_pid + 1
-        safe_execute(rv$db_con, "INSERT INTO players (player_id, display_name) VALUES (?, ?)",
-                     params = list(player_id, name))
+        new_player <- dbGetQuery(db_pool, "INSERT INTO players (display_name) VALUES ($1) RETURNING player_id",
+                     params = list(name))
+        player_id <- new_player$player_id[1]
       }
 
       # Convert record
@@ -865,36 +859,35 @@ observeEvent(input$edit_grid_save, {
 
       if (!is.na(row$result_id)) {
         # UPDATE existing result
-        safe_execute(rv$db_con, "
+        safe_execute(db_pool, "
           UPDATE results
-          SET player_id = ?, archetype_id = ?, pending_deck_request_id = ?,
-              placement = ?, wins = ?, losses = ?, ties = ?,
+          SET player_id = $1, archetype_id = $2, pending_deck_request_id = $3,
+              placement = $4, wins = $5, losses = $6, ties = $7,
               updated_at = CURRENT_TIMESTAMP
-          WHERE result_id = ?
+          WHERE result_id = $8
         ", params = list(player_id, archetype_id, pending_deck_request_id,
                          row$placement, wins, losses, ties, row$result_id))
         update_count <- update_count + 1L
       } else {
         # INSERT new result
-        max_result_id <- max_result_id + 1
-        safe_execute(rv$db_con, "
-          INSERT INTO results (result_id, tournament_id, player_id, archetype_id,
+        safe_execute(db_pool, "
+          INSERT INTO results (tournament_id, player_id, archetype_id,
                                pending_deck_request_id, placement, wins, losses, ties)
-          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
-        ", params = list(max_result_id, tournament_id, player_id, archetype_id,
+          VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+        ", params = list(tournament_id, player_id, archetype_id,
                          pending_deck_request_id, row$placement, wins, losses, ties))
         insert_count <- insert_count + 1L
       }
     }
 
     # Update player count on tournament
-    safe_execute(rv$db_con, "
-      UPDATE tournaments SET player_count = ?, updated_at = CURRENT_TIMESTAMP
-      WHERE tournament_id = ?
+    safe_execute(db_pool, "
+      UPDATE tournaments SET player_count = $1, updated_at = CURRENT_TIMESTAMP
+      WHERE tournament_id = $2
     ", params = list(nrow(filled_rows), tournament_id))
 
     # Recalculate ratings
-    recalculate_ratings_cache(rv$db_con)
+    recalculate_ratings_cache(db_pool)
     rv$data_refresh <- (rv$data_refresh %||% 0) + 1
 
     # Build summary message

@@ -4,14 +4,14 @@
 
 # Format list table
 output$admin_format_list <- renderReactable({
-  req(rv$db_con)
+
 
   # Trigger refresh
   input$add_format
   input$update_format
   input$confirm_delete_format
 
-  data <- dbGetQuery(rv$db_con, "
+  data <- dbGetQuery(db_pool, "
     SELECT format_id as 'Set Code',
            set_name as 'Set Name',
            release_date as 'Release Date',
@@ -46,13 +46,13 @@ output$admin_format_list <- renderReactable({
 
 # Click row to edit
 observeEvent(input$admin_format_list__reactable__selected, {
-  req(rv$db_con)
+
   selected_idx <- input$admin_format_list__reactable__selected
 
   if (is.null(selected_idx)) return()
 
   # Get the format_id from the selected row
-  data <- dbGetQuery(rv$db_con, "
+  data <- dbGetQuery(db_pool, "
     SELECT format_id, set_name, release_date, is_active
     FROM formats
     ORDER BY release_date DESC
@@ -79,7 +79,7 @@ observeEvent(input$admin_format_list__reactable__selected, {
 
 # Add format
 observeEvent(input$add_format, {
-  req(rv$is_superadmin, rv$db_con)
+  req(rv$is_superadmin, db_pool)
 
   clear_all_field_errors(session)
 
@@ -99,7 +99,7 @@ observeEvent(input$add_format, {
   display_name <- sprintf("%s (%s)", format_id, set_name)
 
   tryCatch({
-    dbExecute(rv$db_con, "
+    dbExecute(db_pool, "
       INSERT INTO formats (format_id, set_name, display_name, release_date, sort_order, is_active)
       VALUES ($1, $2, $3, $4, 0, $5)
     ", params = list(format_id, set_name, display_name, release_date, is_active))
@@ -127,7 +127,7 @@ observeEvent(input$add_format, {
 
 # Update format
 observeEvent(input$update_format, {
-  req(rv$is_superadmin, rv$db_con, input$editing_format_id)
+  req(rv$is_superadmin, db_pool, input$editing_format_id)
 
   clear_all_field_errors(session)
 
@@ -151,18 +151,18 @@ observeEvent(input$update_format, {
     # If format_id changed, we need to update related tournaments
     if (format_id != original_id) {
       # Update tournaments that reference this format
-      safe_execute(rv$db_con, "
+      safe_execute(db_pool, "
         UPDATE tournaments SET format = $1 WHERE format = $2
       ", params = list(format_id, original_id))
 
       # Delete old and insert new (since format_id is primary key)
-      safe_execute(rv$db_con, "DELETE FROM formats WHERE format_id = $1", params = list(original_id))
-      safe_execute(rv$db_con, "
+      safe_execute(db_pool, "DELETE FROM formats WHERE format_id = $1", params = list(original_id))
+      safe_execute(db_pool, "
         INSERT INTO formats (format_id, set_name, display_name, release_date, sort_order, is_active)
         VALUES ($1, $2, $3, $4, 0, $5)
       ", params = list(format_id, set_name, display_name, release_date, is_active))
     } else {
-      safe_execute(rv$db_con, "
+      safe_execute(db_pool, "
         UPDATE formats
         SET set_name = $1, display_name = $2, release_date = $3, is_active = $4, updated_at = CURRENT_TIMESTAMP
         WHERE format_id = $5
@@ -208,8 +208,8 @@ observeEvent(input$cancel_edit_format, {
 observe({
   req(input$editing_format_id)
 
-  count <- dbGetQuery(rv$db_con, "
-    SELECT COUNT(*) as cnt FROM tournaments WHERE format = ?
+  count <- dbGetQuery(db_pool, "
+    SELECT COUNT(*) as cnt FROM tournaments WHERE format = $1
   ", params = list(input$editing_format_id))$cnt
 
   rv$format_tournament_count <- count
@@ -220,7 +220,7 @@ observe({
 observeEvent(input$delete_format, {
   req(rv$is_superadmin, input$editing_format_id)
 
-  format <- dbGetQuery(rv$db_con, "SELECT set_name, display_name FROM formats WHERE format_id = ?",
+  format <- dbGetQuery(db_pool, "SELECT set_name, display_name FROM formats WHERE format_id = $1",
                        params = list(input$editing_format_id))
 
   if (rv$can_delete_format) {
@@ -246,10 +246,10 @@ observeEvent(input$delete_format, {
 
 # Confirm delete format
 observeEvent(input$confirm_delete_format, {
-  req(rv$is_superadmin, rv$db_con, input$editing_format_id)
+  req(rv$is_superadmin, db_pool, input$editing_format_id)
 
   tryCatch({
-    dbExecute(rv$db_con, "DELETE FROM formats WHERE format_id = ?",
+    dbExecute(db_pool, "DELETE FROM formats WHERE format_id = $1",
               params = list(input$editing_format_id))
     notify("Format deleted", type = "message")
 

@@ -9,7 +9,7 @@
 #' Calculate competitive ratings for all players
 #' Uses Elo-style system with implied results from tournament placements
 #'
-#' @param db_con DuckDB connection
+#' @param db_con Database connection (pool or DBI)
 #' @param format_filter Optional format filter (e.g., "BT19")
 #' @param date_cutoff Optional date cutoff (character "YYYY-MM-DD") to limit
 #'   which tournaments are included. Only tournaments on or before this date
@@ -141,7 +141,7 @@ calculate_competitive_ratings <- function(db_con, format_filter = NULL, date_cut
 #' Calculate achievement scores for all players
 #' Points-based system rewarding placements, diversity, and milestones
 #'
-#' @param db_con DuckDB connection
+#' @param db_con Database connection (pool or DBI)
 #' @return Data frame with player_id and achievement_score
 calculate_achievement_scores <- function(db_con) {
 
@@ -226,7 +226,7 @@ calculate_achievement_scores <- function(db_con) {
 #' Calculate average player rating for each store
 #' Weighted by number of appearances (regulars count more)
 #'
-#' @param db_con DuckDB connection
+#' @param db_con Database connection (pool or DBI)
 #' @param player_ratings Data frame from calculate_competitive_ratings()
 #' @return Data frame with store_id and avg_player_rating
 calculate_store_avg_player_rating <- function(db_con, player_ratings) {
@@ -269,7 +269,7 @@ calculate_store_avg_player_rating <- function(db_con, player_ratings) {
 #' Recalculate and cache all player and store ratings
 #' Called after result submission to keep cache fresh
 #'
-#' @param db_con DuckDB connection
+#' @param db_con Database connection (pool or DBI)
 #' @return TRUE on success, FALSE on error
 recalculate_ratings_cache <- function(db_con) {
   tryCatch({
@@ -329,7 +329,7 @@ recalculate_ratings_cache <- function(db_con) {
 #' Generate rating snapshot for a specific format era
 #' Computes ratings using all tournaments up to the format's end date
 #'
-#' @param db_con DuckDB connection
+#' @param db_con Database connection (pool or DBI)
 #' @param format_id Format identifier (e.g., "BT18")
 #' @param end_date Date cutoff (last day of this format era)
 #' @return Number of player snapshots created
@@ -350,7 +350,7 @@ generate_format_snapshot <- function(db_con, format_id, end_date) {
       "SELECT r.player_id, COUNT(DISTINCT r.tournament_id) as events_played
        FROM results r
        JOIN tournaments t ON r.tournament_id = t.tournament_id
-       WHERE t.event_date <= ?
+       WHERE t.event_date <= $1
        GROUP BY r.player_id",
       params = list(end_date))
 
@@ -362,7 +362,7 @@ generate_format_snapshot <- function(db_con, format_id, end_date) {
     snapshot$player_rank <- seq_len(nrow(snapshot))
 
     # Delete existing snapshot for this format (idempotent)
-    DBI::dbExecute(db_con, "DELETE FROM rating_snapshots WHERE format_id = ?",
+    DBI::dbExecute(db_con, "DELETE FROM rating_snapshots WHERE format_id = $1",
                    params = list(format_id))
 
     # Insert snapshot
@@ -391,7 +391,7 @@ generate_format_snapshot <- function(db_con, format_id, end_date) {
 #' Backfill rating snapshots for all historical formats
 #' Uses format release dates to determine era boundaries
 #'
-#' @param db_con DuckDB connection
+#' @param db_con Database connection (pool or DBI)
 backfill_rating_snapshots <- function(db_con) {
   # Get formats ordered by release date
   formats <- DBI::dbGetQuery(db_con, "

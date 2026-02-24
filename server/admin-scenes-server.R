@@ -12,8 +12,8 @@ outputOptions(output, "editing_scene", suspendWhenHidden = FALSE)
 # --- Scenes Table ---
 scenes_data <- reactive({
   rv$data_refresh  # Trigger refresh
-  req(rv$db_con, rv$is_superadmin)
-  safe_query(rv$db_con,
+  req(db_pool, rv$is_superadmin)
+  safe_query(db_pool,
     "SELECT s.scene_id, s.display_name, s.slug, s.scene_type, s.latitude, s.longitude,
             s.is_active, COUNT(st.store_id) as store_count
      FROM scenes s
@@ -101,9 +101,9 @@ output$scene_stores_list <- renderUI({
     return(tags$p(class = "text-muted small", "Select a scene to view its stores."))
   }
 
-  stores <- safe_query(rv$db_con,
+  stores <- safe_query(db_pool,
     "SELECT name, city, is_online, is_active FROM stores
-     WHERE scene_id = ? ORDER BY name",
+     WHERE scene_id = $1 ORDER BY name",
     params = list(sid),
     default = data.frame())
 
@@ -160,8 +160,8 @@ observeEvent(input$save_scene_btn, {
 
     # If editing and location field wasn't changed (still shows hint), keep existing coords
     if (!is.null(editing_scene_id())) {
-      old_scene <- safe_query(rv$db_con,
-        "SELECT latitude, longitude FROM scenes WHERE scene_id = ?",
+      old_scene <- safe_query(db_pool,
+        "SELECT latitude, longitude FROM scenes WHERE scene_id = $1",
         params = list(editing_scene_id()),
         default = data.frame())
       if (nrow(old_scene) > 0 && grepl("has coordinates", location, fixed = TRUE)) {
@@ -192,8 +192,8 @@ observeEvent(input$save_scene_btn, {
   if (is.null(editing_scene_id())) {
     # --- CREATE new scene ---
     # Check slug uniqueness
-    existing <- safe_query(rv$db_con,
-      "SELECT COUNT(*) as n FROM scenes WHERE slug = ?",
+    existing <- safe_query(db_pool,
+      "SELECT COUNT(*) as n FROM scenes WHERE slug = $1",
       params = list(slug),
       default = data.frame(n = 0))
     if (existing$n[1] > 0) {
@@ -201,20 +201,17 @@ observeEvent(input$save_scene_btn, {
       return()
     }
 
-    max_id <- safe_query(rv$db_con,
-      "SELECT COALESCE(MAX(scene_id), 0) as max_id FROM scenes",
-      default = data.frame(max_id = 0))
-    new_id <- max_id$max_id[1] + 1
-
-    result <- safe_execute(rv$db_con,
-      "INSERT INTO scenes (scene_id, name, slug, display_name, scene_type, latitude, longitude, is_active)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
-      params = list(new_id, display_name, slug, display_name, scene_type,
+    insert_result <- safe_query(db_pool,
+      "INSERT INTO scenes (name, slug, display_name, scene_type, latitude, longitude, is_active)
+       VALUES ($1, $2, $3, $4, $5, $6, $7)
+       RETURNING scene_id",
+      params = list(display_name, slug, display_name, scene_type,
                     if (is.na(lat)) NA_real_ else lat,
                     if (is.na(lng)) NA_real_ else lng,
-                    is_active))
+                    is_active),
+      default = data.frame())
 
-    if (result > 0) {
+    if (nrow(insert_result) > 0) {
       notify(paste0("Scene '", display_name, "' created"), type = "message")
       rv$data_refresh <- rv$data_refresh + 1
 
@@ -235,8 +232,8 @@ observeEvent(input$save_scene_btn, {
     sid <- editing_scene_id()
 
     # Check slug uniqueness (excluding self)
-    existing <- safe_query(rv$db_con,
-      "SELECT COUNT(*) as n FROM scenes WHERE slug = ? AND scene_id != ?",
+    existing <- safe_query(db_pool,
+      "SELECT COUNT(*) as n FROM scenes WHERE slug = $1 AND scene_id != $2",
       params = list(slug, sid),
       default = data.frame(n = 0))
     if (existing$n[1] > 0) {
@@ -244,10 +241,10 @@ observeEvent(input$save_scene_btn, {
       return()
     }
 
-    safe_execute(rv$db_con,
-      "UPDATE scenes SET name = ?, slug = ?, display_name = ?, scene_type = ?,
-       latitude = ?, longitude = ?, is_active = ?
-       WHERE scene_id = ?",
+    safe_execute(db_pool,
+      "UPDATE scenes SET name = $1, slug = $2, display_name = $3, scene_type = $4,
+       latitude = $5, longitude = $6, is_active = $7
+       WHERE scene_id = $8",
       params = list(display_name, slug, display_name, scene_type,
                     if (is.na(lat)) NA_real_ else lat,
                     if (is.na(lng)) NA_real_ else lng,
@@ -264,8 +261,8 @@ observeEvent(input$delete_scene_btn, {
   sid <- editing_scene_id()
 
   # Check for associated stores
-  store_count <- safe_query(rv$db_con,
-    "SELECT COUNT(*) as n FROM stores WHERE scene_id = ?",
+  store_count <- safe_query(db_pool,
+    "SELECT COUNT(*) as n FROM stores WHERE scene_id = $1",
     params = list(sid),
     default = data.frame(n = 0))
 
@@ -276,8 +273,8 @@ observeEvent(input$delete_scene_btn, {
   }
 
   # Check for admin users assigned to this scene
-  admin_count <- safe_query(rv$db_con,
-    "SELECT COUNT(*) as n FROM admin_users WHERE scene_id = ?",
+  admin_count <- safe_query(db_pool,
+    "SELECT COUNT(*) as n FROM admin_users WHERE scene_id = $1",
     params = list(sid),
     default = data.frame(n = 0))
 
@@ -287,8 +284,8 @@ observeEvent(input$delete_scene_btn, {
     return()
   }
 
-  safe_execute(rv$db_con,
-    "DELETE FROM scenes WHERE scene_id = ?",
+  safe_execute(db_pool,
+    "DELETE FROM scenes WHERE scene_id = $1",
     params = list(sid))
 
   scene_name <- input$scene_display_name

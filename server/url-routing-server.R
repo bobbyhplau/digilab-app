@@ -78,7 +78,7 @@ update_browser_url <- function(session, params, replace = FALSE) {
 
 # Process initial URL on app load
 observeEvent(input$url_initial, {
-  req(rv$db_con)
+
 
   params <- parse_url_params(input$url_initial$search)
   if (length(params) == 0) return()
@@ -93,16 +93,16 @@ observeEvent(input$url_initial, {
   # 1b. Community filter (store-specific view)
   if (!is.null(params$community)) {
     # Look up store by slug
-    store <- dbGetQuery(rv$db_con,
-      "SELECT store_id, scene_id FROM stores WHERE slug = ? AND is_active = TRUE",
+    store <- dbGetQuery(db_pool,
+      "SELECT store_id, scene_id FROM stores WHERE slug = $1 AND is_active = TRUE",
       params = list(params$community))
 
     if (nrow(store) == 1) {
       rv$community_filter <- params$community
       # Also set scene to the store's scene if available
       if (!is.na(store$scene_id)) {
-        scene_result <- dbGetQuery(rv$db_con,
-          "SELECT slug FROM scenes WHERE scene_id = ?",
+        scene_result <- dbGetQuery(db_pool,
+          "SELECT slug FROM scenes WHERE scene_id = $1",
           params = list(store$scene_id))
         if (nrow(scene_result) == 1 && !is.na(scene_result$slug)) {
           rv$current_scene <- scene_result$slug
@@ -164,7 +164,7 @@ observeEvent(input$url_initial, {
 
 # Handle browser back/forward button
 observeEvent(input$url_popstate, {
-  req(rv$db_con)
+
 
   params <- parse_url_params(input$url_popstate$search)
 
@@ -257,7 +257,7 @@ observeEvent(rv$current_nav, {
 #' @param slug Human-readable identifier (e.g., "atomshell", "blue-flare")
 #' @param id Database ID (takes precedence over slug if both provided)
 open_entity_from_url <- function(entity_type, slug = NULL, id = NULL) {
-  req(rv$db_con)
+
 
   # Resolve to entity ID
   entity_id <- NULL
@@ -310,24 +310,24 @@ open_entity_from_url <- function(entity_type, slug = NULL, id = NULL) {
 #' @param slug URL slug to look up
 #' @return Entity ID or NULL if not found
 resolve_entity_slug <- function(entity_type, slug) {
-  req(rv$db_con)
+
 
   result <- switch(entity_type,
     "player" = {
       # Players use display_name (slugified for comparison)
-      players <- dbGetQuery(rv$db_con, "SELECT player_id, display_name FROM players WHERE is_active = TRUE")
+      players <- dbGetQuery(db_pool, "SELECT player_id, display_name FROM players WHERE is_active = TRUE")
       match_idx <- which(sapply(players$display_name, slugify) == slug)
       if (length(match_idx) == 1) players$player_id[match_idx] else NULL
     },
     "deck" = {
       # Decks have a slug column
-      deck <- dbGetQuery(rv$db_con, "SELECT archetype_id FROM deck_archetypes WHERE slug = ? AND is_active = TRUE",
+      deck <- dbGetQuery(db_pool, "SELECT archetype_id FROM deck_archetypes WHERE slug = $1 AND is_active = TRUE",
                          params = list(slug))
       if (nrow(deck) == 1) deck$archetype_id else NULL
     },
     "store" = {
       # Stores have a slug column
-      store <- dbGetQuery(rv$db_con, "SELECT store_id FROM stores WHERE slug = ? AND is_active = TRUE",
+      store <- dbGetQuery(db_pool, "SELECT store_id FROM stores WHERE slug = $1 AND is_active = TRUE",
                           params = list(slug))
       if (nrow(store) == 1) store$store_id else NULL
     },
