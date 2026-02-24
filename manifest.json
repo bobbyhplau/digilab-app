@@ -4348,7 +4348,7 @@
   },
   "files": {
     ".claude/settings.local.json": {
-      "checksum": "c3e8606063d9cc29157fcb489afb41ae"
+      "checksum": "34c1a11596ecaec566dab9b6a38a71b9"
     },
     ".env": {
       "checksum": "75647938b53bd9d90e5e53bc3a85c1dc"
@@ -4363,7 +4363,7 @@
       "checksum": "2209b31b91119dd05fb80ff1a2c13be2"
     },
     ".Rprofile": {
-      "checksum": "4b382d7e03401208ce9cbae2b30dd545"
+      "checksum": "daaf50bbd075eb5c51d124b989fc554e"
     },
     ".vscode/settings.json": {
       "checksum": "4aa85c6acde752675b31b354987521ce"
@@ -4402,7 +4402,7 @@
       "checksum": "10c1ca8a11d8cede4769654fa6c14406"
     },
     "db/schema.sql": {
-      "checksum": "107d77b3f83a97081d35ae27a3b45110"
+      "checksum": "17fff33a20aeb679a86da623ffcc75bb"
     },
     "docs/card-sync.md": {
       "checksum": "0a718cb7a0105cc5dada8a601b27581b"
@@ -5433,6 +5433,9 @@
     "scripts/delete_mock_data.R": {
       "checksum": "fa70c59bf877260beaf82bca859f0ea2"
     },
+    "scripts/drop_fk_constraints.py": {
+      "checksum": "91d4a562c2a306b07d66db4f3cc59722"
+    },
     "scripts/generate_pwa_icons.py": {
       "checksum": "ebe7ea40f223bca584202ffbb1ce1160"
     },
@@ -5497,7 +5500,7 @@
       "checksum": "b357ed4c70272f6ea47e3ca8e72b4da6"
     },
     "server/admin-stores-server.R": {
-      "checksum": "34e73ccc19df6706b5e92b74f1ab24e7"
+      "checksum": "332cd8657911d4fd52ddf883027f3666"
     },
     "server/admin-tournaments-server.R": {
       "checksum": "6568351faec876387315974c3185bf8d"
