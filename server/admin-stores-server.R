@@ -72,6 +72,16 @@ observe({
   }
 })
 
+# --- Refresh tournament_store dropdown on data changes ---
+# Separated from add/update/delete handlers to prevent DuckDB "catalog changed"
+# race condition. The SELECT runs in the next reactive cycle, after writes complete.
+observe({
+  rv$data_refresh
+  req(rv$db_con, rv$is_admin)
+  updateSelectInput(session, "tournament_store",
+                    choices = get_store_choices(rv$db_con, include_none = TRUE))
+})
+
 # Add store
 observeEvent(input$add_store, {
 
@@ -242,10 +252,7 @@ observeEvent(input$add_store, {
     updateSelectInput(session, "store_country_physical", selected = "USA")
     updateSelectInput(session, "store_scene", selected = "")
 
-    # Update store dropdown
-    updateSelectInput(session, "tournament_store", choices = get_store_choices(rv$db_con, include_none = TRUE))
-
-    # Trigger refresh of public tables
+    # Trigger refresh of public tables (also updates tournament_store dropdown via observer)
     rv$data_refresh <- (rv$data_refresh %||% 0) + 1
 
   }, error = function(e) {
@@ -567,10 +574,7 @@ observeEvent(input$update_store, {
     shinyjs::hide("update_store")
     shinyjs::hide("delete_store")
 
-    # Update dropdown
-    updateSelectInput(session, "tournament_store", choices = get_store_choices(rv$db_con, include_none = TRUE))
-
-    # Trigger refresh of public tables
+    # Trigger refresh of public tables (also updates tournament_store dropdown via observer)
     rv$data_refresh <- (rv$data_refresh %||% 0) + 1
 
   }, error = function(e) {
@@ -601,12 +605,13 @@ observeEvent(input$cancel_edit_store, {
 
 # Check if store can be deleted (no related tournaments)
 observe({
-  req(input$editing_store_id)
+  req(input$editing_store_id, rv$db_con)
   store_id <- as.integer(input$editing_store_id)
 
-  count <- dbGetQuery(rv$db_con, "
+  result <- safe_query(rv$db_con, "
     SELECT COUNT(*) as cnt FROM tournaments WHERE store_id = ?
-  ", params = list(store_id))$cnt
+  ", params = list(store_id), default = data.frame(cnt = 0))
+  count <- result$cnt
 
   rv$store_tournament_count <- count
   rv$can_delete_store <- count == 0
@@ -646,45 +651,43 @@ observeEvent(input$confirm_delete_store, {
   req(rv$is_admin, rv$db_con, input$editing_store_id)
   store_id <- as.integer(input$editing_store_id)
 
-  tryCatch({
-    dbExecute(rv$db_con, "DELETE FROM store_schedules WHERE store_id = ?",
-              params = list(store_id))
-    dbExecute(rv$db_con, "DELETE FROM stores WHERE store_id = ?",
-              params = list(store_id))
-    notify("Store deleted", type = "message")
+  rows1 <- safe_execute(rv$db_con, "DELETE FROM store_schedules WHERE store_id = ?",
+                        params = list(store_id))
+  rows2 <- safe_execute(rv$db_con, "DELETE FROM stores WHERE store_id = ?",
+                        params = list(store_id))
 
-    # Hide modal and reset form
-    removeModal()
+  if (rows2 == 0) {
+    notify("Failed to delete store. Check logs for details.", type = "error")
+    return()
+  }
 
-    # Clear form
-    updateTextInput(session, "editing_store_id", value = "")
-    updateTextInput(session, "store_name", value = "")
-    updateTextInput(session, "store_name_online", value = "")
-    updateTextInput(session, "store_region", value = "")
-    updateTextInput(session, "store_address", value = "")
-    updateTextInput(session, "store_city", value = "")
-    updateTextInput(session, "store_state", value = "")
-    updateTextInput(session, "store_zip", value = "")
-    updateTextInput(session, "store_website", value = "")
-    updateCheckboxInput(session, "store_is_online", value = FALSE)
-    updateSelectInput(session, "store_country", selected = "USA")
-    updateSelectInput(session, "store_country_physical", selected = "USA")
-    updateSelectInput(session, "store_scene", selected = "")
-    rv$pending_schedules <- list()  # Clear pending schedules
+  notify("Store deleted", type = "message")
 
-    shinyjs::show("add_store")
-    shinyjs::hide("update_store")
-    shinyjs::hide("delete_store")
+  # Hide modal and reset form
+  removeModal()
 
-    # Update dropdown
-    updateSelectInput(session, "tournament_store", choices = get_store_choices(rv$db_con, include_none = TRUE))
+  # Clear form
+  updateTextInput(session, "editing_store_id", value = "")
+  updateTextInput(session, "store_name", value = "")
+  updateTextInput(session, "store_name_online", value = "")
+  updateTextInput(session, "store_region", value = "")
+  updateTextInput(session, "store_address", value = "")
+  updateTextInput(session, "store_city", value = "")
+  updateTextInput(session, "store_state", value = "")
+  updateTextInput(session, "store_zip", value = "")
+  updateTextInput(session, "store_website", value = "")
+  updateCheckboxInput(session, "store_is_online", value = FALSE)
+  updateSelectInput(session, "store_country", selected = "USA")
+  updateSelectInput(session, "store_country_physical", selected = "USA")
+  updateSelectInput(session, "store_scene", selected = "")
+  rv$pending_schedules <- list()  # Clear pending schedules
 
-    # Trigger refresh of public tables
-    rv$data_refresh <- (rv$data_refresh %||% 0) + 1
+  shinyjs::show("add_store")
+  shinyjs::hide("update_store")
+  shinyjs::hide("delete_store")
 
-  }, error = function(e) {
-    notify(paste("Error:", e$message), type = "error")
-  })
+  # Trigger refresh of public tables (also updates tournament_store dropdown via observer)
+  rv$data_refresh <- (rv$data_refresh %||% 0) + 1
 })
 
 # =============================================================================

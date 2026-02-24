@@ -198,6 +198,11 @@ notify <- function(message, type = "message", duration = NULL, ...) {
     tags$span(class = "notify-message", message)
   )
 
+  # Log errors and warnings to stderr so they appear in Posit Connect logs
+  if (type %in% c("error", "warning")) {
+    message("[notify:", type, "] ", message)
+  }
+
   showNotification(
     ui = ui,
     duration = duration,
