@@ -4363,7 +4363,7 @@
       "checksum": "2209b31b91119dd05fb80ff1a2c13be2"
     },
     ".Rprofile": {
-      "checksum": "943c2e631c93adaf6901e7a371703ffc"
+      "checksum": "76a13b4cdf6ea73f8db01d5a294faf5b"
     },
     ".vscode/settings.json": {
       "checksum": "4aa85c6acde752675b31b354987521ce"
@@ -5479,7 +5479,7 @@
       "checksum": "a0eead3832e097fa17e76ee840be0716"
     },
     "server/admin-decks-server.R": {
-      "checksum": "2d6e726de6f53e10c5f2a2e5ba0b9b4d"
+      "checksum": "d362907035d6ce913b00c278c3dfb7f4"
     },
     "server/admin-formats-server.R": {
       "checksum": "afe0d0d88a07c159c6fe7060c933a492"
@@ -5494,7 +5494,7 @@
       "checksum": "b357ed4c70272f6ea47e3ca8e72b4da6"
     },
     "server/admin-stores-server.R": {
-      "checksum": "391ceeee00be36ead6b6ba29576a0375"
+      "checksum": "add52ef536e505eec94cc633ddf7eac7"
     },
     "server/admin-tournaments-server.R": {
       "checksum": "6568351faec876387315974c3185bf8d"
@@ -5551,7 +5551,7 @@
       "checksum": "d4974841c8336fc16f754c358b857108"
     },
     "views/admin-stores-ui.R": {
-      "checksum": "7990b2be94a10a1f36cc1d86aaba9c50"
+      "checksum": "e0805d540bcfe598815bcb55b2877c76"
     },
     "views/admin-tournaments-ui.R": {
       "checksum": "0c4ad3cb6eb1d287caafe11b79613631"
