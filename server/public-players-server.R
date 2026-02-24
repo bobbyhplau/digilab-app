@@ -73,8 +73,10 @@ make_sparkline_svg <- function(values, width = 120, height = 24, color = "#00C8F
 observeEvent(input$reset_players_filters, {
   updateTextInput(session, "players_search", value = "")
   updateSelectInput(session, "players_format", selected = "")
-  # Reset pill toggle to default (5+)
-  session$sendCustomMessage("resetPillToggle", list(inputId = "players_min_events", value = "5"))
+  # Reset pill toggle to dynamic default based on current scope
+  tournament_count <- count_tournaments_for_scope(db_pool, rv$current_scene, rv$community_filter)
+  default_min <- get_default_min_events(tournament_count)
+  session$sendCustomMessage("resetPillToggle", list(inputId = "players_min_events", value = default_min))
 })
 
 # Historical rating indicator

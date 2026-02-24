@@ -1,7 +1,7 @@
 # Dynamic Min Events Default Design
 
 **Date:** 2026-02-24
-**Status:** Approved
+**Status:** Implemented
 **Target Version:** v1.1 or later
 
 ## Overview

@@ -28,7 +28,14 @@ players_ui <- tagList(
                       width = "140px",
                       selectize = FALSE)
         ),
-        span(class = "title-strip-pill-label", "Min Events:"),
+        span(class = "title-strip-pill-label",
+          "Min Events:",
+          tags$span(
+            class = "help-icon",
+            title = "Default adjusts based on scene data. Newer scenes show all players; established scenes filter to frequent competitors.",
+            bsicons::bs_icon("question-circle")
+          )
+        ),
         div(
           class = "pill-toggle",
           `data-input-id` = "players_min_events",

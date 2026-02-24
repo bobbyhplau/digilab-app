@@ -108,11 +108,12 @@ observeEvent(input$url_initial, {
           rv$current_scene <- scene_result$slug
         }
       }
-      # Reset filters to show all entries when viewing a single community
-      # (small dataset, so showing all makes more sense than 5+ minimum)
+      # Set dynamic min_events default based on community's tournament count
       shinyjs::delay(150, {
-        session$sendCustomMessage("setPillToggle", list(inputId = "players_min_events", value = "0"))
-        session$sendCustomMessage("setPillToggle", list(inputId = "meta_min_entries", value = "0"))
+        tournament_count <- count_tournaments_for_scope(db_pool, NULL, params$community)
+        default_min <- get_default_min_events(tournament_count)
+        session$sendCustomMessage("setPillToggle", list(inputId = "players_min_events", value = default_min))
+        session$sendCustomMessage("setPillToggle", list(inputId = "meta_min_entries", value = default_min))
       })
     }
   }

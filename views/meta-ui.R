@@ -28,7 +28,14 @@ meta_ui <- tagList(
                       width = "140px",
                       selectize = FALSE)
         ),
-        span(class = "title-strip-pill-label", "Min Entries:"),
+        span(class = "title-strip-pill-label",
+          "Min Entries:",
+          tags$span(
+            class = "help-icon",
+            title = "Default adjusts based on scene data. Newer scenes show all decks; established scenes filter to frequently played archetypes.",
+            bsicons::bs_icon("question-circle")
+          )
+        ),
         div(
           class = "pill-toggle",
           `data-input-id` = "meta_min_entries",

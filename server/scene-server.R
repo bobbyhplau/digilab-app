@@ -91,6 +91,13 @@ observeEvent(input$scene_from_storage, {
     if (stored$scene %in% unlist(choices)) {
       rv$current_scene <- stored$scene
       updateSelectInput(session, "scene_selector", choices = choices, selected = stored$scene)
+      # Set dynamic min_events default for initial scene load
+      shinyjs::delay(200, {
+        tournament_count <- count_tournaments_for_scope(db_pool, stored$scene, NULL)
+        default_min <- get_default_min_events(tournament_count)
+        session$sendCustomMessage("setPillToggle", list(inputId = "players_min_events", value = default_min))
+        session$sendCustomMessage("setPillToggle", list(inputId = "meta_min_entries", value = default_min))
+      })
     }
   }
 }, once = TRUE)
@@ -128,6 +135,12 @@ observeEvent(input$scene_selector, {
 
   # Trigger data refresh
   rv$data_refresh <- Sys.time()
+
+  # Update min_events default based on scene's tournament count
+  tournament_count <- count_tournaments_for_scope(db_pool, new_scene, NULL)
+  default_min <- get_default_min_events(tournament_count)
+  session$sendCustomMessage("setPillToggle", list(inputId = "players_min_events", value = default_min))
+  session$sendCustomMessage("setPillToggle", list(inputId = "meta_min_entries", value = default_min))
 }, ignoreInit = TRUE)
 
 # -----------------------------------------------------------------------------

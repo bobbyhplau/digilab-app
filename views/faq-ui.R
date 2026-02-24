@@ -421,6 +421,24 @@ faq_ui <- div(
       p(strong("Record"), " \u2014 Your win-loss-tie record"),
       p(strong("Meta %"), " \u2014 How often a deck appears in tournaments"),
       p(strong("Conv %"), " \u2014 Conversion rate (top finishes / total appearances)")
+    ),
+    accordion_panel(
+      title = "Why does the minimum events filter change between scenes?",
+      value = "min-events-filter",
+      icon = bsicons::bs_icon("filter"),
+      p("The ", strong("Min Events"), " and ", strong("Min Entries"), " filters on the Players and ",
+        "Deck Meta tabs adjust their default based on how much tournament data exists in each scene."),
+      p(strong("How it works:")),
+      tags$ul(
+        tags$li(strong("Newer scenes"), " (fewer than 20 tournaments) default to ", strong("\"All\""),
+                " so you can see everyone who has competed"),
+        tags$li(strong("Growing scenes"), " (20\u2013100 tournaments) default to ", strong("\"5+\""),
+                " to highlight returning players"),
+        tags$li(strong("Established scenes"), " (100+ tournaments) default to ", strong("\"10+\""),
+                " to showcase committed competitors")
+      ),
+      p("This ensures newer communities don't appear empty while established scenes surface ",
+        "meaningful data. You can always change the filter manually to see more or fewer results.")
     )
   )
 )
