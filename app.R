@@ -448,6 +448,8 @@ ui <- page_fillable(
         }
       });
     ")),
+    # Flag icons CSS for country flags in tables
+    tags$link(rel = "stylesheet", href = "https://cdn.jsdelivr.net/npm/flag-icons@7.2.3/css/flag-icons.min.css"),
     tags$link(rel = "stylesheet", type = "text/css", href = "custom.css"),
     # Deep linking URL routing
     tags$script(src = "url-routing.js"),

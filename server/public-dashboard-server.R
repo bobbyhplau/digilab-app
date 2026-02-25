@@ -339,10 +339,10 @@ output$recent_tournaments <- renderReactable({
   filters <- build_community_filters("t", "s")
 
   # Query with winner (player who got placement = 1) and store_id for rating join
-  # Include scene name when showing all scenes
+  # Include scene info when showing all scenes (scene_type + country for flag display)
   if (show_all_scenes) {
     query <- paste("
-      SELECT t.tournament_id, s.store_id, sc.display_name as \"Scene\",
+      SELECT t.tournament_id, s.store_id, sc.scene_type, s.country,
              s.name as \"Store\", t.event_date as \"Date\",
              t.player_count as \"Players\", p.display_name as \"Winner\"
       FROM tournaments t
@@ -377,35 +377,91 @@ output$recent_tournaments <- renderReactable({
   # Replace NA winners with "-"
   data$Winner[is.na(data$Winner)] <- "-"
 
-  # Replace NA scenes with "Unknown"
+  # Build location indicator column for "all scenes" view
+  # Uses globe icon for online, flag icons for physical (via flag-icons CSS library)
+  if (show_all_scenes) {
+    # Country to ISO 3166-1-alpha-2 code mapping (lowercase for flag-icons)
+    country_codes <- c(
+      "USA" = "us",
+      "Canada" = "ca",
+      "UK" = "gb",
+      "United Kingdom" = "gb",
+      "Australia" = "au",
+      "Germany" = "de",
+      "France" = "fr",
+      "Japan" = "jp",
+      "Mexico" = "mx",
+      "Brazil" = "br",
+      "New Zealand" = "nz",
+      "Netherlands" = "nl",
+      "Spain" = "es",
+      "Italy" = "it",
+      "South Korea" = "kr",
+      "Philippines" = "ph",
+      "Singapore" = "sg",
+      "Malaysia" = "my",
+      "Indonesia" = "id",
+      "Thailand" = "th"
+    )
 
-  if (show_all_scenes && "Scene" %in% names(data)) {
-    data$Scene[is.na(data$Scene)] <- "Unknown"
+    data$Loc <- sapply(seq_len(nrow(data)), function(i) {
+      if (!is.na(data$scene_type[i]) && data$scene_type[i] == "online") {
+        "online"
+      } else if (!is.na(data$country[i]) && data$country[i] %in% names(country_codes)) {
+        country_codes[data$country[i]]
+      } else {
+        "unknown"
+      }
+    })
   }
 
   # Build columns list based on whether we're showing all scenes
-  # Use tighter widths when showing Scene column to fit everything
   columns <- list(
     tournament_id = colDef(show = FALSE),
     store_id = colDef(show = FALSE),
     Store = colDef(
-      minWidth = if (show_all_scenes) 120 else 150,
       style = list(overflow = "hidden", textOverflow = "ellipsis", whiteSpace = "nowrap")
     ),
-    Date = colDef(width = 90),
-    Players = colDef(width = 55, align = "center", name = "#"),
+    Date = colDef(
+      width = 95,
+      style = list(whiteSpace = "nowrap")
+    ),
+    Players = colDef(width = 45, align = "center", name = "#"),
     Winner = colDef(
-      minWidth = if (show_all_scenes) 90 else 100,
+      minWidth = 90,
       style = list(overflow = "hidden", textOverflow = "ellipsis", whiteSpace = "nowrap")
     )
   )
 
-  # Add Scene column when showing all scenes
+  # Add hidden columns for scene data when showing all scenes
   if (show_all_scenes) {
-    columns$Scene <- colDef(
-      width = 100,
-      style = list(overflow = "hidden", textOverflow = "ellipsis", whiteSpace = "nowrap")
+    columns$scene_type <- colDef(show = FALSE)
+    columns$country <- colDef(show = FALSE)
+  }
+
+  # Add Loc column when showing all scenes (flag icons via flag-icons CSS library)
+  if (show_all_scenes) {
+    columns$Loc <- colDef(
+      name = "",
+      width = 36,
+      align = "center",
+      html = TRUE,
+      cell = function(value) {
+        if (value == "online") {
+          # Globe icon for online scenes (using Bootstrap Icons)
+          as.character(bsicons::bs_icon("globe", title = "Online"))
+        } else if (value == "unknown") {
+          # Dash for unknown
+          "<span style='color: #9CA3AF; font-size: 0.75rem;'>--</span>"
+        } else {
+          # Country flag
+          sprintf("<span class='fi fi-%s' title='%s'></span>", value, toupper(value))
+        }
+      }
     )
+    # Reorder columns so Loc appears first
+    col_order <- c("tournament_id", "store_id", "scene_type", "country", "Loc", "Store", "Date", "Players", "Winner")
+    data <- data[, col_order]
   }
 
   reactable(data, compact = TRUE, striped = TRUE,
