@@ -1008,6 +1008,192 @@ render_online_organizers_map <- function() {
     mapgl::set_view(center = c(-40, 20), zoom = 1.5)
 }
 
+# Helper: Render combined world map for All Scenes (physical + online)
+render_all_scenes_map <- function(physical_stores) {
+  # Query online organizers (same query as render_online_organizers_map)
+  online_stores <- safe_query(db_pool, "
+    SELECT s.store_id, s.name, s.city as region, s.country, s.website,
+           COUNT(t.tournament_id) as tournament_count,
+           COALESCE(ROUND(AVG(t.player_count), 1), 0) as avg_players
+    FROM stores s
+    LEFT JOIN tournaments t ON s.store_id = t.store_id
+    WHERE s.is_online = TRUE AND s.is_active = TRUE
+    GROUP BY s.store_id, s.name, s.city, s.country, s.website
+  ")
+
+  # Create base flat world map
+  map <- atom_mapgl(theme = "digital", projection = "mercator") |>
+    add_atom_popup_style(theme = "light")
+
+  # --- Physical store markers (orange) ---
+  if (!is.null(physical_stores) && nrow(physical_stores) > 0) {
+    phys_with_coords <- physical_stores[!is.na(physical_stores$latitude) & !is.na(physical_stores$longitude), ]
+
+    if (nrow(phys_with_coords) > 0) {
+      phys_sf <- st_as_sf(phys_with_coords, coords = c("longitude", "latitude"), crs = 4326)
+
+      phys_sf$bubble_size <- sapply(phys_with_coords$avg_players, function(avg) {
+        if (is.na(avg) || avg == 0) return(5)
+        if (avg < 8) return(10)
+        if (avg <= 12) return(14)
+        if (avg <= 18) return(18)
+        if (avg <= 24) return(22)
+        return(26)
+      })
+
+      phys_sf$popup <- sapply(1:nrow(phys_sf), function(i) {
+        store <- phys_with_coords[i, ]
+        metrics <- c()
+        if (!is.null(store$city) && !is.na(store$city)) {
+          metrics <- c(metrics, "City" = store$city)
+        }
+        if (!is.na(store$tournament_count) && store$tournament_count > 0) {
+          metrics <- c(metrics, "Events" = as.character(store$tournament_count))
+          metrics <- c(metrics, "Avg Players" = as.character(store$avg_players))
+        }
+        body_parts <- c()
+        if (!is.null(store$address) && !is.na(store$address) && store$address != "") {
+          body_parts <- c(body_parts, store$address)
+        }
+        schedule_text <- parse_schedule_info(store$schedule_info)
+        if (!is.null(schedule_text)) {
+          body_parts <- c(body_parts, paste("<br><em>", schedule_text, "</em>"))
+        }
+        if (!is.na(store$last_event)) {
+          days_ago <- as.integer(Sys.Date() - as.Date(store$last_event))
+          last_event_text <- if (days_ago == 0) "Today" else if (days_ago == 1) "Yesterday" else paste(days_ago, "days ago")
+          body_parts <- c(body_parts, paste("<br><small>Last event:", last_event_text, "</small>"))
+        }
+        body_text <- if (length(body_parts) > 0) paste(body_parts, collapse = "") else NULL
+        atom_popup_html_metrics(
+          title = store$name,
+          subtitle = if (store$tournament_count > 0) "Active Game Store" else "Game Store",
+          metrics = if (length(metrics) > 0) metrics else NULL,
+          body = body_text,
+          theme = "light"
+        )
+      })
+
+      map <- map |>
+        mapgl::add_circle_layer(
+          id = "physical-stores-layer",
+          source = phys_sf,
+          circle_color = "#F7941D",
+          circle_radius = list("get", "bubble_size"),
+          circle_stroke_color = "#FFFFFF",
+          circle_stroke_width = 2,
+          circle_opacity = 0.85,
+          popup = "popup"
+        )
+    }
+  }
+
+  # --- Online organizer markers (green) ---
+  if (nrow(online_stores) > 0) {
+    online_stores$lat <- NA_real_
+    online_stores$lng <- NA_real_
+    for (i in 1:nrow(online_stores)) {
+      coords <- get_region_coordinates(online_stores$country[i], online_stores$region[i])
+      if (!is.null(coords)) {
+        online_stores$lat[i] <- coords$lat
+        online_stores$lng[i] <- coords$lng
+      }
+    }
+
+    stores_with_coords <- online_stores[!is.na(online_stores$lat), ]
+
+    if (nrow(stores_with_coords) > 0) {
+      stores_with_coords$coord_key <- paste(stores_with_coords$lat, stores_with_coords$lng)
+      grouped <- split(stores_with_coords, stores_with_coords$coord_key)
+
+      grouped_rows <- lapply(grouped, function(grp) {
+        data.frame(
+          lat = grp$lat[1],
+          lng = grp$lng[1],
+          tournament_count = sum(grp$tournament_count, na.rm = TRUE),
+          store_count = nrow(grp),
+          stringsAsFactors = FALSE
+        )
+      })
+      grouped_df <- do.call(rbind, grouped_rows)
+
+      online_sf <- st_as_sf(grouped_df, coords = c("lng", "lat"), crs = 4326)
+
+      online_sf$bubble_size <- sapply(grouped_df$tournament_count, function(cnt) {
+        if (is.na(cnt) || cnt == 0) return(8)
+        if (cnt < 10) return(12)
+        if (cnt < 50) return(16)
+        if (cnt < 100) return(20)
+        return(24)
+      })
+
+      online_sf$popup <- sapply(names(grouped), function(key) {
+        grp <- grouped[[key]]
+        if (nrow(grp) == 1) {
+          store <- grp[1, ]
+          metrics <- c()
+          if (!is.na(store$country)) metrics <- c(metrics, "Country" = store$country)
+          if (!is.na(store$region) && store$region != "") metrics <- c(metrics, "Region" = store$region)
+          if (store$tournament_count > 0) {
+            metrics <- c(metrics, "Events" = as.character(store$tournament_count))
+            metrics <- c(metrics, "Avg Players" = as.character(store$avg_players))
+          }
+          atom_popup_html_metrics(
+            title = store$name,
+            subtitle = "Online Organizer",
+            metrics = if (length(metrics) > 0) metrics else NULL,
+            theme = "light"
+          )
+        } else {
+          store_sections <- sapply(1:nrow(grp), function(j) {
+            store <- grp[j, ]
+            details <- c()
+            if (store$tournament_count > 0) {
+              details <- c(details, sprintf("%d events", as.integer(store$tournament_count)))
+              details <- c(details, sprintf("%.1f avg players", store$avg_players))
+            }
+            detail_str <- if (length(details) > 0) paste(details, collapse = " &middot; ") else "No events yet"
+            sprintf(
+              '<div style="padding:4px 0;%s">
+                <div style="font-weight:600;font-size:13px;">%s</div>
+                <div style="font-size:11px;opacity:0.7;">%s</div>
+              </div>',
+              if (j < nrow(grp)) "border-bottom:1px solid rgba(0,0,0,0.08);" else "",
+              htmltools::htmlEscape(store$name),
+              detail_str
+            )
+          })
+          country_label <- if (!is.na(grp$country[1])) grp$country[1] else ""
+          sprintf(
+            '<div style="text-align:center;padding:10px 14px;min-width:180px;font-family:system-ui,-apple-system,sans-serif;">
+              <div style="font-size:11px;text-transform:uppercase;letter-spacing:0.5px;opacity:0.5;margin-bottom:4px;">%s</div>
+              <div style="font-size:14px;font-weight:700;margin-bottom:8px;">%d Online Organizers</div>
+              <div style="text-align:left;">%s</div>
+            </div>',
+            htmltools::htmlEscape(country_label),
+            nrow(grp),
+            paste(store_sections, collapse = "")
+          )
+        }
+      })
+
+      map <- map |>
+        mapgl::add_circle_layer(
+          id = "online-stores-layer",
+          source = online_sf,
+          circle_color = "#10B981",
+          circle_radius = list("get", "bubble_size"),
+          circle_stroke_color = "#FFFFFF",
+          circle_stroke_width = 2,
+          circle_opacity = 0.85,
+          popup = "popup"
+        )
+    }
+  }
+
+  map |> mapgl::set_view(center = c(-40, 20), zoom = 1.5)
+}
+
 # Stores Map
 output$stores_map <- renderMapboxgl({
   scene <- rv$current_scene
@@ -1015,6 +1201,11 @@ output$stores_map <- renderMapboxgl({
   # For Online scene, show world map with online organizers
   if (!is.null(scene) && scene == "online") {
     return(render_online_organizers_map())
+  }
+
+  # For All Scenes, show combined world map with physical + online markers
+  if (is.null(scene) || scene == "" || scene == "all") {
+    return(render_all_scenes_map(stores_data()))
   }
 
   # For other scenes, show regional map with physical stores
@@ -1110,7 +1301,7 @@ output$stores_map <- renderMapboxgl({
       circle_opacity = 0.85,
       popup = "popup"
     ) |>
-    mapgl::fit_bounds(stores_sf, padding = 50)
+    mapgl::fit_bounds(stores_sf, padding = 50, maxZoom = 9)
 
   map
 }) |> bindCache(rv$current_scene, rv$community_filter, input$dark_mode, rv$data_refresh)
