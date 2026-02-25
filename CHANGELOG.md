@@ -8,6 +8,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [1.0.8] - 2026-02-25 - Limitless Integration Fixes
 
 ### Fixed
+- **Duplicate key error when adding results**: The Limitless sync script was manually calculating IDs instead of letting PostgreSQL auto-generate them, causing the database sequence to get out of sync. Fixed sync script to use `INSERT ... RETURNING` pattern.
+- **Edit Results grid showing only 8 rows**: When editing a tournament with more than 8 expected players, the grid was hardcoded to show only 8 rows if no results were saved yet. Now correctly shows rows matching the tournament's player count.
 - **Decklist URLs**: Fixed 1,838 broken decklist links. URLs now correctly point to `play.limitlesstcg.com/tournament/{id}/player/{username}/decklist` instead of the incorrect format.
 - **Egg category parsing**: Classification now correctly reads `'egg'` category from Limitless API (was looking for `'digi-egg'`).
 - **Classification rules**: Major overhaul of 25+ deck archetype rules based on actual meta:

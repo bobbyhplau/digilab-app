@@ -292,19 +292,16 @@ def resolve_player(cursor, limitless_username, display_name, player_cache):
         player_cache[limitless_username] = row[0]
         return row[0]
 
-    # Create new player
-    cursor.execute(
-        "SELECT COALESCE(MAX(player_id), 0) + 1 FROM players"
-    )
-    next_id = cursor.fetchone()[0]
-
+    # Create new player (let PostgreSQL generate player_id via IDENTITY)
     cursor.execute("""
-        INSERT INTO players (player_id, display_name, limitless_username, is_active)
-        VALUES (%s, %s, %s, TRUE)
-    """, (next_id, display_name, limitless_username))
+        INSERT INTO players (display_name, limitless_username, is_active)
+        VALUES (%s, %s, TRUE)
+        RETURNING player_id
+    """, (display_name, limitless_username))
+    new_id = cursor.fetchone()[0]
 
-    player_cache[limitless_username] = next_id
-    return next_id
+    player_cache[limitless_username] = new_id
+    return new_id
 
 
 # =============================================================================
@@ -483,19 +480,14 @@ def sync_tournament(cursor, tournament, organizer_id, store_id, dry_run=False):
             print(f"      SKIPPED: No deck data for top 3 players (tournament doesn't track decks)")
             return None
 
-    # Insert tournament
-    cursor.execute(
-        "SELECT COALESCE(MAX(tournament_id), 0) + 1 FROM tournaments"
-    )
-    next_tournament_id = cursor.fetchone()[0]
-
+    # Insert tournament (let PostgreSQL generate tournament_id via IDENTITY)
     cursor.execute("""
         INSERT INTO tournaments
-            (tournament_id, store_id, event_date, event_type, format, player_count,
+            (store_id, event_date, event_type, format, player_count,
              rounds, limitless_id, notes, created_at, updated_at)
-        VALUES (%s, %s, %s, 'online', %s, %s, %s, %s, %s, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+        VALUES (%s, %s, 'online', %s, %s, %s, %s, %s, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+        RETURNING tournament_id
     """, (
-        next_tournament_id,
         store_id,
         event_date,
         format_id,
@@ -504,6 +496,7 @@ def sync_tournament(cursor, tournament, organizer_id, store_id, dry_run=False):
         limitless_id,
         f"Imported from Limitless TCG (organizer {organizer_id})",
     ))
+    next_tournament_id = cursor.fetchone()[0]
 
     print(f"      Inserted tournament_id={next_tournament_id}")
 
@@ -569,21 +562,15 @@ def sync_tournament(cursor, tournament, organizer_id, store_id, dry_run=False):
         # Build Limitless decklist URL
         decklist_url = f"https://play.limitlesstcg.com/tournament/{limitless_id}/player/{limitless_username}/decklist" if decklist_json else None
 
-        # Insert result
-        cursor.execute(
-            "SELECT COALESCE(MAX(result_id), 0) + 1 FROM results"
-        )
-        next_result_id = cursor.fetchone()[0]
-
+        # Insert result (let PostgreSQL generate result_id via IDENTITY)
         try:
             cursor.execute("""
                 INSERT INTO results
-                    (result_id, tournament_id, player_id, archetype_id, pending_deck_request_id,
+                    (tournament_id, player_id, archetype_id, pending_deck_request_id,
                      placement, wins, losses, ties, decklist_json, decklist_url, notes,
                      created_at, updated_at)
-                VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+                VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
             """, (
-                next_result_id,
                 next_tournament_id,
                 player_id,
                 archetype_id,
@@ -975,20 +962,14 @@ def repair_tournament(cursor, tournament_id, limitless_id):
         if existing:
             continue  # Already have this result
 
-        # Insert result
-        cursor.execute(
-            "SELECT COALESCE(MAX(result_id), 0) + 1 FROM results"
-        )
-        next_result_id = cursor.fetchone()[0]
-
+        # Insert result (let PostgreSQL generate result_id via IDENTITY)
         try:
             cursor.execute("""
                 INSERT INTO results
-                    (result_id, tournament_id, player_id, archetype_id, pending_deck_request_id,
+                    (tournament_id, player_id, archetype_id, pending_deck_request_id,
                      placement, wins, losses, ties, notes, created_at, updated_at)
-                VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+                VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
             """, (
-                next_result_id,
                 tournament_id,
                 player_id,
                 archetype_id,

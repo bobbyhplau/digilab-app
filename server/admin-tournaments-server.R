@@ -412,6 +412,15 @@ observeEvent(input$view_edit_results, {
   tournament_id <- as.integer(input$editing_tournament_id)
   rv$edit_grid_tournament_id <- tournament_id
 
+  # Get tournament's expected player count
+  tournament_info <- dbGetQuery(db_pool, "SELECT player_count FROM tournaments WHERE tournament_id = $1",
+                                params = list(tournament_id))
+  expected_players <- if (nrow(tournament_info) > 0 && !is.na(tournament_info$player_count[1])) {
+    tournament_info$player_count[1]
+  } else {
+    8  # Fallback default
+  }
+
   # Load existing results into grid
   grid <- load_grid_from_results(tournament_id, db_pool)
 
@@ -420,9 +429,10 @@ observeEvent(input$view_edit_results, {
   has_irregular <- any((grid$wins * 3L + grid$ties) != grid$points & nchar(trimws(grid$player_name)) > 0)
   rv$edit_record_format <- if (has_ties || has_irregular) "wlt" else "points"
 
-  # Add blank rows to allow adding more results (pad to at least current count + 4)
+  # Add blank rows to allow adding more results
+  # Use the tournament's player_count as minimum, plus a few extra for additions
   current_count <- nrow(grid)
-  pad_count <- max(current_count + 4, 8)
+  pad_count <- max(current_count + 4, expected_players)
   if (current_count < pad_count) {
     extra <- init_grid_data(pad_count - current_count)
     extra$placement <- seq(current_count + 1, pad_count)
