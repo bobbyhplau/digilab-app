@@ -342,20 +342,15 @@ show_scene_confirmation <- function(display_name) {
 
 output$onboarding_map <- mapgl::renderMapboxgl({
 
-
   # Get scenes with coordinates
   scenes <- get_scenes_for_map(db_pool)
 
-  # Default center on USA
-  center_lng <- -98.5
-  center_lat <- 39.8
+  # Create flat world map
+  map <- atom_mapgl(theme = "digital", projection = "mercator") |>
+    add_atom_popup_style(theme = "light")
 
-  # Create base map using atom theme
-  map <- atom_mapgl(theme = "digital")
-
-  # Add scene markers if we have data
-if (!is.null(scenes) && nrow(scenes) > 0) {
-    # Build popup HTML for each scene
+  # Add scene markers (interactive, with select popups)
+  if (!is.null(scenes) && nrow(scenes) > 0) {
     scenes$popup <- sapply(seq_len(nrow(scenes)), function(i) {
       sprintf(
         '<div style="text-align:center;padding:12px 16px;min-width:140px;font-family:system-ui,-apple-system,sans-serif;">
@@ -369,13 +364,11 @@ if (!is.null(scenes) && nrow(scenes) > 0) {
       )
     })
 
-    # Convert to sf object
     scenes_sf <- sf::st_as_sf(scenes,
                               coords = c("longitude", "latitude"),
                               crs = 4326)
 
     map <- map |>
-      add_atom_popup_style(theme = "light") |>
       mapgl::add_circle_layer(
         id = "scenes-layer",
         source = scenes_sf,
@@ -385,15 +378,10 @@ if (!is.null(scenes) && nrow(scenes) > 0) {
         circle_stroke_width = 2,
         circle_opacity = 0.9,
         popup = "popup"
-      ) |>
-      mapgl::set_view(center = c(center_lng, center_lat), zoom = 3)
-  } else {
-    # No scenes - just show centered map
-    map <- map |>
-      mapgl::set_view(center = c(center_lng, center_lat), zoom = 3)
+      )
   }
 
-  map
+  map |> mapgl::set_view(center = c(-40, 10), zoom = 1.2)
 })
 
 # Handle scene selection from map marker

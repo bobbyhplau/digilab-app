@@ -96,7 +96,7 @@ onboarding_ui <- function() {
           class = "onboarding-map-wrapper",
           div(
             class = "onboarding-map-container",
-            mapgl::mapboxglOutput("onboarding_map", height = "200px")
+            mapgl::mapboxglOutput("onboarding_map", height = "300px")
           )
         ),
 
