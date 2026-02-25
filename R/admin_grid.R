@@ -377,14 +377,33 @@ build_deck_choices <- function(con) {
 }
 
 # -----------------------------------------------------------------------------
-# match_player: Query players table for exact case-insensitive name match
+# match_player: Match by member_number first (if provided), then by name
+# Filters out inactive (soft-deleted) players in both queries.
 # Returns list(status="matched", player_id=X, member_number=Y) or
 #         list(status="new")
 # -----------------------------------------------------------------------------
-match_player <- function(name, con) {
+match_player <- function(name, con, member_number = NULL) {
+  # If member_number provided, try exact member_number match first
+  if (!is.null(member_number) && nchar(trimws(member_number)) > 0) {
+    member_match <- DBI::dbGetQuery(con, "
+      SELECT player_id, display_name, member_number
+      FROM players WHERE member_number = $1 AND is_active = TRUE
+      LIMIT 1
+    ", params = list(trimws(member_number)))
+
+    if (nrow(member_match) > 0) {
+      return(list(
+        status = "matched",
+        player_id = member_match$player_id,
+        member_number = member_match$member_number
+      ))
+    }
+  }
+
+  # Fall back to name match
   player <- DBI::dbGetQuery(con, "
     SELECT player_id, display_name, member_number
-    FROM players WHERE LOWER(display_name) = LOWER($1)
+    FROM players WHERE LOWER(display_name) = LOWER($1) AND is_active = TRUE
     LIMIT 1
   ", params = list(name))
 

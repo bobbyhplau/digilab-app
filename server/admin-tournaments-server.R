@@ -596,7 +596,8 @@ observeEvent(input$edit_player_blur, {
     return()
   }
 
-  match_info <- match_player(name, db_pool)
+  member_num <- input[[paste0("edit_member_", row_num)]]
+  match_info <- match_player(name, db_pool, member_number = member_num)
   rv$edit_player_matches[[as.character(row_num)]] <- match_info
   rv$edit_grid_data$match_status[row_num] <- match_info$status
   if (match_info$status == "matched") {
@@ -677,7 +678,7 @@ observeEvent(input$edit_paste_apply, {
   notify(sprintf("Filled %d rows from pasted data", fill_count), type = "message")
 
   for (idx in seq_len(fill_count)) {
-    match_info <- match_player(grid$player_name[idx], db_pool)
+    match_info <- match_player(trimws(grid$player_name[idx]), db_pool, member_number = grid$member_number[idx])
     if (!is.null(match_info)) {
       rv$edit_player_matches[[as.character(idx)]] <- match_info
       grid$match_status[idx] <- match_info$status
@@ -849,7 +850,7 @@ observeEvent(input$edit_grid_save, {
       # If no existing result, try to match by name or create new
       if (is.null(player_id)) {
         player <- dbGetQuery(db_pool, "
-          SELECT player_id FROM players WHERE LOWER(display_name) = LOWER($1) LIMIT 1
+          SELECT player_id FROM players WHERE LOWER(display_name) = LOWER($1) AND is_active = TRUE LIMIT 1
         ", params = list(name))
 
         if (nrow(player) > 0) {

@@ -516,7 +516,8 @@ observeEvent(input$admin_player_blur, {
     return()
   }
 
-  match_info <- match_player(name, db_pool)
+  member_num <- input[[paste0("admin_member_", row_num)]]
+  match_info <- match_player(name, db_pool, member_number = member_num)
   rv$admin_player_matches[[as.character(row_num)]] <- match_info
   rv$admin_grid_data$match_status[row_num] <- match_info$status
   if (match_info$status == "matched") {
@@ -610,7 +611,7 @@ observeEvent(input$paste_apply, {
     name <- trimws(grid$player_name[idx])
     if (nchar(name) == 0) next
 
-    match_info <- match_player(name, db_pool)
+    match_info <- match_player(trimws(grid$player_name[idx]), db_pool, member_number = grid$member_number[idx])
     rv$admin_player_matches[[as.character(idx)]] <- match_info
     grid$match_status[idx] <- match_info$status
     if (match_info$status == "matched") {
@@ -750,7 +751,7 @@ observeEvent(input$admin_submit_results, {
 
       # 1. Resolve player
       player <- dbGetQuery(db_pool, "
-        SELECT player_id FROM players WHERE LOWER(display_name) = LOWER($1) LIMIT 1
+        SELECT player_id FROM players WHERE LOWER(display_name) = LOWER($1) AND is_active = TRUE LIMIT 1
       ", params = list(name))
 
       if (nrow(player) > 0) {
