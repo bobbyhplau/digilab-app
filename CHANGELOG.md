@@ -5,6 +5,23 @@ All notable changes to DigiLab will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.0.7] - 2026-02-25 - Deck Request UX & Dashboard Improvements
+
+### Fixed
+- **Deck request modal lockout**: Submitting a new deck request in the Upload Results tab would freeze the modal, requiring a page refresh. The modal now closes immediately and dropdown updates happen asynchronously.
+
+### Added
+- **Deck suggestion feature**: When requesting a new deck, similar existing decks are now shown as suggestions (e.g., typing "Vortexdramon" shows "Vortex Warriors"). Helps prevent duplicate deck requests. Added to both public Upload Results and admin Enter Results tabs.
+- **Scene column in Recent Tournaments**: When viewing "All Scenes", the Recent Tournaments table now shows which scene each tournament belongs to.
+- **Dynamic conversion threshold**: Top 3 Conversion chart now requires minimum 10 entries when viewing "All Scenes" (was 2) for statistical significance. Specific scenes require minimum 3 entries.
+- **Threshold note in header**: The minimum entries requirement is displayed in the card header (e.g., "Min. 10 entries") instead of inside the chart.
+
+### Changed
+- **Deck suggestions debounced**: 300ms debounce on deck name input prevents inconsistent suggestion behavior during fast typing.
+- **Suggestion box styling**: Uses DigiLab's `info-hint-box` styling with digital grid pattern instead of generic Bootstrap alert.
+
+---
+
 ## [1.0.6] - 2026-02-24 - Member Number Management Fix
 
 ### Fixed

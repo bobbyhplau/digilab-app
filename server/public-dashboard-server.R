@@ -331,25 +331,43 @@ core_metrics <- reactive({
 
 # Recent tournaments (community section - scene-only filtering)
 # Shows Winner column, formatted Type, and Store Rating
+# When "All Scenes" selected, also shows the Scene column
 output$recent_tournaments <- renderReactable({
   rv$data_refresh  # Trigger refresh on admin changes
 
-
+  show_all_scenes <- is.null(rv$current_scene) || rv$current_scene == "all"
   filters <- build_community_filters("t", "s")
 
   # Query with winner (player who got placement = 1) and store_id for rating join
-  query <- paste("
-    SELECT t.tournament_id, s.store_id, s.name as \"Store\",
-           t.event_date as \"Date\", t.player_count as \"Players\",
-           p.display_name as \"Winner\"
-    FROM tournaments t
-    JOIN stores s ON t.store_id = s.store_id
-    LEFT JOIN results r ON t.tournament_id = r.tournament_id AND r.placement = 1
-    LEFT JOIN players p ON r.player_id = p.player_id
-    WHERE 1=1", filters$sql, "
-    ORDER BY t.event_date DESC
-    LIMIT 10
-  ")
+  # Include scene name when showing all scenes
+  if (show_all_scenes) {
+    query <- paste("
+      SELECT t.tournament_id, s.store_id, sc.display_name as \"Scene\",
+             s.name as \"Store\", t.event_date as \"Date\",
+             t.player_count as \"Players\", p.display_name as \"Winner\"
+      FROM tournaments t
+      JOIN stores s ON t.store_id = s.store_id
+      LEFT JOIN scenes sc ON s.scene_id = sc.scene_id
+      LEFT JOIN results r ON t.tournament_id = r.tournament_id AND r.placement = 1
+      LEFT JOIN players p ON r.player_id = p.player_id
+      WHERE 1=1", filters$sql, "
+      ORDER BY t.event_date DESC
+      LIMIT 10
+    ")
+  } else {
+    query <- paste("
+      SELECT t.tournament_id, s.store_id, s.name as \"Store\",
+             t.event_date as \"Date\", t.player_count as \"Players\",
+             p.display_name as \"Winner\"
+      FROM tournaments t
+      JOIN stores s ON t.store_id = s.store_id
+      LEFT JOIN results r ON t.tournament_id = r.tournament_id AND r.placement = 1
+      LEFT JOIN players p ON r.player_id = p.player_id
+      WHERE 1=1", filters$sql, "
+      ORDER BY t.event_date DESC
+      LIMIT 10
+    ")
+  }
 
   data <- safe_query(db_pool, query, params = filters$params, default = data.frame())
   if (nrow(data) == 0) {
@@ -359,6 +377,30 @@ output$recent_tournaments <- renderReactable({
   # Replace NA winners with "-"
   data$Winner[is.na(data$Winner)] <- "-"
 
+  # Replace NA scenes with "Unknown"
+
+  if (show_all_scenes && "Scene" %in% names(data)) {
+    data$Scene[is.na(data$Scene)] <- "Unknown"
+  }
+
+  # Build columns list based on whether we're showing all scenes
+  columns <- list(
+    tournament_id = colDef(show = FALSE),
+    store_id = colDef(show = FALSE),
+    Store = colDef(
+      minWidth = 150,
+      style = list(overflow = "hidden", textOverflow = "ellipsis", whiteSpace = "nowrap")
+    ),
+    Date = colDef(width = 100),
+    Players = colDef(width = 70, align = "center"),
+    Winner = colDef(minWidth = 100)
+  )
+
+  # Add Scene column when showing all scenes
+  if (show_all_scenes) {
+    columns$Scene <- colDef(width = 110)
+  }
+
   reactable(data, compact = TRUE, striped = TRUE,
     rowStyle = list(cursor = "pointer"),
     onClick = JS("function(rowInfo, column) {
@@ -366,17 +408,7 @@ output$recent_tournaments <- renderReactable({
         Shiny.setInputValue('overview_tournament_clicked', rowInfo.row.tournament_id, {priority: 'event'})
       }
     }"),
-    columns = list(
-      tournament_id = colDef(show = FALSE),
-      store_id = colDef(show = FALSE),
-      Store = colDef(
-        minWidth = 180,
-        style = list(overflow = "hidden", textOverflow = "ellipsis", whiteSpace = "nowrap")
-      ),
-      Date = colDef(width = 100),
-      Players = colDef(width = 70, align = "center"),
-      Winner = colDef(minWidth = 120)
-    )
+    columns = columns
   )
 }) |> bindCache(rv$current_scene, rv$community_filter, rv$data_refresh)
 
@@ -629,25 +661,35 @@ digimon_deck_colors <- c(
   "Other" = "#9CA3AF"   # Gray for Other Decks category
 )
 
+# Top 3 Conversion threshold note - shows in card header
+# Minimum entries: 10 for "All Scenes", 3 for specific scenes
+output$conversion_threshold_note <- renderUI({
+  show_all_scenes <- is.null(rv$current_scene) || rv$current_scene == "all"
+  min_entries <- if (show_all_scenes) 10 else 3
+  tags$span(class = "text-muted small", sprintf("Min. %d entries", min_entries))
+})
+
 # Top 3 Conversion Rate Chart - reads from deck_analytics batch
 output$conversion_rate_chart <- renderHighchart({
   chart_mode <- if (!is.null(input$dark_mode) && input$dark_mode == "dark") "dark" else "light"
+  show_all_scenes <- is.null(rv$current_scene) || rv$current_scene == "all"
+
+  # Set minimum entries threshold based on scene selection
+  min_entries <- if (show_all_scenes) 10 else 3
 
   data <- deck_analytics()
   if (is.null(data) || nrow(data) == 0) {
     return(
       highchart() |>
-        hc_subtitle(text = "Need at least 2 entries per deck") |>
         hc_add_theme(hc_theme_atom_switch(chart_mode))
     )
   }
 
-  # Filter to min 2 entries and calculate conversion
-  result <- data[data$entries >= 2, ]
+  # Filter to minimum entries and calculate conversion
+  result <- data[data$entries >= min_entries, ]
   if (nrow(result) == 0) {
     return(
       highchart() |>
-        hc_subtitle(text = "Need at least 2 entries per deck") |>
         hc_add_theme(hc_theme_atom_switch(chart_mode))
     )
   }

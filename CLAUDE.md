@@ -371,6 +371,6 @@ See `ARCHITECTURE.md` > CSS Architecture for full documentation.
 
 ## Current Version
 
-**v1.0.6** - Member Number Management Fix
+**v1.0.7** - Deck Request UX & Dashboard Improvements
 
 See `CHANGELOG.md` for full version history and `ROADMAP.md` for upcoming features.

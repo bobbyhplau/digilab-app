@@ -4,6 +4,50 @@ This log tracks development decisions, blockers, and technical notes for DigiLab
 
 ---
 
+## 2026-02-25: v1.0.7 - Deck Request UX & Dashboard Improvements
+
+### Deck Request Modal Lockout Bug
+
+**Problem:** Users reported the deck request modal freezing after clicking "Submit Request" — unable to close, had to refresh page.
+
+**Root Cause:** The `observeEvent(input$deck_request_submit)` handler was synchronously updating ALL deck dropdowns in a loop before calling `removeModal()`. With 20+ players in the grid, this blocked the JavaScript event loop, preventing modal close handlers from processing.
+
+**Solution:** Split into two operations:
+1. **Immediate:** `removeModal()` + success notification right after database INSERT
+2. **Deferred:** New `observeEvent(rv$deck_choices_refresh)` handler updates dropdowns asynchronously via reactive trigger
+
+This pattern ensures the modal closes instantly while dropdown updates happen in a separate Shiny flush cycle.
+
+### Deck Suggestion Feature
+
+**Problem:** User submitted "Vortexdramon" when "Vortex Warriors" already existed in the database. No way to prevent duplicate/similar deck requests.
+
+**Solution:** Added real-time deck suggestions that appear as you type:
+- Triggers after 3+ characters
+- Uses two search strategies:
+  1. Partial match: `LIKE '%input%'` on archetype_name
+  2. Word match: Extract words from input, search for each
+- 300ms debounce prevents inconsistent results during fast typing
+- Styled with `info-hint-box` class to match DigiLab aesthetic
+
+Added to both public Upload Results (`public-submit-server.R`) and admin Enter Results (`admin-results-server.R`).
+
+### Dashboard Improvements for "All Scenes"
+
+**Recent Tournaments table:** Added scene column (via JOIN to `scenes` table) when `rv$current_scene == "all"`. Column hidden for specific scenes since it would be redundant.
+
+**Top 3 Conversion chart:** Increased minimum entries threshold from 2 to 10 for "All Scenes" view. Individual scenes use minimum 3 entries. Note moved from chart subtitle to card header using `uiOutput("conversion_threshold_note")`.
+
+### Files Changed
+| File | Changes |
+|------|---------|
+| `server/public-submit-server.R` | Modal lockout fix, deck suggestions with debounce |
+| `server/admin-results-server.R` | Deck suggestions with debounce |
+| `server/public-dashboard-server.R` | Scene column, dynamic min entries, header note |
+| `views/dashboard-ui.R` | Header layout for conversion threshold note |
+
+---
+
 ## 2026-02-23: v1.0.1 - International Store Support
 
 ### Problem

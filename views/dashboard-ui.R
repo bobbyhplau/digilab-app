@@ -222,9 +222,13 @@ dashboard_ui <- tagList(
     col_widths = breakpoints(sm = c(12, 12), md = c(6, 6)),
     card(
       card_header(
-        class = "d-flex align-items-center gap-2",
-        bsicons::bs_icon("bullseye", class = "text-warning"),
-        "Top 3 Conversion"
+        class = "d-flex justify-content-between align-items-center",
+        div(
+          class = "d-flex align-items-center gap-2",
+          bsicons::bs_icon("bullseye", class = "text-warning"),
+          "Top 3 Conversion"
+        ),
+        uiOutput("conversion_threshold_note", inline = TRUE)
       ),
       card_body(
         class = "p-0",

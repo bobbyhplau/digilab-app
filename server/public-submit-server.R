@@ -811,6 +811,7 @@ observe({
           div(
             class = "deck-request-form",
             textInput("deck_request_name", "Deck Name", placeholder = "e.g., Blue Flare"),
+            uiOutput("deck_request_suggestions"),
             layout_columns(
               col_widths = c(6, 6),
               class = "deck-request-colors",
@@ -844,6 +845,99 @@ observe({
       }
     }, ignoreInit = TRUE)
   })
+})
+
+# Debounced deck name input for suggestions (300ms delay)
+deck_request_name_debounced <- reactive({
+  input$deck_request_name
+}) |> debounce(300)
+
+# Deck request suggestions - find similar existing decks
+output$deck_request_suggestions <- renderUI({
+  deck_name <- deck_request_name_debounced()
+  if (is.null(deck_name) || nchar(trimws(deck_name)) < 3) {
+    return(NULL)
+  }
+
+  deck_name <- trimws(deck_name)
+
+  # Search for similar deck names using multiple strategies:
+  # 1. Exact partial match (ILIKE %name%)
+  # 2. Word-based matching (any word from input matches any word in deck name)
+  words <- unlist(strsplit(tolower(deck_name), "\\s+"))
+  words <- words[nchar(words) >= 3]  # Only words with 3+ chars
+
+  # Build search patterns
+  like_pattern <- paste0("%", deck_name, "%")
+
+  # Query for similar decks
+
+  similar <- safe_query(db_pool, "
+    SELECT DISTINCT archetype_name, primary_color, secondary_color
+    FROM deck_archetypes
+    WHERE is_active = TRUE
+      AND (
+        LOWER(archetype_name) LIKE LOWER($1)
+        OR LOWER($2) LIKE '%' || LOWER(archetype_name) || '%'
+      )
+    ORDER BY archetype_name
+    LIMIT 5
+  ", params = list(like_pattern, deck_name), default = data.frame())
+
+  # Also search by individual words if we have any
+  if (length(words) > 0 && nrow(similar) < 5) {
+    word_patterns <- paste0("%", words, "%")
+    for (wp in word_patterns) {
+      word_matches <- safe_query(db_pool, "
+        SELECT DISTINCT archetype_name, primary_color, secondary_color
+        FROM deck_archetypes
+        WHERE is_active = TRUE
+          AND LOWER(archetype_name) LIKE LOWER($1)
+          AND archetype_name NOT IN (SELECT archetype_name FROM deck_archetypes WHERE LOWER(archetype_name) LIKE LOWER($2))
+        ORDER BY archetype_name
+        LIMIT 3
+      ", params = list(wp, like_pattern), default = data.frame())
+
+      if (nrow(word_matches) > 0) {
+        similar <- rbind(similar, word_matches)
+        similar <- similar[!duplicated(similar$archetype_name), ]
+      }
+      if (nrow(similar) >= 5) break
+    }
+  }
+
+  if (nrow(similar) == 0) {
+    return(NULL)
+  }
+
+  # Build suggestion list
+  suggestion_items <- lapply(seq_len(nrow(similar)), function(i) {
+    deck <- similar[i, ]
+    color_text <- if (!is.na(deck$secondary_color) && deck$secondary_color != "") {
+      paste0(deck$primary_color, "/", deck$secondary_color)
+    } else {
+      deck$primary_color
+    }
+    tags$li(
+      tags$strong(deck$archetype_name),
+      tags$span(class = "text-muted ms-2", paste0("(", color_text, ")"))
+    )
+  })
+
+  div(
+    class = "info-hint-box mt-2 mb-3",
+    style = "padding: 0.625rem 0.875rem;",
+    div(
+      class = "d-flex align-items-start",
+      bsicons::bs_icon("lightbulb", class = "info-hint-icon me-2 mt-1"),
+      div(
+        tags$strong("Similar decks found:"),
+        tags$ul(class = "mb-0 ps-3 mt-1", style = "font-size: 0.875rem;", suggestion_items),
+        tags$small(class = "text-muted d-block mt-1",
+                   "Check if one of these matches before requesting.")
+      )
+    )
+  )
 })
 
 # Handle deck request form submission
@@ -905,6 +999,26 @@ observeEvent(input$deck_request_submit, {
   ", params = list(deck_name, primary_color, secondary_color, card_id), default = data.frame())
   request_id <- if (nrow(request_result) > 0) request_result$request_id[1] else NA_integer_
 
+  # Close modal FIRST to prevent UI lockout, then trigger async dropdown refresh
+
+  removeModal()
+
+  notify(
+    paste0("Deck request submitted: '", deck_name, "'. An admin will review it shortly."),
+    type = "message"
+  )
+
+  # Store request info for async update, then trigger refresh
+
+  rv$new_deck_request_id <- request_id
+  rv$deck_choices_refresh <- Sys.time()
+})
+
+# Async handler to update deck dropdowns after a new deck request
+# This runs separately from the modal submission to prevent UI lockout
+observeEvent(rv$deck_choices_refresh, {
+  req(rv$submit_grid_data, rv$new_deck_request_id)
+
   # Build updated deck choices with the new pending request
   decks <- safe_query(db_pool, "
     SELECT archetype_id, archetype_name FROM deck_archetypes
@@ -930,10 +1044,13 @@ observeEvent(input$deck_request_submit, {
 
   # Update all deck dropdowns with new choices, preserving existing selections
   grid <- rv$submit_grid_data
+  request_id <- rv$new_deck_request_id
+  request_row <- rv$deck_request_row
+
   for (i in seq_len(nrow(grid))) {
     current_selection <- input[[paste0("submit_deck_", i)]]
     # For the row that triggered the request, select the new pending deck
-    new_selection <- if (i == rv$deck_request_row) {
+    new_selection <- if (!is.null(request_row) && i == request_row) {
       paste0("pending_", request_id)
     } else if (!is.null(current_selection) && current_selection != "__REQUEST_NEW__") {
       current_selection
@@ -945,13 +1062,9 @@ observeEvent(input$deck_request_submit, {
                          selected = new_selection)
   }
 
-  notify(
-    paste0("Deck request submitted: '", deck_name, "'. An admin will review it shortly."),
-    type = "message"
-  )
-
-  removeModal()
-})
+  # Clear the request info
+  rv$new_deck_request_id <- NULL
+}, ignoreInit = TRUE)
 
 # Handle final submission
 observeEvent(input$submit_tournament, {

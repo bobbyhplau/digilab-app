@@ -641,6 +641,7 @@ observe({
         showModal(modalDialog(
           title = tagList(bsicons::bs_icon("collection-fill"), " Request New Deck"),
           textInput("admin_deck_request_name", "Deck Name", placeholder = "e.g., Blue Flare"),
+          uiOutput("admin_deck_request_suggestions"),
           layout_columns(
             col_widths = c(6, 6),
             selectInput("admin_deck_request_color", "Primary Color",
@@ -658,6 +659,93 @@ observe({
       }
     }, ignoreInit = TRUE)
   })
+})
+
+# Debounced deck name input for suggestions (300ms delay)
+admin_deck_request_name_debounced <- reactive({
+  input$admin_deck_request_name
+}) |> debounce(300)
+
+# Admin deck request suggestions - find similar existing decks
+output$admin_deck_request_suggestions <- renderUI({
+  deck_name <- admin_deck_request_name_debounced()
+  if (is.null(deck_name) || nchar(trimws(deck_name)) < 3) {
+    return(NULL)
+  }
+
+  deck_name <- trimws(deck_name)
+
+  # Search for similar deck names using multiple strategies
+  words <- unlist(strsplit(tolower(deck_name), "\\s+"))
+  words <- words[nchar(words) >= 3]
+
+  like_pattern <- paste0("%", deck_name, "%")
+
+  similar <- safe_query(db_pool, "
+    SELECT DISTINCT archetype_name, primary_color, secondary_color
+    FROM deck_archetypes
+    WHERE is_active = TRUE
+      AND (
+        LOWER(archetype_name) LIKE LOWER($1)
+        OR LOWER($2) LIKE '%' || LOWER(archetype_name) || '%'
+      )
+    ORDER BY archetype_name
+    LIMIT 5
+  ", params = list(like_pattern, deck_name), default = data.frame())
+
+  # Also search by individual words
+  if (length(words) > 0 && nrow(similar) < 5) {
+    word_patterns <- paste0("%", words, "%")
+    for (wp in word_patterns) {
+      word_matches <- safe_query(db_pool, "
+        SELECT DISTINCT archetype_name, primary_color, secondary_color
+        FROM deck_archetypes
+        WHERE is_active = TRUE
+          AND LOWER(archetype_name) LIKE LOWER($1)
+          AND archetype_name NOT IN (SELECT archetype_name FROM deck_archetypes WHERE LOWER(archetype_name) LIKE LOWER($2))
+        ORDER BY archetype_name
+        LIMIT 3
+      ", params = list(wp, like_pattern), default = data.frame())
+
+      if (nrow(word_matches) > 0) {
+        similar <- rbind(similar, word_matches)
+        similar <- similar[!duplicated(similar$archetype_name), ]
+      }
+      if (nrow(similar) >= 5) break
+    }
+  }
+
+  if (nrow(similar) == 0) {
+    return(NULL)
+  }
+
+  suggestion_items <- lapply(seq_len(nrow(similar)), function(i) {
+    deck <- similar[i, ]
+    color_text <- if (!is.na(deck$secondary_color) && deck$secondary_color != "") {
+      paste0(deck$primary_color, "/", deck$secondary_color)
+    } else {
+      deck$primary_color
+    }
+    tags$li(
+      tags$strong(deck$archetype_name),
+      tags$span(class = "text-muted ms-2", paste0("(", color_text, ")"))
+    )
+  })
+
+  div(
+    class = "info-hint-box mt-2 mb-3",
+    style = "padding: 0.625rem 0.875rem;",
+    div(
+      class = "d-flex align-items-start",
+      bsicons::bs_icon("lightbulb", class = "info-hint-icon me-2 mt-1"),
+      div(
+        tags$strong("Similar decks found:"),
+        tags$ul(class = "mb-0 ps-3 mt-1", style = "font-size: 0.875rem;", suggestion_items),
+        tags$small(class = "text-muted d-block mt-1",
+                   "Check if one of these matches before requesting.")
+      )
+    )
+  )
 })
 
 observeEvent(input$admin_deck_request_submit, {
