@@ -5,6 +5,19 @@ All notable changes to DigiLab will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.0.5] - 2026-02-24 - Global Map Improvements
+
+### Added
+- **All Scenes world map**: "All Scenes" now shows a flat mercator world map with both physical stores (orange) and online organizers (green) for full ecosystem coverage
+- **Onboarding world map**: Scene picker modal now uses flat mercator projection with taller map (300px) for better global visibility
+
+### Changed
+- **Regional zoom cap**: Regional scene maps capped at zoom level 9 so scenes with few stores (e.g., Vancouver, Wellington) show geographic context instead of being zoomed in too tight
+- **Map container height**: Stores tab map increased from 400px to 475px for better world map framing
+- **Map center/zoom**: All Scenes and onboarding maps centered at equator level with zoom 1.2 for full global coverage including New Zealand and South America
+
+---
+
 ## [1.0.4] - 2026-02-24 - Dynamic Min Events & Ko-fi Update
 
 ### Added
