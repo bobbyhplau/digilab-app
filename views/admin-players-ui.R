@@ -45,6 +45,7 @@ admin_players_ui <- tagList(
           p(class = "text-muted small", "Select a player from the list to edit or delete."),
 
           textInput("player_display_name", "Display Name", placeholder = "Enter player name..."),
+          textInput("player_member_number", "Member Number", placeholder = "e.g. 0012345678"),
 
           hr(),
 

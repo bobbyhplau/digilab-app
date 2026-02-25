@@ -107,7 +107,7 @@ observeEvent(input$player_list_clicked, {
 
   # Look up player directly by ID
   player <- dbGetQuery(db_pool, "
-    SELECT player_id, display_name FROM players WHERE player_id = $1
+    SELECT player_id, display_name, member_number FROM players WHERE player_id = $1
   ", params = list(as.integer(player_id)))
 
   if (nrow(player) == 0) return()
@@ -115,6 +115,8 @@ observeEvent(input$player_list_clicked, {
   # Populate form for editing
   updateTextInput(session, "editing_player_id", value = as.character(player$player_id))
   updateTextInput(session, "player_display_name", value = player$display_name)
+  updateTextInput(session, "player_member_number",
+                  value = if (!is.na(player$member_number)) player$member_number else "")
 
   # Show buttons
   shinyjs::show("update_player")
@@ -173,6 +175,7 @@ output$player_stats_info <- renderUI({
 observeEvent(input$cancel_edit_player, {
   updateTextInput(session, "editing_player_id", value = "")
   updateTextInput(session, "player_display_name", value = "")
+  updateTextInput(session, "player_member_number", value = "")
 
   shinyjs::hide("update_player")
   shinyjs::hide("delete_player")
@@ -210,18 +213,22 @@ observeEvent(input$update_player, {
     return()
   }
 
+  new_member <- trimws(input$player_member_number)
+  if (nchar(new_member) == 0) new_member <- NA_character_
+
   tryCatch({
     dbExecute(db_pool, "
       UPDATE players
-      SET display_name = $1, updated_at = CURRENT_TIMESTAMP
-      WHERE player_id = $2
-    ", params = list(new_name, player_id))
+      SET display_name = $1, member_number = $2, updated_at = CURRENT_TIMESTAMP
+      WHERE player_id = $3
+    ", params = list(new_name, new_member, player_id))
 
     notify(sprintf("Updated player: %s", new_name), type = "message")
 
     # Clear form and reset
     updateTextInput(session, "editing_player_id", value = "")
     updateTextInput(session, "player_display_name", value = "")
+    updateTextInput(session, "player_member_number", value = "")
 
     shinyjs::hide("update_player")
     shinyjs::hide("delete_player")
