@@ -861,6 +861,15 @@ observeEvent(input$edit_grid_save, {
         }
       }
 
+      # Update member_number if provided and player doesn't have one yet
+      member_num <- trimws(row$member_number)
+      if (nchar(member_num) > 0) {
+        dbExecute(db_pool, "
+          UPDATE players SET member_number = $1, updated_at = CURRENT_TIMESTAMP
+          WHERE player_id = $2 AND (member_number IS NULL OR member_number = '')
+        ", params = list(member_num, player_id))
+      }
+
       # Convert record
       if (record_format == "points") {
         pts <- row$points
