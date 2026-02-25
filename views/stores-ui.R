@@ -38,7 +38,7 @@ stores_ui <- tagList(
     ),
     card_body(
       class = "map-container-flush",
-      mapboxglOutput("stores_map", height = "400px")
+      mapboxglOutput("stores_map", height = "475px")
     )
   ),
   card(

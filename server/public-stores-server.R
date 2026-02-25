@@ -1191,7 +1191,7 @@ render_all_scenes_map <- function(physical_stores) {
     }
   }
 
-  map |> mapgl::set_view(center = c(-40, 20), zoom = 1.5)
+  map |> mapgl::set_view(center = c(-40, 10), zoom = 1.2)
 }
 
 # Stores Map
