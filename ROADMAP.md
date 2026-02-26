@@ -23,7 +23,24 @@ Upgrade from simple password auth to full user account system:
 | UA9 | SECURITY | Cookie-based session persistence (survives page refresh) |
 | UA11 | SECURITY | `admin_actions` audit log table (who, what, when, before/after) |
 | UA12 | SECURITY | Rate limiting on admin mutations |
-| RA1 | FEATURE | Admin role review — evaluate if Regional Admin tier is needed at scale |
+
+### Regional Admin Tier
+
+| ID | Type | Description |
+|----|------|-------------|
+| RA1 | FEATURE | Regional Admin role — new tier between Super Admin and Scene Admin for country/state-level oversight |
+| RA2 | SCHEMA | Admin hierarchy — Regional Admin can manage multiple scenes within their geography |
+| RA3 | FEATURE | Regional Admin permissions — approve new stores, onboard scene admins, view cross-scene reports |
+| RA4 | UI | Regional Admin dashboard — aggregated stats across managed scenes |
+
+### Discord Integrations
+
+| ID | Type | Description |
+|----|------|-------------|
+| DC1 | FEATURE | Discord bot for scene admin onboarding — new admin requests via Discord, Super Admin approves |
+| DC2 | FEATURE | Store submission queue — community members suggest new stores via Discord, admins approve/reject |
+| DC3 | FEATURE | Discord webhook notifications — alert admins when new submissions need review |
+| DC4 | INTEGRATION | Link Discord users to DigiLab accounts — enables bot-based workflows |
 
 ### Multi-Region Extras
 
@@ -56,12 +73,32 @@ Dashboard is the current bottleneck — loads multiple charts and stats on start
 | PERF5 | PERFORMANCE | Neon connection pool tuning — review pool size limits and timeouts |
 | PERF6 | PERFORMANCE | Batch initial queries — combine startup queries into fewer DB round trips |
 
+### Data Integrity (High Priority)
+
+| ID | Type | Description |
+|----|------|-------------|
+| DI1 | BUG | Player name collision resolution — handle same name + different Bandai IDs across scenes (causes matching issues) |
+| DI2 | FEATURE | Player disambiguation UI — admin tool to review/merge/split players with conflicting identifiers |
+| DI3 | BUG | Rating recalc scope audit — verify ratings only update for players in the added tournament, not all players |
+| DI4 | FEATURE | Chronological rating calculation — add time dimension to Elo, calculate from earliest result forward (supports backfilling) |
+| DI5 | REFACTOR | Rating recalc on backfill — when older tournaments are added, recalculate affected players from that date forward |
+
 ### Infrastructure
 
 | ID | Type | Description |
 |----|------|-------------|
 | MR17 | PERFORMANCE | ~~Profile with `shinyloadtest` and size Posit Connect tier~~ (Done in v1.0 — see profiling report) |
-| INF1 | DEVEX | Sentry API integration for Claude — API token setup, proactive error monitoring workflow |
+| INF1 | DEVEX | Sentry MCP integration — Claude Code workflow for proactive error monitoring, bug triage, and fix prioritization |
+| INF2 | DEVEX | Sentry error collection workflow — document process for identifying, categorizing, and addressing production errors |
+| INF3 | BUG | Sentry Discord bot not posting to #error-log — review bot permissions, channel config, alert rules |
+
+### Feedback & Bug Reporting
+
+| ID | Type | Description |
+|----|------|-------------|
+| FB1 | FEATURE | In-app feedback form — replace Google Form with native modal (bug report / feature request / general feedback) |
+| FB2 | FEATURE | Feedback admin queue — view/triage/respond to submissions in admin panel |
+| FB3 | UX | Auto-attach context to bug reports — current tab, scene, browser, recent actions |
 
 ---
 
@@ -117,6 +154,31 @@ Items for future consideration, not scheduled:
 | Season/format archive view | Format filter already covers this |
 | GitHub Action keepalive ping | Burns Posit Connect hours 24/7 for minimal benefit |
 | Aggressive idle timeout increases | Wastes Posit Connect hours on zombie sessions |
+
+---
+
+## Post-v1.0 Decision Point: Repository & Architecture Strategy
+
+Before building out Discord integrations, satellite apps, or expanding significantly, decide on repo structure:
+
+| Question | Option A | Option B |
+|----------|----------|----------|
+| Discord bot location? | Same repo (monorepo) | Separate `digilab-discord-bot` repo |
+| Scene comparison / analytics tools? | Tab in main app | Standalone `digilab-analytics` app |
+| Shared data access? | Direct DB connection | API layer between apps |
+| Repo visibility? | Keep public (open source community) | Make private (protect business logic) |
+
+**Considerations:**
+- **Monorepo pros:** Shared types, easier deploys, single source of truth
+- **Multi-repo pros:** Independent scaling, different tech stacks (Discord bot likely Node.js), cleaner separation
+- **Private repo:** Protects rating algorithms, admin logic, sync scripts; lose community contributions
+- **Hybrid:** Main app private, open-source specific utilities (OCR parser, deck classifier)
+
+**Items affected by this decision:**
+- DC1-DC4 (Discord Integrations)
+- MR10 (Scene comparison page)
+- MR12 (Scene health dashboard)
+- Any future "satellite" features
 
 ---
 
