@@ -16,7 +16,7 @@ DigiLab Discord is 2 days old and primarily serves as an onboarding pipeline —
 2. Clear intake workflow with visible status at a glance
 3. Tiered coordination spaces that scale — scenes graduate as communities grow
 4. Reduce manual routing/triage burden on the dev
-5. Design for future app → Discord integration (webhooks) without building it now
+5. App → Discord webhook integration for bug reports, store requests, and scene routing
 
 ---
 
@@ -107,6 +107,130 @@ Scenes start as a forum post in #scene-requests during onboarding. Once live, th
 | `Shipped` | Green | Released |
 | `Not Planned` | Gray | Declined with explanation |
 
+### #scene-coordination
+
+Region tags for filtering scene threads by continent. Split into more granular tags as regions grow.
+
+| Tag | Emoji | Covers |
+|-----|-------|--------|
+| `North America` | 🏔️ | USA, Canada, Mexico |
+| `South America` | ☀️ | Brazil, Argentina, etc. |
+| `Europe` | 🏰 | UK, EU countries |
+| `Asia` | ⛩️ | Philippines, Japan, etc. |
+| `Oceania` | 🌊 | Australia, New Zealand |
+| `Africa` | 🌅 | (future scenes) |
+| `Online` | 🌐 | Limitless organizers |
+
+---
+
+## Forum Post Guidelines & Pinned Posts
+
+### #scene-requests
+
+**Post Guidelines:**
+> Tell us about your area! Include:
+> - City/region and country
+> - How many stores run Digimon TCG tournaments?
+> - How often are tournaments held?
+> - Are you a tournament organizer or a player?
+
+**Default Reaction:** 🎉
+
+**Pinned Post — "How Scene Requests Work":**
+> Welcome! If your area isn't on DigiLab yet, create a post here and we'll work with you to get it set up.
+>
+> **What we need from you:**
+> 1. Your city/region and country
+> 2. Names of stores that run Digimon TCG events
+> 3. Approximate tournament frequency (weekly, biweekly, monthly)
+> 4. Whether you're an organizer or player
+>
+> **What happens next:**
+> - We'll tag your post as we work through it
+> - Once your scene is live, you'll get the Scene Admin role
+> - Your scene gets its own thread in our coordination channel
+>
+> Tags: `New Request` → `In Progress` → `Needs Data` → `Onboarded`
+
+### #bug-reports
+
+**Post Guidelines:**
+> Help us fix it! Include:
+> - What page were you on?
+> - What happened vs what you expected?
+> - Device and browser (mobile/desktop, Chrome/Safari/etc.)
+> - Screenshot if possible
+
+**Default Reaction:** 👀
+
+**Pinned Post — "How to Report a Bug":**
+> Found something broken on DigiLab? Create a post here.
+>
+> **Please include:**
+> 1. What page you were on (Dashboard, Players, Stores, etc.)
+> 2. What happened and what you expected to happen
+> 3. Your device and browser (e.g., iPhone Safari, Desktop Chrome)
+> 4. A screenshot if you can
+>
+> We'll tag your report as we work on it:
+> `New` → `Confirmed` → `Fixed`
+>
+> Quick issues may get patched the same day. Bigger fixes go on the roadmap.
+
+### #feature-requests
+
+**Post Guidelines:**
+> What would make DigiLab better for you?
+> - What feature or improvement do you want?
+> - Why would it help you or your community?
+> - Any examples from other apps/sites?
+
+**Default Reaction:** 💡
+
+**Pinned Post — "How Feature Requests Work":**
+> Have an idea for DigiLab? We'd love to hear it. Create a post here.
+>
+> **Tell us:**
+> 1. What you'd like to see
+> 2. Why it would help you or your community
+> 3. Examples from other apps if you have any
+>
+> We'll tag requests as we plan:
+> `New` → `Planned` → `Shipped`
+>
+> Popular requests and things that align with the roadmap get prioritized. We can't build everything, but we read everything.
+
+### #scene-coordination
+
+**Post Guidelines:**
+> This is your scene's home thread. Use it for:
+> - Updating tournament schedules
+> - Reporting new stores or closures
+> - Coordinating with the DigiLab team
+> - Asking questions about the platform
+
+**Default Reaction:** ✅
+
+**Pinned Post — "Welcome, Scene Admins":**
+> Each scene gets its own thread here for ongoing operations — tournament updates, new stores, data questions, etc.
+>
+> **Your thread is where:**
+> - Store requests and updates for your area get routed
+> - You coordinate with us on data collection
+> - You flag anything that needs attention
+>
+> Use the continent tags to filter to your region. Threads auto-archive when inactive and pop back up when there's new activity.
+>
+> Need help? Tag @Dev in your thread.
+
+## Forum Settings
+
+| Setting | #scene-requests | #bug-reports | #feature-requests | #scene-coordination |
+|---------|----------------|-------------|-------------------|---------------------|
+| Sort order | Recent Activity | Recent Activity | Recent Activity | Recent Activity |
+| Auto-archive | 3 days | 3 days | 3 days | 1 week |
+| Require tags | Yes | Yes | Yes | Yes |
+
 ---
 
 ## Intake Workflow
@@ -165,6 +289,105 @@ Since the Discord is only 2 days old, this is effectively a fresh setup.
 
 ---
 
-## Future: App → Discord Integration
+## App → Discord Webhook Integration
 
-The Forum channel structure supports Discord webhooks. A future in-app feedback form (FB1 on roadmap) could post directly to the appropriate forum channel. Deferred — design the webhook integration when ready to build it.
+### Overview
+
+The app sends messages to Discord channels via **webhooks** — no bot required. Webhooks are one-directional (app → Discord) and use simple HTTP POST requests. Each target Forum channel gets its own webhook URL stored as an environment variable.
+
+### Use Cases
+
+| Source | Target Channel | Behavior |
+|--------|---------------|----------|
+| Bug report (user submits in-app) | `#bug-reports` | Creates new Forum post with `New` tag |
+| Feature request (user submits in-app) | `#feature-requests` | Creates new Forum post with `New` tag |
+| Store request — existing scene | `#scene-coordination` | Replies to that scene's existing thread |
+| Store request — new scene | `#scene-requests` | Creates new Forum post with `New Request` tag |
+| Tournament error (system-detected) | `#error-log` | Posts error details (alongside Sentry) |
+
+### How It Works
+
+**Creating a new Forum post:**
+```
+POST https://discord.com/api/webhooks/{webhook_id}/{webhook_token}
+Body: {
+  "thread_name": "Bug: Login page broken on mobile",
+  "content": "**Reported by:** PlayerName\n**Page:** Tournaments\n...",
+  "applied_tags": ["<new_tag_id>"]
+}
+```
+
+**Replying to an existing scene thread:**
+```
+POST https://discord.com/api/webhooks/{webhook_id}/{webhook_token}?thread_id={scene_thread_id}
+Body: {
+  "content": "**New Store Request**\nStore: Card Shop Tokyo\nSubmitted by: ..."
+}
+```
+
+The `thread_id` query parameter routes the message to a specific Forum thread. This is how store requests land in the correct scene's thread.
+
+### Routing Logic
+
+When a user submits a store request in-app:
+
+```
+User submits store request
+  → Is the scene already in the app?
+    → YES: Look up scene's discord_thread_id → POST to #scene-coordination thread
+    → NO:  POST to #scene-requests → creates new Forum post with "New Request" tag
+```
+
+The app UI handles this with a dropdown — if the user's area is listed, it routes to `#scene-coordination`; if they select "My area isn't listed," it routes to `#scene-requests`.
+
+### Database Changes
+
+```sql
+-- Map each scene to its Discord Forum thread in #scene-coordination
+ALTER TABLE scenes ADD COLUMN discord_thread_id TEXT;
+```
+
+When a scene is onboarded and its `#scene-coordination` thread is created, save the thread ID to this column. The app uses it for webhook routing.
+
+### Environment Variables
+
+```
+DISCORD_WEBHOOK_BUG_REPORTS=https://discord.com/api/webhooks/...
+DISCORD_WEBHOOK_FEATURE_REQUESTS=https://discord.com/api/webhooks/...
+DISCORD_WEBHOOK_SCENE_REQUESTS=https://discord.com/api/webhooks/...
+DISCORD_WEBHOOK_SCENE_COORDINATION=https://discord.com/api/webhooks/...
+DISCORD_WEBHOOK_ERROR_LOG=https://discord.com/api/webhooks/...
+```
+
+### Implementation: `R/discord_webhook.R`
+
+A small R module with:
+- `discord_post_bug_report(title, description, reporter)` — new post in `#bug-reports`
+- `discord_post_feature_request(title, description, reporter)` — new post in `#feature-requests`
+- `discord_post_scene_request(city, country, details, submitter)` — new post in `#scene-requests`
+- `discord_post_to_scene(scene_id, message)` — looks up `discord_thread_id` from DB, posts to that scene's `#scene-coordination` thread
+- `discord_send(webhook_url, body, thread_id = NULL)` — base helper, handles HTTP POST, error handling, fire-and-forget (non-blocking so the UI doesn't wait on Discord)
+
+Uses `httr2` for HTTP requests. Errors are logged but never block the user — webhook delivery is best-effort.
+
+### Forum Thread Management
+
+`#scene-coordination` uses Discord's auto-archive to stay clean:
+- Threads with no activity auto-archive after a configurable period (24h / 3 days / 1 week)
+- Archived threads are hidden from the default view — only active threads show
+- When a webhook posts to a scene's thread, it unarchives and bumps to the top automatically
+- Scene admins should mute the channel and follow their own thread for notifications
+- Tags by country/region allow filtering to relevant threads
+
+### Discord Setup Steps
+
+1. Create one webhook per target Forum channel (5 webhooks total)
+2. Save webhook URLs as environment variables
+3. Note the numeric tag IDs from each Forum channel (needed for `applied_tags` in webhook payloads)
+4. When onboarding a scene, save its `#scene-coordination` thread ID to the `scenes` table
+
+### What This Does NOT Require
+
+- **No Discord bot** — webhooks are stateless HTTP calls, no bot token or gateway connection
+- **No OAuth** — webhook URLs are server-side secrets, not user-facing
+- **No real-time sync back** — Discord replies don't flow back into the app (would need a bot for that, deferred)
