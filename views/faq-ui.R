@@ -392,11 +392,9 @@ faq_ui <- div(
       ),
       div(
         class = "contact-links",
-        tags$a(
-          class = "contact-link",
-          href = LINKS$discord,
-          target = "_blank",
-          bsicons::bs_icon("discord"), "Report on Discord"
+        actionLink("faq_open_bug_report",
+          tagList(bsicons::bs_icon("bug"), " Report a Bug"),
+          class = "contact-link"
         )
       )
     ),
