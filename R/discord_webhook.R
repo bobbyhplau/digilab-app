@@ -103,3 +103,93 @@ discord_post_scene_request <- function(store_name, location, discord_username = 
 
   discord_send(webhook_url, body)
 }
+
+# Post a data error report to a scene's coordination thread
+discord_post_data_error <- function(scene_id, item_type, item_name, description,
+                                    discord_username = NA_character_, db_pool) {
+  scene <- tryCatch(
+    pool::dbGetQuery(db_pool,
+      "SELECT discord_thread_id, display_name FROM scenes WHERE scene_id = $1",
+      params = list(scene_id)),
+    error = function(e) data.frame()
+  )
+
+  timestamp <- format(Sys.time(), "%m/%d/%Y %I:%M %p %Z")
+
+  content_lines <- c(
+    "**Data Error Report**",
+    paste0("**Type:** ", item_type),
+    paste0("**Item:** ", item_name)
+  )
+
+  if (nrow(scene) > 0) {
+    content_lines <- c(content_lines, paste0("**Scene:** ", scene$display_name[1]))
+  }
+
+  content_lines <- c(content_lines, paste0("**Description:** ", description))
+
+  if (!is.na(discord_username) && nchar(discord_username) > 0) {
+    content_lines <- c(content_lines, paste0("**Discord:** ", discord_username))
+  }
+
+  content_lines <- c(content_lines,
+    paste0("**Submitted:** ", timestamp),
+    "*Submitted via DigiLab*"
+  )
+
+  body <- list(content = paste(content_lines, collapse = "\n"))
+
+  # Route to scene thread if available, otherwise fall back to bug reports
+  if (nrow(scene) > 0) {
+    thread_id <- scene$discord_thread_id[1]
+    if (!is.null(thread_id) && !is.na(thread_id) && nchar(thread_id) > 0) {
+      webhook_url <- Sys.getenv("DISCORD_WEBHOOK_SCENE_COORDINATION")
+      return(discord_send(webhook_url, body, thread_id = thread_id))
+    }
+  }
+
+  # Fallback: post as bug report
+  discord_post_bug_report(
+    title = paste("Data Error:", item_type, "-", item_name),
+    description = description,
+    context = if (nrow(scene) > 0) paste("Scene:", scene$display_name[1]) else "",
+    discord_username = discord_username
+  )
+}
+
+# Post a bug report to #bug-reports Forum channel
+discord_post_bug_report <- function(title, description, context = "",
+                                    discord_username = NA_character_) {
+  webhook_url <- Sys.getenv("DISCORD_WEBHOOK_BUG_REPORTS")
+  tag_id <- Sys.getenv("DISCORD_TAG_NEW_BUG")
+
+  timestamp <- format(Sys.time(), "%m/%d/%Y %I:%M %p %Z")
+
+  content_lines <- c(
+    paste0("**Description:** ", description)
+  )
+
+  if (nchar(context) > 0) {
+    content_lines <- c(content_lines, paste0("**Context:** ", context))
+  }
+
+  if (!is.na(discord_username) && nchar(discord_username) > 0) {
+    content_lines <- c(content_lines, paste0("**Discord:** ", discord_username))
+  }
+
+  content_lines <- c(content_lines,
+    paste0("**Submitted:** ", timestamp),
+    "*Submitted via DigiLab*"
+  )
+
+  body <- list(
+    thread_name = paste0("Bug: ", substr(title, 1, 90)),
+    content = paste(content_lines, collapse = "\n")
+  )
+
+  if (nchar(tag_id) > 0) {
+    body$applied_tags <- list(tag_id)
+  }
+
+  discord_send(webhook_url, body)
+}
