@@ -12,6 +12,13 @@ stores_ui <- tagList(
         class = "title-strip-context",
         bsicons::bs_icon("geo-alt-fill", class = "title-strip-icon"),
         tags$span(class = "title-strip-text", "Store Directory")
+      ),
+      # Right side: request button
+      div(
+        class = "title-strip-actions",
+        actionButton("open_store_request", "Request a Store",
+                     class = "btn btn-sm btn-outline-primary",
+                     icon = bsicons::bs_icon("plus-circle"))
       )
     )
   ),
