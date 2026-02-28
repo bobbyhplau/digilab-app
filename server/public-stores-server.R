@@ -417,7 +417,13 @@ output$store_detail_modal <- renderUI({
              t.player_count as \"Players\", p.display_name as \"Winner\",
              da.archetype_name as \"Deck\", r.decklist_url
       FROM tournaments t
-      LEFT JOIN results r ON t.tournament_id = r.tournament_id AND r.placement = 1
+      LEFT JOIN LATERAL (
+        SELECT r2.player_id, r2.archetype_id, r2.decklist_url
+        FROM results r2
+        WHERE r2.tournament_id = t.tournament_id AND r2.placement = 1
+        ORDER BY r2.result_id
+        LIMIT 1
+      ) r ON true
       LEFT JOIN players p ON r.player_id = p.player_id
       LEFT JOIN deck_archetypes da ON r.archetype_id = da.archetype_id
       WHERE t.store_id = $1

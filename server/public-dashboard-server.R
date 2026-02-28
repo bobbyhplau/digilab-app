@@ -351,7 +351,13 @@ output$recent_tournaments <- renderReactable({
       FROM tournaments t
       JOIN stores s ON t.store_id = s.store_id
       LEFT JOIN scenes sc ON s.scene_id = sc.scene_id
-      LEFT JOIN results r ON t.tournament_id = r.tournament_id AND r.placement = 1
+      LEFT JOIN LATERAL (
+        SELECT r2.player_id
+        FROM results r2
+        WHERE r2.tournament_id = t.tournament_id AND r2.placement = 1
+        ORDER BY r2.result_id
+        LIMIT 1
+      ) r ON true
       LEFT JOIN players p ON r.player_id = p.player_id
       WHERE 1=1", filters$sql, "
       ORDER BY t.event_date DESC
@@ -364,7 +370,13 @@ output$recent_tournaments <- renderReactable({
              p.display_name as \"Winner\"
       FROM tournaments t
       JOIN stores s ON t.store_id = s.store_id
-      LEFT JOIN results r ON t.tournament_id = r.tournament_id AND r.placement = 1
+      LEFT JOIN LATERAL (
+        SELECT r2.player_id
+        FROM results r2
+        WHERE r2.tournament_id = t.tournament_id AND r2.placement = 1
+        ORDER BY r2.result_id
+        LIMIT 1
+      ) r ON true
       LEFT JOIN players p ON r.player_id = p.player_id
       WHERE 1=1", filters$sql, "
       ORDER BY t.event_date DESC

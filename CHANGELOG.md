@@ -5,6 +5,13 @@ All notable changes to DigiLab will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.1.1] - 2026-02-28 - Tournament Query Fix
+
+### Fixed
+- **Duplicate tournament rows**: Tournaments with multiple tied first-place finishers (from Limitless Swiss events) caused duplicate rows in the Tournaments tab, Recent Tournaments table, and Store detail view. Replaced `LEFT JOIN results` with `LEFT JOIN LATERAL ... LIMIT 1` to guarantee one row per tournament across 4 queries.
+
+---
+
 ## [1.1.0] - 2026-02-28 - Discord Integration & Error Reporting
 
 ### Added

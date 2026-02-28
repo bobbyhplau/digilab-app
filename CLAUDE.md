@@ -88,9 +88,9 @@ The architecture doc contains:
 
 ## Current Work
 
-### Latest Release: v1.1.0 - Discord Integration & Error Reporting
+### Latest Release: v1.1.1 - Tournament Query Fix
 
-Discord webhook system with Digimon-themed bots (Veemon, Gatomon, Tentomon). In-app store/scene request modals, contextual data error reporting from modals, bug report modal from footer. Admin scenes enhanced with Discord thread routing and geo metadata.
+Fixed duplicate tournament rows caused by Limitless Swiss events with multiple tied first-place finishers. Replaced `LEFT JOIN results` with `LEFT JOIN LATERAL ... LIMIT 1` across 4 queries.
 
 See `ROADMAP.md` for the full version plan.
 
@@ -98,9 +98,9 @@ See `ROADMAP.md` for the full version plan.
 
 | Version | Focus |
 |---------|-------|
+| v1.1.1 | Tournament Query Fix |
 | v1.1.0 | Discord Integration & Error Reporting |
 | v1.0.9 | Database Connection Stability |
-| v1.0.0 | Public Launch (PWA, performance, security) |
 
 ### Key Architectural Decisions
 
@@ -364,6 +364,6 @@ See `ARCHITECTURE.md` > CSS Architecture for full documentation.
 
 ## Current Version
 
-**v1.1.0** - Discord Integration & Error Reporting
+**v1.1.1** - Tournament Query Fix
 
 See `CHANGELOG.md` for full version history and `ROADMAP.md` for upcoming features.

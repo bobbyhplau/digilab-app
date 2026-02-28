@@ -4,6 +4,27 @@ This log tracks development decisions, blockers, and technical notes for DigiLab
 
 ---
 
+## 2026-02-28: v1.1.1 - Tournament Query Fix
+
+### Problem
+
+Tournaments tab showed 297 rows but Overview and About pages showed 291. The 6 extra rows came from 3 PHOENIX REBORN (Limitless) tournaments where multiple players tied for 1st place in Swiss-only events. The `LEFT JOIN results r ON ... AND r.placement = 1` pattern produced one row per first-place result, inflating the count.
+
+### Root Cause
+
+The Limitless TCG API returns the same `placing` value for tied players, and `sync_limitless.py` passes it through directly. This is legitimate data — not duplicates to delete. But queries that JOIN on `placement = 1` to show a "Winner" column need to handle multiple winners gracefully.
+
+### Fix
+
+Replaced `LEFT JOIN results` with `LEFT JOIN LATERAL (... LIMIT 1) r ON true` in 4 queries:
+- `public-tournaments-server.R` — Tournaments tab
+- `public-dashboard-server.R` — Recent tournaments (all scenes + specific scene)
+- `public-stores-server.R` — Store detail recent tournaments
+
+The `core_metrics` query on the dashboard was already correct (uses `COUNT(DISTINCT t.tournament_id)`).
+
+---
+
 ## 2026-02-28: v1.1.0 - Discord Integration & Error Reporting
 
 ### Overview
