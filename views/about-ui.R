@@ -117,12 +117,6 @@ class = "content-page",
         href = LINKS$kofi,
         target = "_blank",
         bsicons::bs_icon("cup-hot"), "Support on Ko-fi"
-      ),
-      tags$a(
-        class = "contact-link",
-        href = LINKS$discord,
-        target = "_blank",
-        bsicons::bs_icon("discord"), "Join Discord"
       )
     )
   ),

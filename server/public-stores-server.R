@@ -544,11 +544,6 @@ output$store_detail_modal <- renderUI({
         onclick = sprintf("copyCommunityUrl('%s')", store_slug),
         bsicons::bs_icon("share"), " Share Community View"
       ),
-      tags$a(
-        href = LINKS$discord, target = "_blank",
-        class = "btn btn-outline-secondary",
-        bsicons::bs_icon("flag"), " Report Error"
-      ),
       modalButton("Close")
     ),
 
@@ -1396,5 +1391,25 @@ observeEvent(input$submit_store_request, {
     warning(paste("Store request error:", e$message))
     removeModal()
     notify("Your request was received but we couldn't send it to Discord. We'll follow up manually.", type = "warning", duration = 5)
+  })
+})
+
+# --- For Organizers page: open store request modal ---
+observeEvent(input$tos_open_store_request, {
+  shinyjs::click("open_store_request")
+})
+
+observeEvent(input$tos_open_store_request_online, {
+  shinyjs::click("open_store_request")
+})
+
+# For Organizers page: open scene request modal (pre-select "My area isn't listed")
+observeEvent(input$tos_open_scene_request, {
+  shinyjs::click("open_store_request")
+  # After modal opens, set dropdown to "new" to trigger scene request mode
+  shinyjs::delay(300, {
+    shinyjs::runjs("
+      $('#store_req_scene').val('new').trigger('change');
+    ")
   })
 })

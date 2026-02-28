@@ -201,35 +201,28 @@ for_tos_ui <- div(
       title = "Physical stores",
       value = "physical-stores",
       icon = bsicons::bs_icon("shop"),
-      p("We want to include every store that runs Digimon TCG events! To add your store:"),
+      p("We want to include every store that runs Digimon TCG events! Request a store directly from DigiLab:"),
       tags$ol(
         class = "steps-list",
         tags$li(
-          strong("Go to the Stores tab"),
-          p("Click the \"Request a Store\" button at the top of the page.")
+          strong("Select your scene"),
+          p("Choose your local scene from the dropdown.")
         ),
         tags$li(
-          strong("Select your scene"),
-          p("Choose your local scene from the dropdown and fill in your store details.")
+          strong("Fill in your store details"),
+          p("Store name and city/state.")
         ),
         tags$li(
           strong("Submit"),
           p("Your request goes directly to your scene admin for review.")
         )
       ),
+      p(class = "text-muted small", "You can also find this on the ", strong("Stores"), " tab."),
       div(
         class = "contact-links",
-        tags$a(
-          class = "contact-link",
-          href = LINKS$discord,
-          target = "_blank",
-          bsicons::bs_icon("discord"), "Ask on Discord"
-        ),
-        tags$a(
-          class = "contact-link",
-          href = paste0(LINKS$github, "/issues/new?title=New%20Store%20Request"),
-          target = "_blank",
-          bsicons::bs_icon("github"), "Request via GitHub"
+        actionLink("tos_open_store_request",
+          tagList(bsicons::bs_icon("plus-circle"), " Request a Store"),
+          class = "contact-link"
         )
       )
     ),
@@ -245,19 +238,18 @@ for_tos_ui <- div(
         tags$li("Discord server invite link")
       ),
       p("Events sync automatically via Limitless integration once your organizer page is added."),
+      p(class = "text-muted small", "You can also submit from the ", strong("Stores"), " tab using the \"Request a Store\" button."),
       div(
         class = "contact-links",
+        actionLink("tos_open_store_request_online",
+          tagList(bsicons::bs_icon("plus-circle"), " Request an Organizer"),
+          class = "contact-link"
+        ),
         tags$a(
           class = "contact-link",
           href = LINKS$discord,
           target = "_blank",
           bsicons::bs_icon("discord"), "Ask on Discord"
-        ),
-        tags$a(
-          class = "contact-link",
-          href = paste0(LINKS$github, "/issues/new?title=New%20Online%20Organizer%20Request"),
-          target = "_blank",
-          bsicons::bs_icon("github"), "Request via GitHub"
         )
       )
     ),
@@ -302,13 +294,16 @@ for_tos_ui <- div(
         ),
         tags$li(
           strong("Submit your request"),
-          p("Go to the ", strong("Stores"), " tab, click ", strong("\"Request a Store\""),
-            ", and select ", strong("\"My area isn't listed\""),
-            " to submit a scene request. Or reach out on Discord.")
+          p("Use the button below or go to the ", strong("Stores"), " tab and select ",
+            strong("\"My area isn't listed\""), " from the dropdown.")
         )
       ),
       div(
         class = "contact-links",
+        actionLink("tos_open_scene_request",
+          tagList(bsicons::bs_icon("plus-circle"), " Request a Scene"),
+          class = "contact-link"
+        ),
         tags$a(
           class = "contact-link",
           href = LINKS$discord,
@@ -416,7 +411,7 @@ for_tos_ui <- div(
         ),
         tags$li(
           strong("Submit your report"),
-          p("Use the GitHub link below or reach out via the About page.")
+          p("Reach out on Discord with the details.")
         )
       ),
       div(
@@ -426,12 +421,6 @@ for_tos_ui <- div(
           href = LINKS$discord,
           target = "_blank",
           bsicons::bs_icon("discord"), "Report on Discord"
-        ),
-        tags$a(
-          class = "contact-link",
-          href = paste0(LINKS$github, "/issues/new?title=Data%20Error%20Report"),
-          target = "_blank",
-          bsicons::bs_icon("github"), "Report via GitHub"
         )
       )
     )

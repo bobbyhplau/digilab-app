@@ -397,12 +397,6 @@ faq_ui <- div(
           href = LINKS$discord,
           target = "_blank",
           bsicons::bs_icon("discord"), "Report on Discord"
-        ),
-        tags$a(
-          class = "contact-link",
-          href = paste0(LINKS$github, "/issues/new?title=Bug%20Report"),
-          target = "_blank",
-          bsicons::bs_icon("github"), "Report via GitHub"
         )
       )
     ),
