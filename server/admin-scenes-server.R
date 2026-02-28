@@ -209,9 +209,8 @@ output$scene_stores_legend <- renderUI({
 })
 
 # --- Save Scene (Create or Update) ---
-observeEvent(input$save_scene_btn, {
-  req(rv$is_superadmin)
-
+# Helper to validate and geocode scene form inputs (shared by save + confirm)
+validate_scene_form <- function() {
   display_name <- trimws(input$scene_display_name)
   slug <- trimws(tolower(input$scene_slug))
   scene_type <- input$scene_type
@@ -222,15 +221,15 @@ observeEvent(input$save_scene_btn, {
   # Validation
   if (nchar(display_name) == 0) {
     notify("Display name is required", type = "warning")
-    return()
+    return(NULL)
   }
   if (nchar(slug) == 0) {
     notify("URL slug is required", type = "warning")
-    return()
+    return(NULL)
   }
   if (!grepl("^[a-z0-9-]+$", slug)) {
     notify("Slug must be lowercase letters, numbers, and hyphens only", type = "warning")
-    return()
+    return(NULL)
   }
 
   # Geocode for metro scenes
@@ -259,7 +258,7 @@ observeEvent(input$save_scene_btn, {
     if (is.na(lat) || is.na(lng)) {
       if (nchar(location) == 0) {
         notify("Location is required for metro scenes (e.g., 'Houston, TX')", type = "warning")
-        return()
+        return(NULL)
       }
       notify("Geocoding location...", type = "message", duration = 2)
       geo_result <- geocode_with_mapbox(location)
@@ -269,7 +268,7 @@ observeEvent(input$save_scene_btn, {
       if (is.na(lat) || is.na(lng)) {
         notify("Could not geocode location. Try a more specific location (e.g., 'Houston, Texas, USA').",
                type = "warning", duration = 5)
-        return()
+        return(NULL)
       }
 
       geo_region <- reverse_geocode_with_mapbox(lat, lng)
@@ -278,12 +277,74 @@ observeEvent(input$save_scene_btn, {
     }
   }
 
+  list(display_name = display_name, slug = slug, scene_type = scene_type,
+       is_active = is_active, discord_thread_id = discord_thread_id,
+       lat = lat, lng = lng, country = country, state_region = state_region)
+}
+
+# Temporarily store validated form data while waiting for confirmation
+pending_scene_save <- reactiveVal(NULL)
+
+observeEvent(input$save_scene_btn, {
+  req(rv$is_superadmin)
+
+  form <- validate_scene_form()
+  if (is.null(form)) return()
+
+  if (is.null(editing_scene_id())) {
+    # --- CREATE: no confirmation needed ---
+    pending_scene_save(form)
+    execute_scene_save()
+  } else {
+    # --- UPDATE: show confirmation with original name from DB ---
+    sid <- editing_scene_id()
+    original <- safe_query(db_pool,
+      "SELECT display_name FROM scenes WHERE scene_id = $1",
+      params = list(sid),
+      default = data.frame())
+    original_name <- if (nrow(original) > 0) original$display_name[1] else paste("Scene", sid)
+
+    pending_scene_save(form)
+
+    showModal(modalDialog(
+      title = "Confirm Scene Update",
+      tags$p(
+        "You are about to update ",
+        tags$strong(original_name),
+        if (original_name != form$display_name)
+          tagList(" to ", tags$strong(form$display_name))
+      ),
+      if (original_name != form$display_name)
+        tags$p(class = "text-warning small",
+          bsicons::bs_icon("exclamation-triangle"),
+          " The scene name is changing. Make sure you have the correct scene selected."
+        ),
+      footer = tagList(
+        modalButton("Cancel"),
+        actionButton("confirm_scene_save_btn", "Confirm Save", class = "btn-primary")
+      ),
+      easyClose = TRUE
+    ))
+  }
+})
+
+# --- Confirmed save (update path) ---
+observeEvent(input$confirm_scene_save_btn, {
+  removeModal()
+  execute_scene_save()
+})
+
+# --- Execute the actual save (create or update) ---
+execute_scene_save <- function() {
+  form <- pending_scene_save()
+  if (is.null(form)) return()
+  pending_scene_save(NULL)
+
   if (is.null(editing_scene_id())) {
     # --- CREATE new scene ---
-    # Check slug uniqueness
     existing <- safe_query(db_pool,
       "SELECT COUNT(*) as n FROM scenes WHERE slug = $1",
-      params = list(slug),
+      params = list(form$slug),
       default = data.frame(n = 0))
     if (existing$n[1] > 0) {
       notify("A scene with that slug already exists", type = "error")
@@ -295,14 +356,14 @@ observeEvent(input$save_scene_btn, {
        is_active, discord_thread_id, country, state_region)
        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
        RETURNING scene_id",
-      params = list(display_name, slug, display_name, scene_type,
-                    if (is.na(lat)) NA_real_ else lat,
-                    if (is.na(lng)) NA_real_ else lng,
-                    is_active, discord_thread_id, country, state_region),
+      params = list(form$display_name, form$slug, form$display_name, form$scene_type,
+                    if (is.na(form$lat)) NA_real_ else form$lat,
+                    if (is.na(form$lng)) NA_real_ else form$lng,
+                    form$is_active, form$discord_thread_id, form$country, form$state_region),
       default = data.frame())
 
     if (nrow(insert_result) > 0) {
-      notify(paste0("Scene '", display_name, "' created"), type = "message")
+      notify(paste0("Scene '", form$display_name, "' created"), type = "message")
       rv$data_refresh <- rv$data_refresh + 1
 
       # Clear form
@@ -322,10 +383,9 @@ observeEvent(input$save_scene_btn, {
     # --- UPDATE existing scene ---
     sid <- editing_scene_id()
 
-    # Check slug uniqueness (excluding self)
     existing <- safe_query(db_pool,
       "SELECT COUNT(*) as n FROM scenes WHERE slug = $1 AND scene_id != $2",
-      params = list(slug, sid),
+      params = list(form$slug, sid),
       default = data.frame(n = 0))
     if (existing$n[1] > 0) {
       notify("A scene with that slug already exists", type = "error")
@@ -337,15 +397,15 @@ observeEvent(input$save_scene_btn, {
        latitude = $5, longitude = $6, is_active = $7, discord_thread_id = $8,
        country = $9, state_region = $10, updated_at = CURRENT_TIMESTAMP
        WHERE scene_id = $11",
-      params = list(display_name, slug, display_name, scene_type,
-                    if (is.na(lat)) NA_real_ else lat,
-                    if (is.na(lng)) NA_real_ else lng,
-                    is_active, discord_thread_id, country, state_region, sid))
+      params = list(form$display_name, form$slug, form$display_name, form$scene_type,
+                    if (is.na(form$lat)) NA_real_ else form$lat,
+                    if (is.na(form$lng)) NA_real_ else form$lng,
+                    form$is_active, form$discord_thread_id, form$country, form$state_region, sid))
 
-    notify(paste0("Scene '", display_name, "' updated"), type = "message")
+    notify(paste0("Scene '", form$display_name, "' updated"), type = "message")
     rv$data_refresh <- rv$data_refresh + 1
   }
-})
+}
 
 # --- Delete Scene ---
 observeEvent(input$delete_scene_btn, {

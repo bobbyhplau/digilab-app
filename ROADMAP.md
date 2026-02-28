@@ -33,6 +33,14 @@ Upgrade from simple password auth to full user account system:
 | RA3 | FEATURE | Regional Admin permissions — approve new stores, onboard scene admins, view cross-scene reports |
 | RA4 | UI | Regional Admin dashboard — aggregated stats across managed scenes |
 
+### Admin Safety & Audit
+
+| ID | Type | Description |
+|----|------|-------------|
+| AS1 | UX | Separate Add vs Edit modes on admin forms — disable fields until explicit "Edit" or "New" click to prevent accidental overwrites |
+| AS2 | FEATURE | `admin_actions` audit log — track who changed what and when (scene edits, store reassignments, admin account changes) with before/after snapshots |
+| AS3 | FEATURE | Undo/restore from audit log — surface recent changes with one-click revert |
+
 ### Discord Integrations
 
 | ID | Type | Description |
