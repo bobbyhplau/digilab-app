@@ -300,6 +300,136 @@ observeEvent(input$goto_faq_score, {
 })
 
 # ---------------------------------------------------------------------------
+# Data Error Report Modal (shared across player/tournament/deck modals)
+# ---------------------------------------------------------------------------
+
+# Reactive to store context for the data error report
+data_error_context <- reactiveValues(
+  item_type = NULL,
+  item_name = NULL
+)
+
+# Player modal → data error report
+observeEvent(input$report_error_player, {
+  player <- tryCatch(
+    safe_query(db_pool,
+      "SELECT display_name FROM players WHERE player_id = $1",
+      params = list(rv$selected_player_id),
+      default = data.frame()),
+    error = function(e) data.frame()
+  )
+  data_error_context$item_type <- "Player"
+  data_error_context$item_name <- if (nrow(player) > 0) player$display_name[1] else "Unknown"
+  show_data_error_modal(data_error_context$item_type, data_error_context$item_name)
+})
+
+# Tournament modal → data error report
+observeEvent(input$report_error_tournament, {
+  tourn <- tryCatch(
+    safe_query(db_pool,
+      "SELECT t.event_date, s.store_name
+       FROM tournaments t JOIN stores s ON t.store_id = s.store_id
+       WHERE t.tournament_id = $1",
+      params = list(rv$selected_tournament_id),
+      default = data.frame()),
+    error = function(e) data.frame()
+  )
+  data_error_context$item_type <- "Tournament"
+  data_error_context$item_name <- if (nrow(tourn) > 0) {
+    paste0(tourn$store_name[1], " - ", tourn$event_date[1])
+  } else "Unknown"
+  show_data_error_modal(data_error_context$item_type, data_error_context$item_name)
+})
+
+# Deck modal → data error report
+observeEvent(input$report_error_deck, {
+  deck <- tryCatch(
+    safe_query(db_pool,
+      "SELECT archetype_name FROM deck_archetypes WHERE archetype_id = $1",
+      params = list(rv$selected_archetype_id),
+      default = data.frame()),
+    error = function(e) data.frame()
+  )
+  data_error_context$item_type <- "Deck"
+  data_error_context$item_name <- if (nrow(deck) > 0) deck$archetype_name[1] else "Unknown"
+  show_data_error_modal(data_error_context$item_type, data_error_context$item_name)
+})
+
+# Helper to show the data error modal
+show_data_error_modal <- function(item_type, item_name) {
+  showModal(modalDialog(
+    title = tagList(bsicons::bs_icon("flag"), " Report Data Error"),
+    div(
+      div(class = "mb-3 p-2 rounded", style = "background: rgba(255,255,255,0.05);",
+        tags$small(class = "text-muted", "Reporting error for:"),
+        tags$div(class = "fw-bold", paste(item_type, "-", item_name))
+      ),
+      textAreaInput("data_error_description", "What's wrong?",
+                    placeholder = "Describe the error (e.g., 'Deck should be Blue Flare, not Jesmon')",
+                    rows = 3),
+      textInput("data_error_discord", "Your Discord Username (optional)",
+                placeholder = "So we can follow up")
+    ),
+    footer = tagList(
+      modalButton("Cancel"),
+      actionButton("submit_data_error", "Submit Report", class = "btn-primary")
+    ),
+    size = "m",
+    easyClose = TRUE
+  ))
+}
+
+# Handle data error submission
+observeEvent(input$submit_data_error, {
+  description <- trimws(input$data_error_description)
+
+  if (nchar(description) == 0) {
+    notify("Please describe the error", type = "warning")
+    return()
+  }
+
+  tryCatch({
+    # Look up scene_id from current scene slug
+    scene_id <- NULL
+    if (!is.null(rv$current_scene) && rv$current_scene != "all") {
+      scene_row <- safe_query(db_pool,
+        "SELECT scene_id FROM scenes WHERE slug = $1",
+        params = list(rv$current_scene),
+        default = data.frame())
+      if (nrow(scene_row) > 0) scene_id <- scene_row$scene_id[1]
+    }
+
+    discord_username <- trimws(input$data_error_discord)
+
+    if (!is.null(scene_id)) {
+      discord_post_data_error(
+        scene_id = scene_id,
+        item_type = data_error_context$item_type,
+        item_name = data_error_context$item_name,
+        description = description,
+        discord_username = discord_username,
+        db_pool = db_pool
+      )
+    } else {
+      # No scene context — fall back to bug report
+      discord_post_bug_report(
+        title = paste("Data Error:", data_error_context$item_type, "-", data_error_context$item_name),
+        description = description,
+        context = paste("Tab:", rv$current_nav),
+        discord_username = discord_username
+      )
+    }
+
+    removeModal()
+    notify("Error report submitted! Thank you for helping improve DigiLab.", type = "message", duration = 5)
+  }, error = function(e) {
+    warning(paste("Data error report failed:", e$message))
+    removeModal()
+    notify("Report received but couldn't send to Discord. We'll follow up manually.", type = "warning", duration = 5)
+  })
+})
+
+# ---------------------------------------------------------------------------
 # About Page Stats
 # ---------------------------------------------------------------------------
 
