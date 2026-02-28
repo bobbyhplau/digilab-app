@@ -52,6 +52,55 @@ geocode_with_mapbox <- function(address) {
   })
 }
 
+# -----------------------------------------------------------------------------
+# Mapbox Reverse Geocoding Helper
+# -----------------------------------------------------------------------------
+#' Reverse geocode coordinates using Mapbox Geocoding API
+#'
+#' @param lat Latitude
+#' @param lng Longitude
+#' @return List with country and state_region, or NAs if failed
+reverse_geocode_with_mapbox <- function(lat, lng) {
+  mapbox_token <- Sys.getenv("MAPBOX_ACCESS_TOKEN")
+  if (mapbox_token == "") {
+    warning("MAPBOX_ACCESS_TOKEN not set")
+    return(list(country = NA_character_, state_region = NA_character_))
+  }
+
+  tryCatch({
+    url <- sprintf(
+      "https://api.mapbox.com/geocoding/v5/mapbox.places/%s,%s.json?access_token=%s&types=region,country",
+      lng, lat, mapbox_token
+    )
+
+    resp <- httr2::request(url) |>
+      httr2::req_timeout(10) |>
+      httr2::req_perform()
+
+    result <- httr2::resp_body_json(resp)
+
+    country <- NA_character_
+    state_region <- NA_character_
+
+    if (length(result$features) > 0) {
+      for (feat in result$features) {
+        feat_id <- feat$id %||% ""
+        if (grepl("^country\\.", feat_id)) {
+          country <- feat$text
+        } else if (grepl("^region\\.", feat_id)) {
+          state_region <- feat$text
+        }
+      }
+    }
+
+    list(country = country, state_region = state_region)
+
+  }, error = function(e) {
+    warning(paste("Mapbox reverse geocoding error:", e$message))
+    list(country = NA_character_, state_region = NA_character_)
+  })
+}
+
 # --- Load scene choices for store dropdown ---
 # Only fires when on admin_stores tab (prevents race condition with lazy-loaded UI)
 observe({
