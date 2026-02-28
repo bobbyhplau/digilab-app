@@ -245,11 +245,8 @@ output$deck_detail_modal <- renderUI({
         onclick = "copyCurrentUrl()",
         bsicons::bs_icon("link-45deg"), " Copy Link"
       ),
-      tags$a(
-        href = LINKS$discord, target = "_blank",
-        class = "btn btn-outline-secondary",
-        bsicons::bs_icon("flag"), " Report Error"
-      ),
+      actionButton("report_error_deck", tagList(bsicons::bs_icon("flag"), " Report Error"),
+                   class = "btn btn-outline-secondary btn-sm"),
       modalButton("Close")
     ),
 
