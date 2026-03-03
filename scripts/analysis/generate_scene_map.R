@@ -87,26 +87,26 @@ scene_points <- lapply(seq_len(nrow(scenes)), function(i) {
     tournaments = s$tournaments,
     stores = s$stores,
     joined = as.character(s$joined),
-    z = max(s$players, 5),
     color = if (s$players > 0) COL_BLUE else COL_ORANGE
   )
 })
 
-# Load map data from local file (avoids CDN rate limits)
-world_data <- jsonlite::fromJSON(
-  "scripts/analysis/world-lowres.json",
+# Load GeoJSON map data from local file (avoids Highcharts CDN rate limits)
+world_geojson <- jsonlite::fromJSON(
+  "scripts/analysis/world-lowres.geo.json",
   simplifyVector = FALSE
 )
 
 chart <- highchart(type = "map") %>%
+  hc_chart(backgroundColor = "transparent") %>%
   hc_add_series(
-    mapData = world_data,
+    mapData = world_geojson,
     showInLegend = FALSE,
     borderColor = "#d0d0d0",
     nullColor = "#f0f0f0",
-    borderWidth = 0.5
+    borderWidth = 0.5,
+    enableMouseTracking = FALSE
   ) %>%
-  hc_chart(backgroundColor = "transparent") %>%
   hc_title(
     text = "DigiLab Scenes Around the World",
     style = list(color = "#1a1a1a")
@@ -125,6 +125,7 @@ chart <- highchart(type = "map") %>%
     data = scene_points,
     marker = list(
       symbol = "circle",
+      radius = 6,
       lineWidth = 1,
       lineColor = "#ffffff",
       fillColor = COL_BLUE
