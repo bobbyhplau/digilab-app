@@ -1400,22 +1400,3 @@ observeEvent(input$submit_store_request, {
   })
 })
 
-# --- For Organizers page: open store request modal ---
-observeEvent(input$tos_open_store_request, {
-  shinyjs::click("open_store_request")
-})
-
-observeEvent(input$tos_open_store_request_online, {
-  shinyjs::click("open_store_request")
-})
-
-# For Organizers page: open scene request modal (pre-select "My area isn't listed")
-observeEvent(input$tos_open_scene_request, {
-  shinyjs::click("open_store_request")
-  # After modal opens, set dropdown to "new" to trigger scene request mode
-  shinyjs::delay(300, {
-    shinyjs::runjs("
-      $('#store_req_scene').val('new').trigger('change');
-    ")
-  })
-})

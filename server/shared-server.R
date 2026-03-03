@@ -39,12 +39,6 @@ observeEvent(input$keepalive_ping, {
 # Navigation
 # ---------------------------------------------------------------------------
 
-observeEvent(input$header_home_click, {
-  nav_select("main_content", "dashboard")
-  rv$current_nav <- "dashboard"
-  session$sendCustomMessage("updateSidebarNav", "nav_dashboard")
-})
-
 observeEvent(input$nav_dashboard, {
   nav_select("main_content", "dashboard")
   rv$current_nav <- "dashboard"
@@ -189,114 +183,32 @@ observeEvent(input$modal_admin_scenes, {
   rv$current_nav <- "admin_scenes"
 })
 
-# Content pages (footer navigation)
-observeEvent(input$nav_about, {
-  nav_select("main_content", "about")
-  rv$current_nav <- "about"
+# ---------------------------------------------------------------------------
+# Header Help Dropdown Actions
+# ---------------------------------------------------------------------------
+
+# Bug report from header dropdown
+observeEvent(input$header_bug_report, {
+  show_bug_report_modal()
 })
 
-observeEvent(input$nav_faq, {
-  nav_select("main_content", "faq")
-  rv$current_nav <- "faq"
-})
-
-observeEvent(input$nav_for_tos, {
-  nav_select("main_content", "for_tos")
-  rv$current_nav <- "for_tos"
-})
-
-# Cross-page navigation links (from content pages)
-observeEvent(input$about_to_for_tos, {
-  nav_select("main_content", "for_tos")
-  rv$current_nav <- "for_tos"
-  session$sendCustomMessage("updateSidebarNav", "nav_for_tos")
-})
-
-observeEvent(input$faq_to_for_tos, {
-  nav_select("main_content", "for_tos")
-  rv$current_nav <- "for_tos"
-  session$sendCustomMessage("updateSidebarNav", "nav_for_tos")
-})
-
-# FAQ → Upload Results
-observeEvent(input$faq_to_upload, {
-  nav_select("main_content", "submit")
-  rv$current_nav <- "submit"
-  session$sendCustomMessage("updateSidebarNav", "nav_submit")
-})
-observeEvent(input$faq_to_upload2, {
-  nav_select("main_content", "submit")
-  rv$current_nav <- "submit"
-  session$sendCustomMessage("updateSidebarNav", "nav_submit")
-})
-observeEvent(input$faq_to_upload3, {
-  nav_select("main_content", "submit")
-  rv$current_nav <- "submit"
-  session$sendCustomMessage("updateSidebarNav", "nav_submit")
-})
-
-# FAQ → For Organizers (multiple links on the page)
-observeEvent(input$faq_to_for_tos_new_scene, {
-  nav_select("main_content", "for_tos")
-  rv$current_nav <- "for_tos"
-  session$sendCustomMessage("updateSidebarNav", "nav_for_tos")
-})
-observeEvent(input$faq_to_for_tos2, {
-  nav_select("main_content", "for_tos")
-  rv$current_nav <- "for_tos"
-  session$sendCustomMessage("updateSidebarNav", "nav_for_tos")
-})
-
-# For Organizers → Upload Results (multiple links on the page)
-observeEvent(input$tos_to_upload, {
-  nav_select("main_content", "submit")
-  rv$current_nav <- "submit"
-  session$sendCustomMessage("updateSidebarNav", "nav_submit")
-})
-observeEvent(input$tos_to_upload_btn, {
-  nav_select("main_content", "submit")
-  rv$current_nav <- "submit"
-  session$sendCustomMessage("updateSidebarNav", "nav_submit")
-})
-observeEvent(input$tos_to_upload2, {
-  nav_select("main_content", "submit")
-  rv$current_nav <- "submit"
-  session$sendCustomMessage("updateSidebarNav", "nav_submit")
-})
-observeEvent(input$tos_to_upload3, {
-  nav_select("main_content", "submit")
-  rv$current_nav <- "submit"
-  session$sendCustomMessage("updateSidebarNav", "nav_submit")
+# Store/Scene request from header dropdown
+observeEvent(input$header_store_request, {
+  shinyjs::click("open_store_request")
 })
 
 # ---------------------------------------------------------------------------
-# FAQ Navigation from Info Icons (Rating/Score column headers)
+# FAQ Navigation from Info Icons (open external FAQ instead)
 # ---------------------------------------------------------------------------
 
 observeEvent(input$goto_faq_rating, {
-  nav_select("main_content", "faq")
-  rv$current_nav <- "faq"
-  session$sendCustomMessage("updateSidebarNav", "nav_faq")
-  # Open the competitive-rating accordion panel after a delay
-  shinyjs::delay(300, {
-    shinyjs::runjs("
-      var panel = document.querySelector('#faq_ratings [data-value=\"competitive-rating\"] .accordion-button.collapsed');
-      if (panel) panel.click();
-    ")
-  })
+  # Open external FAQ page in new tab
+  shinyjs::runjs("window.open('https://digilab.cards/faq#competitive-rating', '_blank');")
 })
 
 observeEvent(input$goto_faq_score, {
-  nav_select("main_content", "faq")
-  rv$current_nav <- "faq"
-  session$sendCustomMessage("updateSidebarNav", "nav_faq")
-  # Open the achievement-score accordion panel after a delay
-  shinyjs::delay(300, {
-    shinyjs::runjs("
-      var panel = document.querySelector('#faq_ratings [data-value=\"achievement-score\"] .accordion-button.collapsed');
-      if (panel) panel.click();
-    ")
-  })
+  # Open external FAQ page in new tab
+  shinyjs::runjs("window.open('https://digilab.cards/faq#achievement-score', '_blank');")
 })
 
 # ---------------------------------------------------------------------------
@@ -453,24 +365,6 @@ observeEvent(input$submit_data_error, {
 # Bug Report Modal (general bugs — footer + content pages)
 # ---------------------------------------------------------------------------
 
-observeEvent(input$open_bug_report, {
-  show_bug_report_modal()
-})
-
-# For Organizers page triggers
-observeEvent(input$tos_open_bug_report, {
-  show_bug_report_modal()
-})
-
-# FAQ page triggers
-observeEvent(input$faq_open_data_correction, {
-  show_bug_report_modal()
-})
-
-observeEvent(input$faq_open_bug_report, {
-  show_bug_report_modal()
-})
-
 show_bug_report_modal <- function() {
   # Clear previous values
   updateTextInput(session, "bug_report_title", value = "")
@@ -535,31 +429,6 @@ observeEvent(input$submit_bug_report, {
     removeModal()
     notify("Report received but couldn't send to Discord. We'll follow up manually.", type = "warning", duration = 5)
   })
-})
-
-# ---------------------------------------------------------------------------
-# About Page Stats
-# ---------------------------------------------------------------------------
-
-output$about_scene_count <- renderText({
-  count <- safe_query(db_pool, "SELECT COUNT(*) as n FROM scenes WHERE slug != 'all'",
-                      default = data.frame(n = 0))$n
-  as.character(count)
-})
-
-output$about_store_count <- renderText({
-  count <- dbGetQuery(db_pool, "SELECT COUNT(*) FROM stores WHERE is_active = TRUE")[[1]]
-  as.character(count)
-})
-
-output$about_player_count <- renderText({
-  count <- dbGetQuery(db_pool, "SELECT COUNT(*) FROM players WHERE is_active = TRUE")[[1]]
-  as.character(count)
-})
-
-output$about_tournament_count <- renderText({
-  count <- dbGetQuery(db_pool, "SELECT COUNT(*) FROM tournaments")[[1]]
-  as.character(count)
 })
 
 # ---------------------------------------------------------------------------

@@ -387,9 +387,6 @@ source("views/players-ui.R", local = TRUE)
 source("views/meta-ui.R", local = TRUE)
 source("views/tournaments-ui.R", local = TRUE)
 source("views/submit-ui.R", local = TRUE)
-source("views/about-ui.R", local = TRUE)
-source("views/faq-ui.R", local = TRUE)
-source("views/for-tos-ui.R", local = TRUE)
 source("views/onboarding-modal-ui.R", local = TRUE)
 source("views/community-banner-ui.R", local = TRUE)
 
@@ -450,6 +447,10 @@ ui <- page_fillable(
     ")),
     # Flag icons CSS for country flags in tables
     tags$link(rel = "stylesheet", href = "https://cdn.jsdelivr.net/npm/flag-icons@7.2.3/css/flag-icons.min.css"),
+    # Google Fonts: Righteous for header title
+    tags$link(rel = "preconnect", href = "https://fonts.googleapis.com"),
+    tags$link(rel = "preconnect", href = "https://fonts.gstatic.com", crossorigin = NA),
+    tags$link(rel = "stylesheet", href = "https://fonts.googleapis.com/css2?family=Righteous&display=swap"),
     tags$link(rel = "stylesheet", type = "text/css", href = "custom.css"),
     # Deep linking URL routing
     tags$script(src = "url-routing.js"),
@@ -695,10 +696,11 @@ ui <- page_fillable(
   div(
     class = "app-header",
     tags$a(
-      href = "#",
+      href = "https://digilab.cards/",
+      target = "_blank",
+      rel = "noopener noreferrer",
       class = "header-title",
       style = "text-decoration: none; color: inherit;",
-      onclick = "Shiny.setInputValue('header_home_click', Date.now(), {priority: 'event'}); return false;",
       # Digivice icon
       span(
         class = "header-icon",
@@ -715,13 +717,36 @@ ui <- page_fillable(
                  bsicons::bs_icon("lock"),
                  class = "header-action-btn",
                  title = "Admin Login"),
-      # Ko-fi support (moved from footer)
-      tags$a(
-        href = LINKS$kofi,
-        target = "_blank",
-        class = "header-action-btn header-coffee-btn",
-        title = "Support on Ko-fi",
-        bsicons::bs_icon("cup-hot")
+      # Help dropdown (three-dots menu)
+      div(
+        class = "header-help-dropdown",
+        tags$button(
+          id = "help_dropdown_toggle",
+          class = "header-action-btn dropdown-toggle",
+          type = "button",
+          `data-bs-toggle` = "dropdown",
+          `aria-expanded` = "false",
+          title = "Help & Resources",
+          bsicons::bs_icon("three-dots-vertical")
+        ),
+        tags$ul(
+          class = "dropdown-menu dropdown-menu-end",
+          `aria-labelledby` = "help_dropdown_toggle",
+          tags$li(tags$a(class = "dropdown-item", href = "https://digilab.cards/faq",
+                         target = "_blank", rel = "noopener noreferrer",
+                         bsicons::bs_icon("question-circle"), " FAQ")),
+          tags$li(tags$a(class = "dropdown-item", href = "https://digilab.cards/organizers",
+                         target = "_blank", rel = "noopener noreferrer",
+                         bsicons::bs_icon("person-badge"), " For Organizers")),
+          tags$li(tags$a(class = "dropdown-item", href = "https://digilab.cards/roadmap",
+                         target = "_blank", rel = "noopener noreferrer",
+                         bsicons::bs_icon("map"), " Roadmap")),
+          tags$li(tags$hr(class = "dropdown-divider")),
+          tags$li(actionLink("header_bug_report", class = "dropdown-item",
+                             tagList(bsicons::bs_icon("bug"), " Report a Bug"))),
+          tags$li(actionLink("header_store_request", class = "dropdown-item",
+                             tagList(bsicons::bs_icon("plus-circle"), " Request Store/Scene")))
+        )
       )
     ),
     # Scene selector (separate child so it can wrap to its own row on mobile)
@@ -844,44 +869,65 @@ ui <- page_fillable(
         nav_panel_hidden(value = "admin_formats", uiOutput("admin_formats_ui")),
         nav_panel_hidden(value = "admin_players", uiOutput("admin_players_ui")),
         nav_panel_hidden(value = "admin_users", uiOutput("admin_users_ui")),
-        nav_panel_hidden(value = "admin_scenes", uiOutput("admin_scenes_ui")),
-
-        # Content pages (accessed via footer)
-        nav_panel_hidden(value = "about", about_ui),
-        nav_panel_hidden(value = "faq", faq_ui),
-        nav_panel_hidden(value = "for_tos", for_tos_ui)
+        nav_panel_hidden(value = "admin_scenes", uiOutput("admin_scenes_ui"))
       )
     )
   ),
 
-  # Footer (outside layout_sidebar to span full width like header)
+  # Footer (minimal layout for iframe embedding)
   tags$footer(
     class = "app-footer",
-    tags$nav(
-      class = "footer-nav",
-      actionLink("nav_about", "About", class = "footer-link"),
-      span(class = "footer-divider", "//"),
-      actionLink("nav_faq", "FAQ", class = "footer-link"),
-      span(class = "footer-divider", "//"),
-      actionLink("nav_for_tos", "For Organizers", class = "footer-link"),
-      span(class = "footer-divider", "//"),
-      actionLink("open_bug_report", tagList(bsicons::bs_icon("bug"), " Report a Bug"),
-                 class = "footer-link"),
-      span(class = "footer-divider", "//"),
+    # Left: Version
+    tags$div(
+      class = "footer-version",
+      paste0("v", APP_VERSION)
+    ),
+    # Center: Social icons
+    tags$div(
+      class = "footer-social",
       tags$a(
         href = LINKS$github,
         target = "_blank",
-        class = "footer-link footer-icon-link",
+        rel = "noopener noreferrer",
+        class = "footer-icon-btn",
         title = "View on GitHub",
         bsicons::bs_icon("github")
+      ),
+      tags$a(
+        href = LINKS$discord,
+        target = "_blank",
+        rel = "noopener noreferrer",
+        class = "footer-icon-btn",
+        title = "Join Discord",
+        bsicons::bs_icon("discord")
+      ),
+      tags$a(
+        href = LINKS$kofi,
+        target = "_blank",
+        rel = "noopener noreferrer",
+        class = "footer-icon-btn",
+        title = "Support on Ko-fi",
+        bsicons::bs_icon("cup-hot")
       )
     ),
+    # Center-right: Copyright
     tags$div(
-      class = "footer-meta",
-      paste0("v", APP_VERSION, " | \u00A9 2026 DigiLab"),
+      class = "footer-copyright",
+      "\u00A9 2026 DigiLab"
+    ),
+    # Right: Privacy + Welcome Guide
+    tags$div(
+      class = "footer-links",
+      tags$a(
+        href = "https://digilab.cards/privacy",
+        target = "_blank",
+        rel = "noopener noreferrer",
+        class = "footer-link",
+        "Privacy"
+      ),
       actionLink("open_welcome_guide",
-                 bsicons::bs_icon("question-circle"),
-                 class = "footer-meta-link",
+                 bsicons::bs_icon("lightbulb"),
+                 class = "footer-guide-btn",
                  title = "Welcome Guide")
     )
   ),

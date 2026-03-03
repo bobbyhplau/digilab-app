@@ -58,6 +58,15 @@
 }
 
 /* =============================================================================
+   EDGE-TO-EDGE LAYOUT (for iframe embedding)
+   Remove default padding from bslib page_fillable
+   ============================================================================= */
+
+.bslib-page-fill {
+  padding: 0 !important;
+}
+
+/* =============================================================================
    APP HEADER
    ============================================================================= */
 
@@ -70,9 +79,8 @@
   background: linear-gradient(135deg, #0A3055 0%, #0F4C81 100%);
   color: #FFFFFF;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
-  margin: -1rem;
-  margin-bottom: 0;
-  width: calc(100% + 2rem);
+  margin: 0;
+  width: 100%;
   min-height: 48px;
   position: relative;
   overflow: hidden;
@@ -139,10 +147,10 @@
 }
 
 .header-title-text {
-  font-family: 'Poppins', sans-serif;
+  font-family: 'Righteous', sans-serif;
   font-size: 1.25rem;
-  font-weight: 600;
-  letter-spacing: -0.02em;
+  font-weight: 400;
+  letter-spacing: 0.02em;
   white-space: nowrap;
   color: #FFFFFF !important;
 }
@@ -209,10 +217,42 @@
   color: #FFFFFF !important;
 }
 
-/* Ko-fi support button - coral highlight */
-.header-coffee-btn:hover {
-  background-color: #FF5E5B !important;
-  color: #FFFFFF !important;
+/* Help dropdown in header */
+.header-help-dropdown {
+  position: relative;
+}
+
+.header-help-dropdown .dropdown-toggle::after {
+  display: none; /* Hide default caret */
+}
+
+.header-help-dropdown .dropdown-menu {
+  background: #0A3055;
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  border-radius: 8px;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.3);
+  min-width: 200px;
+  padding: 0.5rem 0;
+}
+
+.header-help-dropdown .dropdown-item {
+  color: rgba(255, 255, 255, 0.9);
+  padding: 0.5rem 1rem;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  transition: all 0.15s ease;
+}
+
+.header-help-dropdown .dropdown-item:hover,
+.header-help-dropdown .dropdown-item:focus {
+  background: rgba(255, 255, 255, 0.1);
+  color: #FFFFFF;
+}
+
+.header-help-dropdown .dropdown-divider {
+  border-color: rgba(255, 255, 255, 0.1);
+  margin: 0.25rem 0;
 }
 
 /* Scene selector dropdown in header */
@@ -4950,7 +4990,7 @@ select,
 
 /* =============================================================================
    APP FOOTER
-   Matches header styling with same blue gradient and grid pattern
+   Minimal footer for iframe embedding - matches header styling
    ============================================================================= */
 
 .app-footer {
@@ -4964,26 +5004,59 @@ select,
   display: flex;
   justify-content: space-between;
   align-items: center;
+  gap: 1rem;
   font-size: 0.85rem;
   position: relative;
-  /* Match header dimensions */
-  margin: 0 -1rem;
+  /* Edge-to-edge layout */
+  margin: 0;
   margin-top: auto;
-  width: calc(100% + 2rem);
+  width: 100%;
   min-height: 40px;
 }
 
-.footer-nav {
+.footer-version {
+  color: rgba(255, 255, 255, 0.6);
+  font-size: 0.75rem;
+  font-family: monospace;
+}
+
+.footer-social {
   display: flex;
   gap: 0.5rem;
   align-items: center;
 }
 
-.footer-link {
-  color: rgba(255, 255, 255, 0.8);
+.footer-icon-btn {
+  color: rgba(255, 255, 255, 0.7);
+  padding: 0.3rem 0.5rem;
+  border-radius: 4px;
+  font-size: 1rem;
+  transition: all 0.15s ease;
   text-decoration: none;
-  transition: all 0.2s ease;
-  padding: 0.25rem 0.5rem;
+}
+
+.footer-icon-btn:hover {
+  color: #FFFFFF;
+  background: rgba(255, 255, 255, 0.1);
+}
+
+.footer-copyright {
+  color: rgba(255, 255, 255, 0.5);
+  font-size: 0.75rem;
+}
+
+.footer-links {
+  display: flex;
+  gap: 0.75rem;
+  align-items: center;
+}
+
+.footer-link {
+  color: rgba(255, 255, 255, 0.7);
+  text-decoration: none;
+  font-size: 0.8rem;
+  transition: all 0.15s ease;
+  padding: 0.2rem 0.4rem;
   border-radius: 4px;
 }
 
@@ -4992,54 +5065,44 @@ select,
   background: rgba(255, 255, 255, 0.1);
 }
 
-.footer-divider {
-  color: rgba(255, 255, 255, 0.3);
-  font-family: monospace;
-  user-select: none;
+.footer-guide-btn {
+  color: rgba(255, 255, 255, 0.6) !important;
+  font-size: 1rem;
+  padding: 0.2rem 0.4rem;
+  border-radius: 4px;
+  transition: all 0.15s ease;
 }
 
-.footer-icon-link {
-  font-size: 1.1rem;
-  padding: 0.25rem 0.5rem;
-}
-
-.footer-meta {
-  color: rgba(255, 255, 255, 0.5);
-  font-size: 0.8rem;
-}
-
-.footer-meta-link {
-  color: rgba(255, 255, 255, 0.5) !important;
-  text-decoration: none;
-  transition: color 0.15s;
-  margin-left: 0.4rem;
-  font-size: 0.9rem;
-}
-
-.footer-meta-link:hover {
+.footer-guide-btn:hover {
   color: #F7941D !important;
-  text-decoration: none;
+  background: rgba(255, 255, 255, 0.1);
 }
 
 /* Footer responsive */
 @media (max-width: 576px) {
   .app-footer {
-    flex-direction: column;
+    flex-wrap: wrap;
+    justify-content: center;
     gap: 0.5rem;
-    text-align: center;
     padding: 0.5rem 1rem;
   }
 
-  .footer-nav {
-    gap: 0.25rem;
+  .footer-version {
+    order: 3;
+    width: 100%;
+    text-align: center;
   }
 
-  .footer-divider {
+  .footer-social {
+    order: 1;
+  }
+
+  .footer-copyright {
     display: none;
   }
 
-  .footer-meta {
-    font-size: 0.7rem;
+  .footer-links {
+    order: 2;
   }
 }
 
