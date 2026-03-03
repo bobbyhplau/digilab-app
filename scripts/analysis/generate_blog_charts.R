@@ -23,12 +23,23 @@ COL_GREEN  <- "#38A169"
 COL_RED    <- "#E5383B"
 COL_GRAY   <- "#6B7280"
 
-# Base theme: atomtemplates dark + transparent background + no default colors
+# Base theme: atomtemplates dark + transparent background + dark text for embedding
 blog_theme <- hc_theme_merge(
   hc_theme_atom_switch("dark"),
   hc_theme(
     chart = list(backgroundColor = "transparent"),
-    colors = c(COL_BLUE, COL_ORANGE, COL_GREEN, COL_RED, COL_GRAY)
+    colors = c(COL_BLUE, COL_ORANGE, COL_GREEN, COL_RED, COL_GRAY),
+    title = list(style = list(color = "#1a1a1a")),
+    subtitle = list(style = list(color = "#4a4a4a")),
+    xAxis = list(
+      title = list(style = list(color = "#333333")),
+      labels = list(style = list(color = "#333333"))
+    ),
+    yAxis = list(
+      title = list(style = list(color = "#333333")),
+      labels = list(style = list(color = "#333333"))
+    ),
+    legend = list(itemStyle = list(color = "#333333"))
   )
 )
 
@@ -124,8 +135,8 @@ rc_breaks <- seq(
 rc_hist <- hist(data$rank_change, breaks = rc_breaks, plot = FALSE)
 
 # Color each bar based on bin center
-rc_colors <- ifelse(rc_hist$mids > 0, COL_GREEN,
-              ifelse(rc_hist$mids < 0, COL_RED, COL_GRAY))
+rc_colors <- ifelse(rc_hist$mids > 0, COL_BLUE,
+              ifelse(rc_hist$mids < 0, COL_ORANGE, COL_GRAY))
 
 # Build data points with individual colors
 rc_data <- lapply(seq_along(rc_hist$mids), function(i) {
@@ -164,99 +175,10 @@ chart2 <- highchart() %>%
 save_chart(chart2, "rank-change-distribution.html")
 
 # ===========================================================================
-# Chart 3: Rank Bump Chart (Top 30 players, old rank vs new rank)
+# Chart 3: Rank Change vs Events Played (Scatter)
 # ===========================================================================
 
-message("Chart 3: Rank Bump Chart (Top 30)")
-
-top30 <- data %>%
-  arrange(rank_old) %>%
-  head(30)
-
-# Build individual line series per player
-bump_series <- lapply(seq_len(nrow(top30)), function(i) {
-  player <- top30[i, ]
-  improved <- player$rank_new < player$rank_old
-  color <- if (improved) COL_BLUE else COL_ORANGE
-
-  list(
-    name = player$display_name,
-    data = list(
-      list(x = 0, y = player$rank_old, name = player$display_name),
-      list(
-        x = 1,
-        y = player$rank_new,
-        name = player$display_name,
-        dataLabels = list(
-          enabled = TRUE,
-          format = player$display_name,
-          align = "left",
-          x = 5,
-          style = list(
-            fontSize = "10px",
-            color = "#e0e0e0",
-            textOutline = "1px #1a1a1a"
-          )
-        )
-      )
-    ),
-    color = color,
-    lineWidth = 2,
-    marker = list(
-      enabled = TRUE,
-      radius = 4,
-      symbol = "circle"
-    ),
-    showInLegend = FALSE
-  )
-})
-
-chart3 <- highchart() %>%
-  hc_chart(type = "line", height = 600) %>%
-  hc_add_theme(blog_theme) %>%
-  hc_title(text = "Top 30 Players: Old Rank vs New Rank") %>%
-  hc_subtitle(text = "Blue lines = climbed. Orange lines = dropped.") %>%
-  hc_xAxis(
-    categories = c("Old Rank", "New Rank"),
-    lineWidth = 0,
-    gridLineWidth = 1,
-    gridLineColor = "#333333"
-  ) %>%
-  hc_yAxis(
-    title = list(text = "Rank Position"),
-    reversed = TRUE,
-    min = 0
-  ) %>%
-  hc_tooltip(
-    headerFormat = "",
-    pointFormat = "<b>{point.name}</b><br/>{series.name}: Rank #{point.y}"
-  ) %>%
-  hc_plotOptions(line = list(
-    dataLabels = list(enabled = FALSE)
-  )) %>%
-  hc_credits(enabled = FALSE) %>%
-  hc_exporting(enabled = FALSE)
-
-# Add each player as a separate series
-for (s in bump_series) {
-  chart3 <- chart3 %>%
-    hc_add_series(
-      name = s$name,
-      data = s$data,
-      color = s$color,
-      lineWidth = s$lineWidth,
-      marker = s$marker,
-      showInLegend = s$showInLegend
-    )
-}
-
-save_chart(chart3, "rank-bump-chart.html")
-
-# ===========================================================================
-# Chart 4: Rank Change vs Events Played (Scatter)
-# ===========================================================================
-
-message("Chart 4: Rank Change vs Events Played")
+message("Chart 3: Rank Change vs Events Played")
 
 improved <- data %>%
   filter(rank_change > 0) %>%
@@ -279,7 +201,7 @@ make_scatter_points <- function(df) {
   })
 }
 
-chart4 <- highchart() %>%
+chart3 <- highchart() %>%
   hc_chart(type = "scatter") %>%
   hc_add_theme(blog_theme) %>%
   hc_title(text = "Rank Change vs Events Played") %>%
@@ -318,15 +240,14 @@ chart4 <- highchart() %>%
   hc_credits(enabled = FALSE) %>%
   hc_exporting(enabled = FALSE)
 
-save_chart(chart4, "rating-vs-events.html")
+save_chart(chart3, "rating-vs-events.html")
 
 # ===========================================================================
 # Done
 # ===========================================================================
 
-message(sprintf("\nAll 4 charts saved to: %s", OUTPUT_DIR))
+message(sprintf("\nAll 3 charts saved to: %s", OUTPUT_DIR))
 message("Files:")
 message("  1. rating-distribution-comparison.html")
 message("  2. rank-change-distribution.html")
-message("  3. rank-bump-chart.html")
-message("  4. rating-vs-events.html")
+message("  3. rating-vs-events.html")
