@@ -354,11 +354,11 @@ CLASSIFICATION_RULES = [
     # Lilithmon
     ("Lilithmon", ["Lilithmon", "LadyDevimon", "BlackGatomon"], 2),
 
-    # Vortex Warriors (was Zephagamon)
-    ("Vortex Warriors", ["Zephagamon", "Pteromon", "Vortexdramon"], 2),
-    ("Vortex Warriors", ["Zephagamon", "Vortexdramon"], 2),
-    ("Vortex Warriors", ["Zephagamon", "Zephagamon ACE"], 2),
-    ("Vortex Warriors", ["Zephagamon ACE", "MedievalGallantmon"], 2),
+    # Vortexdramon (was Zephagamon / Vortex Warriors)
+    ("Vortexdramon", ["Zephagamon", "Pteromon", "Vortexdramon"], 2),
+    ("Vortexdramon", ["Zephagamon", "Vortexdramon"], 2),
+    ("Vortexdramon", ["Zephagamon", "Zephagamon ACE"], 2),
+    ("Vortexdramon", ["Zephagamon ACE", "MedievalGallantmon"], 2),
 
     # Sistermon Puppets (Sistermon + Gankoomon)
     ("Sistermon Puppets", ["Sistermon Blanc", "Sistermon Ciel", "Gankoomon"], 3),
