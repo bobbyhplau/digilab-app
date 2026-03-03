@@ -152,7 +152,7 @@ onboarding_ui <- function() {
         # Title + description
         h2(class = "onboarding-title", "Join the Community"),
         p(class = "onboarding-subtitle",
-          "DigiLab is community-built and still in beta. Your feedback shapes what gets built next."
+          "DigiLab is community-built. Your feedback shapes what gets built next."
         ),
 
         # Tappable link rows
@@ -193,13 +193,9 @@ onboarding_ui <- function() {
         # Subtle divider + footer links
         tags$hr(class = "onboarding-subtle-divider"),
         p(class = "onboarding-muted-note",
-          "Visit ",
-          actionLink("onboarding_goto_about", "About"),
-          ", ",
-          actionLink("onboarding_goto_faq", "FAQ"),
-          ", and ",
-          actionLink("onboarding_goto_organizers", "For Organizers"),
-          " anytime from the footer."
+          "Find About, FAQ, and For Organizers anytime from the ",
+          bsicons::bs_icon("three-dots-vertical"),
+          " menu in the header."
         )
       )
     ),

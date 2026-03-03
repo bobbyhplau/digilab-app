@@ -224,6 +224,17 @@
   align-items: center;
 }
 
+.header-help-dropdown .dropdown-toggle {
+  border: none;
+  box-shadow: none;
+}
+
+.header-help-dropdown .dropdown-toggle:focus,
+.header-help-dropdown .dropdown-toggle:active {
+  box-shadow: none;
+  outline: none;
+}
+
 .header-help-dropdown .dropdown-toggle::after {
   display: none; /* Hide default caret */
 }

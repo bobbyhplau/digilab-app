@@ -282,24 +282,6 @@ observeEvent(input$onboarding_to_organizers, {
   rv$current_nav <- "for_tos"
 })
 
-# Step 3 footer inline links
-observeEvent(input$onboarding_goto_about, {
-  select_scene_and_close(rv$current_scene %||% "all")
-  nav_select("main_content", "about")
-  rv$current_nav <- "about"
-})
-
-observeEvent(input$onboarding_goto_faq, {
-  select_scene_and_close(rv$current_scene %||% "all")
-  nav_select("main_content", "faq")
-  rv$current_nav <- "faq"
-})
-
-observeEvent(input$onboarding_goto_organizers, {
-  select_scene_and_close(rv$current_scene %||% "all")
-  nav_select("main_content", "for_tos")
-  rv$current_nav <- "for_tos"
-})
 
 # -----------------------------------------------------------------------------
 # Scene Selection (from onboarding modal)
