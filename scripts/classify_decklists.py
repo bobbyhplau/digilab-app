@@ -7,22 +7,44 @@ Only processes UNKNOWN archetype results that have decklists.
 
 Usage:
     python scripts/classify_decklists.py --dry-run    # Preview changes
-    python scripts/classify_decklists.py              # Apply changes (local)
-    python scripts/classify_decklists.py --motherduck # Apply changes (MotherDuck)
+    python scripts/classify_decklists.py              # Apply changes
+
+Prerequisites:
+    pip install psycopg2-binary python-dotenv
+    NEON_HOST and NEON_PASSWORD env vars required (in .env file)
 """
 
 import argparse
 import os
-import duckdb
+import sys
 import json
 from collections import Counter
 from dotenv import load_dotenv
 
 load_dotenv()
 
-MOTHERDUCK_DB = os.getenv("MOTHERDUCK_DATABASE", "digimon_tcg_dfw")
-MOTHERDUCK_TOKEN = os.getenv("MOTHERDUCK_TOKEN")
-LOCAL_DB = "data/local.duckdb"
+
+def get_connection():
+    """Connect to Neon PostgreSQL."""
+    import psycopg2
+
+    host = os.getenv("NEON_HOST")
+    dbname = os.getenv("NEON_DATABASE", "neondb")
+    user = os.getenv("NEON_USER")
+    password = os.getenv("NEON_PASSWORD")
+
+    if not host or not password:
+        print("Error: NEON_HOST and NEON_PASSWORD env vars required")
+        sys.exit(1)
+
+    return psycopg2.connect(
+        host=host,
+        dbname=dbname,
+        user=user,
+        password=password,
+        port=5432,
+        sslmode="require"
+    )
 
 # Classification rules: list of (archetype_name, required_cards, min_matches)
 # required_cards can be a list of card name patterns (substring match)
@@ -426,29 +448,26 @@ def main():
     parser = argparse.ArgumentParser(description='Auto-classify UNKNOWN decklists')
     parser.add_argument('--dry-run', action='store_true', help='Preview changes without applying')
     parser.add_argument('--online-only', action='store_true', default=True, help='Only process online tournaments')
-    parser.add_argument('--motherduck', action='store_true', help='Use MotherDuck instead of local DuckDB')
     args = parser.parse_args()
 
     # Connect to database
-    if args.motherduck:
-        if not MOTHERDUCK_TOKEN:
-            print("Error: MOTHERDUCK_TOKEN not set in .env")
-            return
-        print(f"Connecting to MotherDuck: {MOTHERDUCK_DB}")
-        con = duckdb.connect(f"md:{MOTHERDUCK_DB}?motherduck_token={MOTHERDUCK_TOKEN}")
-    else:
-        print(f"Connecting to local database: {LOCAL_DB}")
-        con = duckdb.connect(LOCAL_DB, read_only=args.dry_run)
+    print("Connecting to Neon PostgreSQL...", end=" ", flush=True)
+    try:
+        conn = get_connection()
+        cursor = conn.cursor()
+        print("OK")
+    except Exception as e:
+        print(f"FAILED: {e}")
+        sys.exit(1)
 
     # Get archetype name to ID mapping
-    archetypes = con.execute('''
-        SELECT archetype_id, archetype_name FROM deck_archetypes
-    ''').fetchall()
+    cursor.execute('SELECT archetype_id, archetype_name FROM deck_archetypes')
+    archetypes = cursor.fetchall()
     archetype_map = {name: id for id, name in archetypes}
 
     # Get UNKNOWN decklist results
     if args.online_only:
-        results = con.execute('''
+        cursor.execute('''
             SELECT r.result_id, r.decklist_json
             FROM results r
             JOIN tournaments t ON r.tournament_id = t.tournament_id
@@ -458,17 +477,18 @@ def main():
               AND d.archetype_name = 'UNKNOWN'
               AND r.decklist_json IS NOT NULL
               AND r.decklist_json != ''
-        ''').fetchall()
+        ''')
     else:
-        results = con.execute('''
+        cursor.execute('''
             SELECT r.result_id, r.decklist_json
             FROM results r
             JOIN deck_archetypes d ON r.archetype_id = d.archetype_id
             WHERE d.archetype_name = 'UNKNOWN'
               AND r.decklist_json IS NOT NULL
               AND r.decklist_json != ''
-        ''').fetchall()
+        ''')
 
+    results = cursor.fetchall()
     print(f"Found {len(results)} UNKNOWN results with decklists")
     print()
 
@@ -502,13 +522,15 @@ def main():
         # Apply updates
         print(f"Applying {len(updates)} archetype updates...")
         for archetype_id, result_id in updates:
-            con.execute(
-                "UPDATE results SET archetype_id = ? WHERE result_id = ?",
-                [archetype_id, result_id]
+            cursor.execute(
+                "UPDATE results SET archetype_id = %s WHERE result_id = %s",
+                (archetype_id, result_id)
             )
+        conn.commit()
         print("Done!")
 
-    con.close()
+    cursor.close()
+    conn.close()
 
 
 if __name__ == '__main__':

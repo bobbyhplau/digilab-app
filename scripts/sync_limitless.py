@@ -1311,7 +1311,11 @@ def run_classify_decklists(cursor):
     print("AUTO-CLASSIFYING UNKNOWN DECKLISTS")
     print("=" * 60)
 
-    # Import classification logic
+    # Import classification logic (add scripts dir to path for GitHub Actions)
+    from pathlib import Path
+    scripts_dir = Path(__file__).parent
+    if str(scripts_dir) not in sys.path:
+        sys.path.insert(0, str(scripts_dir))
     from classify_decklists import CLASSIFICATION_RULES, classify_decklist
 
     # Get archetype name to ID mapping
