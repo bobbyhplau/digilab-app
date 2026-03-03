@@ -83,7 +83,7 @@
   width: 100%;
   min-height: 48px;
   position: relative;
-  overflow: hidden;
+  overflow: visible;
   /* Subtle grid pattern (4% opacity, 30px spacing) */
   background-image:
     repeating-linear-gradient(0deg, rgba(255,255,255,0.04) 0px, transparent 1px, transparent 30px),
