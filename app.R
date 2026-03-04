@@ -456,6 +456,7 @@ ui <- page_fillable(
     tags$link(rel = "preconnect", href = "https://fonts.gstatic.com", crossorigin = NA),
     tags$link(rel = "stylesheet", href = "https://fonts.googleapis.com/css2?family=Righteous&display=swap"),
     tags$link(rel = "stylesheet", type = "text/css", href = "custom.css"),
+    tags$link(rel = "stylesheet", type = "text/css", href = "mobile.css"),
     # Deep linking URL routing
     tags$script(src = "url-routing.js"),
     # Scene selection and localStorage
@@ -466,6 +467,17 @@ ui <- page_fillable(
     tags$script(HTML("if('serviceWorker' in navigator){navigator.serviceWorker.register('sw.js');}")),
     # JavaScript to handle active nav state and loading screen
     tags$script(HTML("
+      // Device detection - send device info to Shiny on connect
+      var _deviceInfo = {
+        type: window.innerWidth <= 768 ? 'mobile' : 'desktop',
+        width: window.innerWidth,
+        touch: 'ontouchstart' in window,
+        standalone: window.matchMedia('(display-mode: standalone)').matches
+      };
+      $(document).on('shiny:connected', function() {
+        Shiny.setInputValue('device_info', _deviceInfo);
+      });
+
       $(document).on('click', '.nav-link-sidebar', function() {
         $('.nav-link-sidebar').removeClass('active');
         $(this).addClass('active');
