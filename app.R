@@ -427,6 +427,9 @@ ui <- page_fillable(
     # Favicon and app icons
     tags$link(rel = "icon", type = "image/x-icon", href = "favicon.ico"),
     tags$link(rel = "apple-touch-icon", href = "icons/icon-192.png"),
+    # Viewport with safe area support for iPhone X+ PWA mode
+    tags$meta(name = "viewport",
+              content = "width=device-width, initial-scale=1, viewport-fit=cover"),
     # Standalone mode (iOS + Android)
     tags$meta(name = "mobile-web-app-capable", content = "yes"),
     tags$meta(name = "apple-mobile-web-app-status-bar-style", content = "black-translucent"),

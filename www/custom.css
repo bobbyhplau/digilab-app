@@ -4141,7 +4141,7 @@ a:hover, .nav-link:hover {
   .bslib-sidebar-layout > main,
   .bslib-sidebar-layout > [role="main"],
   .bslib-sidebar-layout > :not(.sidebar):not(.collapse-toggle) {
-    padding-bottom: 70px !important;
+    padding-bottom: calc(70px + env(safe-area-inset-bottom)) !important;
   }
 }
 
@@ -6541,6 +6541,7 @@ div.player-match-indicator.new {
     background: linear-gradient(135deg, #0A3055 0%, #0F4C81 100%);
     border-top: 1px solid rgba(0, 200, 255, 0.15);
     padding: 0.35rem 0;
+    padding-bottom: calc(0.35rem + env(safe-area-inset-bottom));
     justify-content: space-around;
     align-items: center;
   }
@@ -6585,7 +6586,7 @@ div.player-match-indicator.new {
 
   /* Footer padding above tab bar */
   .app-footer {
-    padding-bottom: 70px;
+    padding-bottom: calc(70px + env(safe-area-inset-bottom));
   }
 }
 
