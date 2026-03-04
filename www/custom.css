@@ -4215,6 +4215,15 @@ a:hover, .nav-link:hover {
   .rt-td {
     padding: 0.35rem 0.5rem !important;
   }
+
+  /* Prevent iOS Safari auto-zoom on input focus (triggered below 16px) */
+  .form-control,
+  .form-select,
+  select,
+  .selectize-input,
+  .selectize-input input {
+    font-size: 16px !important;
+  }
 }
 
 /* 5a. Mobile Admin - Enter Tournament Details */
