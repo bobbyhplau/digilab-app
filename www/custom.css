@@ -2,6 +2,52 @@
 /* Theme: Digimon Logo (Deep Blue #0F4C81 / Orange #F7941D) */
 /* Layout: Sidebar + Header */
 
+/* MOBILE OVERRIDE INDEX:
+ * Line numbers approximate -- search for the section header if moved.
+ *
+ * @365:   App header — wrap & reflow (max-width: 768px)
+ * @684:   App header — small phone tweaks (max-width: 576px)
+ * @998:   Title strip pill labels — hide on tablet (max-width: 768px)
+ * @1109:  Page title strip inputs — constrain width (max-width: 992px)
+ * @1115:  Page title strip inputs — full width mobile (max-width: 768px)
+ * @1159:  Title strip selects — medium screen width cap (max-width: 1200px)
+ * @1167:  Title strip content — vertical stack (max-width: 992px)
+ * @1215:  Title strip content — full-width stacked mobile (max-width: 768px)
+ * @1471:  Dashboard value boxes — 2x2 grid (max-width: 768px)
+ * @1535:  Dashboard value boxes — smaller on small screens (max-width: 576px)
+ * @1567:  Dashboard value boxes — extra-small phones (max-width: 400px)
+ * @1604:  Rising stars grid — 3-col (max-width: 1600px)
+ * @1613:  Rising stars grid — 2-col (max-width: 991px)
+ * @1619:  Rising stars grid — 1-col (max-width: 640px)
+ * @2596:  Onboarding hero — stack vertically (max-width: 576px)
+ * @2899:  Onboarding steps — mobile layout (max-width: 576px)
+ * @2995:  Tournament summary bar — stack rows (max-width: 768px)
+ * @3115:  Admin panel — responsive adjustments (max-width: 768px)
+ * @3373:  Dashboard filters — reduce padding (max-width: 576px)
+ * @3402:  Top decks grid — 3-col (max-width: 1600px)
+ * @3411:  Top decks grid — 2-col (max-width: 991px)
+ * @3516:  Top decks grid — 1-col (max-width: 640px)
+ * @4142:  Notification panel — full-width bottom (max-width: 576px)
+ * @4172:  Mobile UI — hide sidebar, show bottom tab bar (max-width: 768px)
+ * @4195:  Mobile value boxes — compact sizing (max-width: 768px)
+ * @4216:  Mobile tables — hide low-priority columns (max-width: 768px)
+ * @4276:  Mobile admin — Enter Tournament Details (max-width: 768px)
+ * @4298:  Mobile admin — Add Results page (max-width: 768px)
+ * @4322:  Mobile admin — Manage pages (max-width: 768px)
+ * @4355:  Mobile header — small phone adjustments (max-width: 576px)
+ * @5153:  Footer — responsive wrap (max-width: 576px)
+ * @5486:  Content pages — mobile padding (max-width: 768px)
+ * @6125:  Upload results — desktop match indicator (min-width: 769px)
+ * @6362:  Upload results — Step 1 mobile (max-width: 768px)
+ * @6426:  Upload results — Step 2 mobile (max-width: 768px)
+ * @6531:  Upload results — extra-small screens (max-width: 576px)
+ * @6578:  Mobile bottom tab bar (max-width: 768px)
+ * @6719:  Admin modal nav — show on mobile (max-width: 768px)
+ * @7069:  Reduced motion — pause mascot animation (prefers-reduced-motion)
+ *
+ * Total @media blocks: 39
+ */
+
 /* =============================================================================
    CUSTOM SCROLLBARS - Digital Aesthetic
    ============================================================================= */
