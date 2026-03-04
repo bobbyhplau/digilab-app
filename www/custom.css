@@ -48,12 +48,12 @@
 }
 
 /* Firefox scrollbars */
-* {
+body {
   scrollbar-width: thin;
   scrollbar-color: rgba(0, 200, 255, 0.5) rgba(15, 76, 129, 0.1);
 }
 
-[data-bs-theme="dark"] * {
+[data-bs-theme="dark"] body {
   scrollbar-color: rgba(0, 200, 255, 0.4) rgba(0, 200, 255, 0.05);
 }
 
