@@ -432,19 +432,37 @@ output$mobile_players_cards <- renderUI({
     row <- display[i, ]
     rank <- i
 
-    rank_class <- paste("mobile-card-rank",
-      if (rank == 1) "rank-1" else if (rank == 2) "rank-2" else if (rank == 3) "rank-3" else "")
+    # Rating tier class
+    rating <- as.integer(row$competitive_rating)
+    rating_class <- if (rating >= 1800) "rating-tier-elite"
+                    else if (rating >= 1700) "rating-tier-strong"
+                    else if (rating >= 1600) "rating-tier-good"
+                    else if (rating < 1500) "rating-tier-low"
+                    else ""
 
-    # Win percentage display
+    # Card class with optional top-3 left border
+    card_class <- paste("mobile-list-card",
+      if (rank == 1) "player-rank-1"
+      else if (rank == 2) "player-rank-2"
+      else if (rank == 3) "player-rank-3"
+      else "")
+
+    # Win percentage
+    win_pct_num <- if (!is.na(row$Win_Pct)) row$Win_Pct else 0
     win_pct <- if (!is.na(row$Win_Pct)) paste0(row$Win_Pct, "%") else "-"
 
-    # Record string: W-L
+    # Win rate bar color
+    winrate_color <- if (win_pct_num >= 60) "winrate-high"
+                     else if (win_pct_num >= 40) "winrate-mid"
+                     else "winrate-low"
+
+    # Record string: W-L or W-L-T
     record <- sprintf("%d-%d", as.integer(row$W), as.integer(row$L))
     if (!is.na(row$T) && row$T > 0) {
       record <- sprintf("%s-%d", record, as.integer(row$T))
     }
 
-    # Main deck badge
+    # Main deck badge (unchanged logic)
     deck_tag <- if (nchar(row$main_deck) > 0) {
       color_class <- if (nchar(row$main_deck_color) > 0) {
         paste0("deck-badge deck-badge-", tolower(row$main_deck_color))
@@ -457,35 +475,38 @@ output$mobile_players_cards <- renderUI({
     }
 
     div(
-      class = "mobile-list-card",
+      class = card_class,
       onclick = sprintf("Shiny.setInputValue('player_clicked', %d, {priority: 'event'})", row$player_id),
 
-      # Row 1: Rank | Player Name | Rating
+      # Row 1: Rank + Name + Rating (monospace, tier-colored)
       div(class = "mobile-card-row",
         div(style = "display: flex; align-items: baseline; gap: 0.5rem;",
-          span(class = rank_class, rank),
+          span(class = paste("mobile-card-rank",
+            if (rank == 1) "rank-1" else if (rank == 2) "rank-2" else if (rank == 3) "rank-3" else ""),
+            rank),
           span(class = "mobile-card-primary", row$Player)
         ),
-        div(class = "mobile-card-stat", row$competitive_rating)
+        span(class = paste("mobile-card-rating", rating_class), rating)
       ),
 
-      # Row 2: Win% | Record | Win Rate
+      # Row 2: Deck badge + Record + Win%
       div(class = "mobile-card-row",
         div(class = "mobile-card-secondary",
-          span(style = "margin-right: 0.75rem;", record),
-          span(win_pct)
+          if (!is.null(deck_tag)) tagList(deck_tag, span(style = "margin-left: 0.5rem;", record, " ", win_pct))
+          else tagList(span(record), span(style = "margin-left: 0.5rem;", win_pct))
         ),
         div(class = "mobile-card-tertiary",
           sprintf("%d events", as.integer(row$Events))
         )
       ),
 
-      # Row 3: Main Deck (if exists)
-      if (!is.null(deck_tag)) {
-        div(class = "mobile-card-row",
-          div(class = "mobile-card-secondary", deck_tag)
+      # Row 3: Win rate bar
+      div(class = "mobile-card-row", style = "align-items: center;",
+        div(class = "mobile-winrate-bar",
+          div(class = paste("mobile-winrate-fill", winrate_color),
+              style = sprintf("width: %s%%", win_pct_num))
         )
-      }
+      )
     )
   })
 
