@@ -49,6 +49,18 @@ if (Sys.getenv("MAPBOX_PUBLIC_TOKEN") == "" && Sys.getenv("MAPBOX_ACCESS_TOKEN")
   Sys.setenv(MAPBOX_PUBLIC_TOKEN = Sys.getenv("MAPBOX_ACCESS_TOKEN"))
 }
 
+# Patch mapgl 0.4.4 trailing slash bug (causes 404 on Mapbox CDN)
+# See: https://github.com/walkerke/mapgl/issues/XXX
+mapgl_yaml <- system.file("htmlwidgets/mapboxgl.yaml", package = "mapgl")
+if (nzchar(mapgl_yaml)) {
+  yaml_text <- readLines(mapgl_yaml, warn = FALSE)
+  if (any(grepl('api.mapbox.com.*/"$', yaml_text))) {
+    yaml_text <- gsub('(api\\.mapbox\\.com[^"]*)/(")', '\\1\\2', yaml_text)
+    writeLines(yaml_text, mapgl_yaml)
+    message("[STARTUP] Patched mapgl trailing slash bug in mapboxgl.yaml")
+  }
+}
+
 # Create database connection pool
 db_pool <- create_db_pool()
 
