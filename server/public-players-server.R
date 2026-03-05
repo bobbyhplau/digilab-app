@@ -4,6 +4,18 @@
 # Note: Contains overview_player_clicked handler which is triggered from
 # the Dashboard tab to open player details from "Top Players" table.
 
+# ---------------------------------------------------------------------------
+# Page Rendering (desktop vs mobile)
+# ---------------------------------------------------------------------------
+output$players_page <- renderUI({
+  format_choices_with_all <- get_format_choices_with_all(db_pool)
+  if (is_mobile()) {
+    source("views/mobile-players-ui.R", local = TRUE)$value
+  } else {
+    source("views/players-ui.R", local = TRUE)$value
+  }
+})
+
 # Shared reactive: fetch snapshot ratings for historical format (or NULL)
 historical_snapshot_data <- reactive({
   selected_format <- input$players_format
@@ -283,6 +295,223 @@ output$player_standings <- renderReactable({
   rv$current_scene,
   rv$community_filter,
   rv$data_refresh
+)
+
+# ---------------------------------------------------------------------------
+# Mobile Players — stacked card list replacing reactable
+# ---------------------------------------------------------------------------
+mobile_players_limit <- reactiveVal(20)
+
+# Reset limit when filters change
+observeEvent(list(input$players_format, input$players_search, input$players_min_events), {
+  mobile_players_limit(20)
+}, ignoreInit = TRUE)
+
+# Load more button
+observeEvent(input$mobile_players_load_more, {
+  mobile_players_limit(mobile_players_limit() + 20)
+})
+
+output$mobile_players_cards <- renderUI({
+  req(is_mobile())
+  rv$data_refresh
+
+  # -- Reuse exact same query logic as desktop renderReactable ----------------
+  search_filters <- build_filters_param(
+    table_alias = "p",
+    search = players_search_debounced(),
+    search_column = "display_name",
+    start_idx = 1
+  )
+
+  format_filters <- build_filters_param(
+    table_alias = "t",
+    format = input$players_format,
+    scene = rv$current_scene,
+    store_alias = "s",
+    community_store = rv$community_filter,
+    start_idx = search_filters$next_idx
+  )
+
+  filter_sql <- paste(search_filters$sql, format_filters$sql)
+  filter_params <- c(search_filters$params, format_filters$params)
+
+  min_events <- as.numeric(input$players_min_events)
+  if (is.na(min_events)) min_events <- 0
+  having_idx <- format_filters$next_idx
+
+  query <- sprintf("
+    SELECT p.player_id, p.display_name as \"Player\",
+           COUNT(DISTINCT r.tournament_id) as \"Events\",
+           SUM(r.wins) as \"W\", SUM(r.losses) as \"L\", SUM(r.ties) as \"T\",
+           ROUND(SUM(r.wins) * 100.0 / NULLIF(SUM(r.wins) + SUM(r.losses), 0), 1) as \"Win_Pct\",
+           COUNT(CASE WHEN r.placement = 1 THEN 1 END) as \"Firsts\",
+           COUNT(CASE WHEN r.placement <= 3 THEN 1 END) as \"Top3s\"
+    FROM players p
+    JOIN results r ON p.player_id = r.player_id
+    JOIN tournaments t ON r.tournament_id = t.tournament_id
+    JOIN stores s ON t.store_id = s.store_id
+    WHERE 1=1 %s
+    GROUP BY p.player_id, p.display_name
+    HAVING COUNT(DISTINCT r.tournament_id) >= $%d
+  ", filter_sql, having_idx)
+
+  result <- safe_query(db_pool, query,
+    params = c(filter_params, list(min_events)),
+    default = data.frame())
+
+  # Main decks
+  main_decks_query <- sprintf("
+    WITH player_deck_counts AS (
+      SELECT r.player_id, da.archetype_name, da.primary_color,
+             COUNT(*) as times_played,
+             ROW_NUMBER() OVER (PARTITION BY r.player_id ORDER BY COUNT(*) DESC) as rn
+      FROM results r
+      JOIN players p ON r.player_id = p.player_id
+      JOIN deck_archetypes da ON r.archetype_id = da.archetype_id
+      JOIN tournaments t ON r.tournament_id = t.tournament_id
+      JOIN stores s ON t.store_id = s.store_id
+      WHERE da.archetype_name != 'UNKNOWN' %s
+      GROUP BY r.player_id, da.archetype_name, da.primary_color
+    )
+    SELECT player_id, archetype_name as main_deck, primary_color as main_deck_color
+    FROM player_deck_counts
+    WHERE rn = 1
+  ", filter_sql)
+
+  main_decks <- safe_query(db_pool, main_decks_query,
+    params = filter_params, default = data.frame())
+
+  if (nrow(result) == 0) {
+    has_filters <- nchar(trimws(players_search_debounced() %||% "")) > 0 ||
+                   nchar(trimws(input$players_format %||% "")) > 0
+    if (has_filters) {
+      return(digital_empty_state(
+        title = "No players match your filters",
+        subtitle = "// try adjusting search or format",
+        icon = "funnel"
+      ))
+    } else {
+      return(digital_empty_state(
+        title = "No players recorded",
+        subtitle = "// player data pending",
+        icon = "people",
+        mascot = "agumon"
+      ))
+    }
+  }
+
+  # Ratings: historical snapshot or live
+  snapshot <- historical_snapshot_data()
+  if (!is.null(snapshot)) {
+    result <- merge(result, snapshot, by = "player_id", all.x = TRUE)
+  } else {
+    comp_ratings <- player_competitive_ratings()
+    result <- merge(result, comp_ratings, by = "player_id", all.x = TRUE)
+    ach_scores <- player_achievement_scores()
+    result <- merge(result, ach_scores, by = "player_id", all.x = TRUE)
+  }
+  result$competitive_rating[is.na(result$competitive_rating)] <- 1500
+  result$achievement_score[is.na(result$achievement_score)] <- 0
+
+  # Join main decks
+  result <- merge(result, main_decks, by = "player_id", all.x = TRUE)
+  result$main_deck[is.na(result$main_deck)] <- ""
+  result$main_deck_color[is.na(result$main_deck_color)] <- ""
+
+  # Sort by competitive rating descending
+
+  result <- result[order(-result$competitive_rating), ]
+
+  total_rows <- nrow(result)
+  limit <- min(mobile_players_limit(), total_rows)
+  display <- result[seq_len(limit), , drop = FALSE]
+
+  # -- Build card list --------------------------------------------------------
+  cards <- lapply(seq_len(nrow(display)), function(i) {
+    row <- display[i, ]
+    rank <- i
+
+    rank_class <- paste("mobile-card-rank",
+      if (rank == 1) "rank-1" else if (rank == 2) "rank-2" else if (rank == 3) "rank-3" else "")
+
+    # Win percentage display
+    win_pct <- if (!is.na(row$Win_Pct)) paste0(row$Win_Pct, "%") else "-"
+
+    # Record string: W-L
+    record <- sprintf("%d-%d", as.integer(row$W), as.integer(row$L))
+    if (!is.na(row$T) && row$T > 0) {
+      record <- sprintf("%s-%d", record, as.integer(row$T))
+    }
+
+    # Main deck badge
+    deck_tag <- if (nchar(row$main_deck) > 0) {
+      color_class <- if (nchar(row$main_deck_color) > 0) {
+        paste0("deck-badge deck-badge-", tolower(row$main_deck_color))
+      } else {
+        "deck-badge"
+      }
+      tags$span(class = color_class, row$main_deck)
+    } else {
+      NULL
+    }
+
+    div(
+      class = "mobile-list-card",
+      onclick = sprintf("Shiny.setInputValue('player_clicked', %d, {priority: 'event'})", row$player_id),
+
+      # Row 1: Rank | Player Name | Rating
+      div(class = "mobile-card-row",
+        div(style = "display: flex; align-items: baseline; gap: 0.5rem;",
+          span(class = rank_class, rank),
+          span(class = "mobile-card-primary", row$Player)
+        ),
+        div(class = "mobile-card-stat", row$competitive_rating)
+      ),
+
+      # Row 2: Win% | Record | Win Rate
+      div(class = "mobile-card-row",
+        div(class = "mobile-card-secondary",
+          span(style = "margin-right: 0.75rem;", record),
+          span(win_pct)
+        ),
+        div(class = "mobile-card-tertiary",
+          sprintf("%d events", as.integer(row$Events))
+        )
+      ),
+
+      # Row 3: Main Deck (if exists)
+      if (!is.null(deck_tag)) {
+        div(class = "mobile-card-row",
+          div(class = "mobile-card-secondary", deck_tag)
+        )
+      }
+    )
+  })
+
+  # Assemble: card list + optional load-more button
+  card_list <- div(class = "mobile-card-list", cards)
+
+  if (limit < total_rows) {
+    remaining <- total_rows - limit
+    load_btn <- tags$button(
+      class = "mobile-load-more",
+      onclick = "Shiny.setInputValue('mobile_players_load_more', Math.random(), {priority: 'event'})",
+      sprintf("Load more (%d remaining)", remaining)
+    )
+    tagList(card_list, load_btn)
+  } else {
+    card_list
+  }
+}) |> bindCache(
+  is_mobile(),
+  input$players_format,
+  players_search_debounced(),
+  input$players_min_events,
+  rv$current_scene,
+  rv$community_filter,
+  rv$data_refresh,
+  mobile_players_limit()
 )
 
 # Handle player row click - open detail modal

@@ -381,11 +381,9 @@ if (nzchar(Sys.getenv("SENTRY_DSN", ""))) {
 # Source Views
 # =============================================================================
 
-source("views/dashboard-ui.R", local = TRUE)
-source("views/stores-ui.R", local = TRUE)
-source("views/players-ui.R", local = TRUE)
-source("views/meta-ui.R", local = TRUE)
-source("views/tournaments-ui.R", local = TRUE)
+# Public page UIs (dashboard, stores, players, meta, tournaments) are sourced
+# at render time inside each page's renderUI so format choices can be populated
+# from the database. See server/public-*-server.R files.
 source("views/submit-ui.R", local = TRUE)
 source("views/onboarding-modal-ui.R", local = TRUE)
 source("views/community-banner-ui.R", local = TRUE)
@@ -427,9 +425,13 @@ ui <- page_fillable(
     # Favicon and app icons
     tags$link(rel = "icon", type = "image/x-icon", href = "favicon.ico"),
     tags$link(rel = "apple-touch-icon", href = "icons/icon-192.png"),
+    # Viewport with safe area support for iPhone X+ PWA mode
+    tags$meta(name = "viewport",
+              content = "width=device-width, initial-scale=1, viewport-fit=cover"),
     # Standalone mode (iOS + Android)
     tags$meta(name = "mobile-web-app-capable", content = "yes"),
     tags$meta(name = "apple-mobile-web-app-status-bar-style", content = "black-translucent"),
+    tags$meta(name = "apple-mobile-web-app-title", content = "DigiLab"),
     # Google Analytics
     tags$script(async = NA, src = "https://www.googletagmanager.com/gtag/js?id=G-NJ3SMG8HGG"),
     tags$script(HTML("
@@ -452,6 +454,7 @@ ui <- page_fillable(
     tags$link(rel = "preconnect", href = "https://fonts.gstatic.com", crossorigin = NA),
     tags$link(rel = "stylesheet", href = "https://fonts.googleapis.com/css2?family=Righteous&display=swap"),
     tags$link(rel = "stylesheet", type = "text/css", href = "custom.css"),
+    tags$link(rel = "stylesheet", type = "text/css", href = "mobile.css"),
     # Deep linking URL routing
     tags$script(src = "url-routing.js"),
     # Scene selection and localStorage
@@ -462,6 +465,17 @@ ui <- page_fillable(
     tags$script(HTML("if('serviceWorker' in navigator){navigator.serviceWorker.register('sw.js');}")),
     # JavaScript to handle active nav state and loading screen
     tags$script(HTML("
+      // Device detection - send device info to Shiny on connect
+      var _deviceInfo = {
+        type: window.innerWidth <= 768 ? 'mobile' : 'desktop',
+        width: window.innerWidth,
+        touch: 'ontouchstart' in window,
+        standalone: window.matchMedia('(display-mode: standalone)').matches
+      };
+      $(document).on('shiny:connected', function() {
+        Shiny.setInputValue('device_info', _deviceInfo);
+      });
+
       $(document).on('click', '.nav-link-sidebar', function() {
         $('.nav-link-sidebar').removeClass('active');
         $(this).addClass('active');
@@ -856,11 +870,11 @@ ui <- page_fillable(
       navset_hidden(
         id = "main_content",
 
-        nav_panel_hidden(value = "dashboard", dashboard_ui),
-        nav_panel_hidden(value = "stores", stores_ui),
-        nav_panel_hidden(value = "players", players_ui),
-        nav_panel_hidden(value = "meta", meta_ui),
-        nav_panel_hidden(value = "tournaments", tournaments_ui),
+        nav_panel_hidden(value = "dashboard", uiOutput("dashboard_page")),
+        nav_panel_hidden(value = "stores", uiOutput("stores_page")),
+        nav_panel_hidden(value = "players", uiOutput("players_page")),
+        nav_panel_hidden(value = "meta", uiOutput("meta_page")),
+        nav_panel_hidden(value = "tournaments", uiOutput("tournaments_page")),
         nav_panel_hidden(value = "submit", submit_ui),
         nav_panel_hidden(value = "admin_results", uiOutput("admin_results_ui")),
         nav_panel_hidden(value = "admin_tournaments", uiOutput("admin_tournaments_ui")),

@@ -132,7 +132,7 @@ admin_stores_ui <- tagList(
                   selectize = FALSE
                 ),
                 div(
-                  style = "padding-top: 32px;",
+                  class = "d-flex align-items-end h-100",
                   actionButton("add_schedule", "Add", class = "btn-outline-primary btn-sm")
                 )
               )

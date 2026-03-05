@@ -36,6 +36,16 @@ observeEvent(input$keepalive_ping, {
 }, ignoreInit = TRUE)
 
 # ---------------------------------------------------------------------------
+# Device Detection
+# ---------------------------------------------------------------------------
+
+is_mobile <- reactive({
+  info <- input$device_info
+  if (is.null(info)) return(FALSE)
+  info$type == "mobile"
+})
+
+# ---------------------------------------------------------------------------
 # Navigation
 # ---------------------------------------------------------------------------
 
@@ -1009,34 +1019,14 @@ get_format_choices <- function(pool) {
   return(choices)
 }
 
-# Update PUBLIC format dropdowns when database connects or formats change
-# (Public tabs are not lazy-loaded, so no special handling needed)
-observe({
-  rv$format_refresh
-
-  format_choices <- get_format_choices(db_pool)
-
-  # Format choices with "All Formats" option
-  format_choices_with_all <- list(
+# Format choices with "All Formats" header for selectInputs.
+# Called inside each page's renderUI so choices are populated at render time.
+get_format_choices_with_all <- function(pool) {
+  list(
     "All Formats" = "",
-    "Recent Formats" = format_choices
+    "Recent Formats" = get_format_choices(pool)
   )
-
-  # Preserve current selections when repopulating choices
-  current_dashboard <- isolate(input$dashboard_format)
-  current_players <- isolate(input$players_format)
-  current_meta <- isolate(input$meta_format)
-  current_tournaments <- isolate(input$tournaments_format)
-
-  updateSelectInput(session, "dashboard_format", choices = format_choices_with_all,
-                    selected = if (is.null(current_dashboard)) "" else current_dashboard)
-  updateSelectInput(session, "players_format", choices = format_choices_with_all,
-                    selected = current_players)
-  updateSelectInput(session, "meta_format", choices = format_choices_with_all,
-                    selected = current_meta)
-  updateSelectInput(session, "tournaments_format", choices = format_choices_with_all,
-                    selected = current_tournaments)
-})
+}
 
 # Update ADMIN format dropdown (Enter Results wizard)
 # Only fires when on admin_results tab (prevents race condition with lazy-loaded UI)

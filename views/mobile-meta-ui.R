@@ -1,10 +1,12 @@
-# views/meta-ui.R
-# Meta analysis tab UI with deck profiles
+# views/mobile-meta-ui.R
+# Mobile-optimized Meta view with deck archetype cards
+# Sourced inside output$meta_page when is_mobile() is TRUE.
+# Returns a bare tagList (no assignment) so source(...)$value works.
 
 tagList(
-  # Title strip with integrated filters
+  # -- Title strip with filters (SAME input IDs as desktop) ------------------
   div(
-    class = "page-title-strip mb-3",
+    class = "page-title-strip mb-2",
     div(
       class = "title-strip-content",
       # Left side: page title
@@ -51,29 +53,17 @@ tagList(
     )
   ),
 
-  # Help text
+  # -- Help text --------------------------------------------------------------
   div(class = "page-help-text",
     div(class = "info-hint-box text-center",
       bsicons::bs_icon("info-circle", class = "info-hint-icon"),
-      "Deck performance across all tournaments. See which archetypes are played most and which convert to top finishes."
+      "Deck performance across all tournaments. Tap a deck for its full profile."
     )
   ),
 
-  card(
-    card_header(
-      class = "d-flex justify-content-between align-items-center",
-      "Archetype Performance",
-      span(class = "small text-muted", "Click a row for deck profile")
-    ),
-    card_body(
-      div(
-        id = "archetype_stats_skeleton",
-        skeleton_table(rows = 8)
-      ),
-      reactableOutput("archetype_stats")
-    )
-  ),
+  # -- Mobile card container --------------------------------------------------
+  uiOutput("mobile_meta_cards"),
 
-  # Deck detail modal (rendered dynamically)
+  # -- Deck detail modal (rendered dynamically) -------------------------------
   uiOutput("deck_detail_modal")
 )

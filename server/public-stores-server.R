@@ -5,6 +5,17 @@
 # This is kept here for now due to physical proximity; could move to shared-server.R later.
 # Also contains reset_dashboard_filters which should ideally be in Dashboard server.
 
+# ---------------------------------------------------------------------------
+# Page Rendering (desktop vs mobile)
+# ---------------------------------------------------------------------------
+output$stores_page <- renderUI({
+  if (is_mobile()) {
+    source("views/mobile-stores-ui.R", local = TRUE)$value
+  } else {
+    source("views/stores-ui.R", local = TRUE)$value
+  }
+})
+
 # =============================================================================
 # View Toggle (Schedule / All Stores)
 # =============================================================================
@@ -1306,6 +1317,291 @@ output$stores_map <- renderMapboxgl({
 
   map
 }) |> bindCache(rv$current_scene, rv$community_filter, input$dark_mode, rv$data_refresh)
+
+# =============================================================================
+# Mobile Stores Map (compact 200px)
+# =============================================================================
+output$mobile_stores_map <- renderMapboxgl({
+  req(is_mobile())
+
+  scene <- rv$current_scene
+
+  # For Online scene, show world map with online organizers
+  if (!is.null(scene) && scene == "online") {
+    return(render_online_organizers_map())
+  }
+
+  # For All Scenes, show combined world map with physical + online markers
+  if (is.null(scene) || scene == "" || scene == "all") {
+    return(render_all_scenes_map(stores_data()))
+  }
+
+  # For other scenes, show regional map with physical stores
+  stores <- stores_data()
+
+  # Default DFW center if no stores or no valid coordinates
+  if (is.null(stores) || nrow(stores) == 0) {
+    return(
+      atom_mapgl(theme = "digital") |>
+        mapgl::set_view(center = c(-96.8, 32.8), zoom = 9)
+    )
+  }
+
+  # Filter to stores with coordinates
+  stores_with_coords <- stores[!is.na(stores$latitude) & !is.na(stores$longitude), ]
+
+  if (nrow(stores_with_coords) == 0) {
+    return(
+      atom_mapgl(theme = "digital") |>
+        mapgl::set_view(center = c(-96.8, 32.8), zoom = 9)
+    )
+  }
+
+  # Convert to sf object
+  stores_sf <- st_as_sf(stores_with_coords, coords = c("longitude", "latitude"), crs = 4326)
+
+  # Bubble size based on average event size (same tiers as desktop)
+  stores_sf$bubble_size <- sapply(stores_with_coords$avg_players, function(avg) {
+    if (is.na(avg) || avg == 0) return(5)
+    if (avg < 8) return(8)
+    if (avg <= 12) return(10)
+    if (avg <= 18) return(13)
+    if (avg <= 24) return(16)
+    return(18)
+  })
+
+  # Minimal popup for mobile (just store name + city)
+  stores_sf$popup <- sapply(1:nrow(stores_sf), function(i) {
+    store <- stores_with_coords[i, ]
+    city_text <- if (!is.null(store$city) && !is.na(store$city)) store$city else ""
+    sprintf(
+      '<div style="text-align:center;padding:4px 8px;font-family:system-ui,sans-serif;">
+        <div style="font-weight:600;font-size:13px;">%s</div>
+        <div style="font-size:11px;opacity:0.7;">%s</div>
+      </div>',
+      htmltools::htmlEscape(store$name),
+      htmltools::htmlEscape(city_text)
+    )
+  })
+
+  # Create the map (no popup theme helper needed for compact view)
+  atom_mapgl(theme = "digital") |>
+    mapgl::add_circle_layer(
+      id = "stores-layer",
+      source = stores_sf,
+      circle_color = "#F7941D",
+      circle_radius = list("get", "bubble_size"),
+      circle_stroke_color = "#FFFFFF",
+      circle_stroke_width = 1.5,
+      circle_opacity = 0.85,
+      popup = "popup"
+    ) |>
+    mapgl::fit_bounds(stores_sf, padding = 30, maxZoom = 9)
+}) |> bindCache(rv$current_scene, rv$community_filter, input$dark_mode, rv$data_refresh)
+
+# =============================================================================
+# Mobile Store Cards
+# =============================================================================
+
+# Pagination limit for mobile store cards
+mobile_stores_limit <- reactiveVal(20)
+
+# Reset limit when scene changes
+observeEvent(rv$current_scene, {
+  mobile_stores_limit(20)
+}, ignoreInit = TRUE)
+
+# Load more button
+observeEvent(input$load_more_mobile_stores, {
+  mobile_stores_limit(mobile_stores_limit() + 20)
+})
+
+output$mobile_stores_cards <- renderUI({
+  req(is_mobile())
+  rv$data_refresh
+
+  scene <- rv$current_scene
+
+  # For online scene, show online organizer cards
+  if (!is.null(scene) && scene == "online") {
+    online_stores <- safe_query(db_pool, "
+      SELECT s.store_id, s.name, s.city as region, s.country, s.website,
+             COUNT(t.tournament_id) as tournament_count,
+             COALESCE(ROUND(AVG(t.player_count), 1), 0) as avg_players,
+             MAX(t.event_date) as last_event
+      FROM stores s
+      LEFT JOIN tournaments t ON s.store_id = t.store_id
+      WHERE s.is_online = TRUE AND s.is_active = TRUE
+      GROUP BY s.store_id, s.name, s.city, s.country, s.website
+      ORDER BY s.name
+    ")
+
+    if (nrow(online_stores) == 0) {
+      return(digital_empty_state("No online organizers", "// check back soon", "globe", mascot = "agumon"))
+    }
+
+    total_rows <- nrow(online_stores)
+    show_n <- min(mobile_stores_limit(), total_rows)
+    online_stores <- online_stores[seq_len(show_n), , drop = FALSE]
+
+    cards <- lapply(seq_len(nrow(online_stores)), function(i) {
+      store <- online_stores[i, ]
+
+      # Location line
+      location_parts <- c()
+      if (!is.na(store$region) && nchar(store$region) > 0) location_parts <- c(location_parts, store$region)
+      if (!is.na(store$country) && nchar(store$country) > 0) location_parts <- c(location_parts, store$country)
+      location_line <- paste(location_parts, collapse = ", ")
+
+      # Stats line
+      stats_line <- if (store$tournament_count > 0) {
+        paste0(store$tournament_count, " events")
+      } else {
+        "No events yet"
+      }
+
+      div(
+        class = "mobile-list-card",
+        onclick = sprintf("Shiny.setInputValue('store_clicked', %d, {priority: 'event'})", store$store_id),
+        div(class = "mobile-card-primary", store$name),
+        if (nchar(location_line) > 0) div(class = "mobile-card-secondary", location_line),
+        div(class = "mobile-card-tertiary", stats_line)
+      )
+    })
+
+    card_list <- div(class = "mobile-card-list", cards)
+
+    if (show_n < total_rows) {
+      remaining <- total_rows - show_n
+      return(tagList(
+        card_list,
+        tags$button(
+          class = "mobile-load-more",
+          onclick = "Shiny.setInputValue('load_more_mobile_stores', Math.random(), {priority: 'event'})",
+          sprintf("Show more (%d remaining)", remaining)
+        )
+      ))
+    }
+    return(card_list)
+  }
+
+  # For physical scenes, show physical store cards
+  stores <- stores_data()
+
+  if (is.null(stores) || nrow(stores) == 0) {
+    return(digital_empty_state("No stores found", "// check back soon", "shop", mascot = "agumon"))
+  }
+
+  # Get store schedules for all stores in one query
+  store_ids <- stores$store_id
+  if (length(store_ids) > 0) {
+    placeholders <- paste0("$", seq_along(store_ids), collapse = ", ")
+    schedules_query <- sprintf("
+      SELECT store_id, day_of_week, start_time, frequency
+      FROM store_schedules
+      WHERE store_id IN (%s) AND is_active = TRUE
+      ORDER BY store_id, day_of_week, start_time
+    ", placeholders)
+    all_schedules <- safe_query(db_pool, schedules_query,
+                                params = as.list(store_ids),
+                                default = data.frame())
+  } else {
+    all_schedules <- data.frame()
+  }
+
+  # Get average ratings
+  avg_ratings <- store_avg_ratings()
+
+  # Sort stores: most events first, then by name
+  stores <- stores[order(-stores$tournament_count, stores$name), ]
+
+  total_rows <- nrow(stores)
+  show_n <- min(mobile_stores_limit(), total_rows)
+  stores_page <- stores[seq_len(show_n), , drop = FALSE]
+
+  day_abbrevs <- c("Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat")
+
+  cards <- lapply(seq_len(nrow(stores_page)), function(i) {
+    store <- stores_page[i, ]
+
+    # Build schedule line from store_schedules table
+    store_scheds <- if (nrow(all_schedules) > 0) {
+      all_schedules[all_schedules$store_id == store$store_id, , drop = FALSE]
+    } else {
+      data.frame()
+    }
+
+    schedule_line <- NULL
+    if (nrow(store_scheds) > 0) {
+      sched_parts <- sapply(seq_len(nrow(store_scheds)), function(j) {
+        sched <- store_scheds[j, ]
+        day_name <- day_abbrevs[sched$day_of_week + 1]
+        # Format time (24h to 12h)
+        time_parts <- strsplit(sched$start_time, ":")[[1]]
+        hour <- as.integer(time_parts[1])
+        ampm <- if (hour >= 12) "pm" else "am"
+        hour12 <- if (hour == 0) 12 else if (hour > 12) hour - 12 else hour
+        freq_label <- if (!is.null(sched$frequency) && !is.na(sched$frequency) && sched$frequency != "weekly") {
+          paste0(" (", sched$frequency, ")")
+        } else {
+          ""
+        }
+        sprintf("%s %d%s%s", day_name, hour12, ampm, freq_label)
+      })
+      schedule_line <- paste(sched_parts, collapse = " \u00b7 ")
+    } else if (!is.na(store$schedule_info) && nchar(store$schedule_info) > 0) {
+      # Fallback to legacy schedule_info JSON
+      schedule_line <- parse_schedule_info(store$schedule_info)
+    }
+
+    # Location line
+    location_parts <- c()
+    if (!is.na(store$city) && nchar(store$city) > 0) location_parts <- c(location_parts, store$city)
+    if (!is.na(store$state) && nchar(store$state) > 0) location_parts <- c(location_parts, store$state)
+    location_line <- paste(location_parts, collapse = ", ")
+
+    # Stats line
+    stats_parts <- c()
+    if (!is.na(store$tournament_count) && store$tournament_count > 0) {
+      stats_parts <- c(stats_parts, paste0(store$tournament_count, " events"))
+    }
+    # Add store rating if available
+    store_rating <- avg_ratings$avg_player_rating[avg_ratings$store_id == store$store_id]
+    if (length(store_rating) > 0 && !is.na(store_rating) && store_rating > 0) {
+      stats_parts <- c(stats_parts, paste0("\u2605 ", round(store_rating)))
+    }
+    stats_line <- if (length(stats_parts) > 0) {
+      paste(stats_parts, collapse = " \u00b7 ")
+    } else {
+      "No events yet"
+    }
+
+    div(
+      class = "mobile-list-card",
+      onclick = sprintf("Shiny.setInputValue('store_clicked', %d, {priority: 'event'})", store$store_id),
+      div(class = "mobile-card-primary", store$name),
+      if (!is.null(schedule_line)) div(class = "mobile-card-secondary", schedule_line),
+      if (nchar(location_line) > 0) div(class = "mobile-card-tertiary", location_line),
+      div(class = "mobile-card-tertiary", stats_line)
+    )
+  })
+
+  card_list <- div(class = "mobile-card-list", cards)
+
+  if (show_n < total_rows) {
+    remaining <- total_rows - show_n
+    tagList(
+      card_list,
+      tags$button(
+        class = "mobile-load-more",
+        onclick = "Shiny.setInputValue('load_more_mobile_stores', Math.random(), {priority: 'event'})",
+        sprintf("Show more (%d remaining)", remaining)
+      )
+    )
+  } else {
+    card_list
+  }
+})
 
 # =============================================================================
 # Store Request Modal

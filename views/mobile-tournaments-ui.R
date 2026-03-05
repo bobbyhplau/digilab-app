@@ -1,19 +1,19 @@
-# views/tournaments-ui.R
-# Tournaments history tab UI with filters and detail modal
+# views/mobile-tournaments-ui.R
+# Mobile-optimized Tournaments view with stacked cards replacing reactable.
+# Sourced inside output$tournaments_page when is_mobile() is TRUE.
+# Returns a bare tagList (no assignment) so source(...)$value works.
 
 tagList(
-  # Title strip with integrated filters
+  # -- Title strip with filters (SAME input IDs as desktop) ------------------
   div(
-    class = "page-title-strip mb-3",
+    class = "page-title-strip mb-2",
     div(
       class = "title-strip-content",
-      # Left side: page title
       div(
         class = "title-strip-context",
         bsicons::bs_icon("trophy", class = "title-strip-icon"),
         tags$span(class = "title-strip-text", "Tournament History")
       ),
-      # Right side: compact filters
       div(
         class = "title-strip-controls",
         div(
@@ -47,28 +47,8 @@ tagList(
     )
   ),
 
-  # Help text
-  div(class = "page-help-text",
-    div(class = "info-hint-box text-center",
-      bsicons::bs_icon("info-circle", class = "info-hint-icon"),
-      "Browse all recorded events. Click a tournament to see full standings, decks played, and match records."
-    )
-  ),
-
-  card(
-    card_header(
-      class = "d-flex justify-content-between align-items-center",
-      "All Tournaments",
-      span(class = "small text-muted", "Click a row for full results")
-    ),
-    card_body(
-      div(
-        id = "tournament_history_skeleton",
-        skeleton_table(rows = 8)
-      ),
-      reactableOutput("tournament_history")
-    )
-  ),
+  # Card container rendered by server
+  uiOutput("mobile_tournaments_cards"),
 
   # Tournament detail modal (rendered dynamically)
   uiOutput("tournament_detail_modal")

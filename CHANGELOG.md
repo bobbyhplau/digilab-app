@@ -5,6 +5,49 @@ All notable changes to DigiLab will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.3.0] - 2026-03-04 - Mobile Views & PWA Fixes
+
+### Added
+- **Mobile device detection**: JS detects device type on page load, sends to Shiny via `input$device_info`. Server-side `is_mobile()` reactive drives conditional rendering.
+- **Dedicated mobile views**: 5 new mobile view files (`views/mobile-dashboard-ui.R`, `mobile-players-ui.R`, `mobile-meta-ui.R`, `mobile-tournaments-ui.R`, `mobile-stores-ui.R`) with purpose-built layouts for small screens.
+- **Mobile stacked cards**: Players, Meta, Tournaments, and Stores pages replace reactable tables with tappable card layouts on mobile. Load-more pagination (20 cards at a time).
+- **Mobile dashboard**: All desktop dashboard sections available on mobile — value boxes, charts (with hidden legends/axis labels for space), horizontal-scroll Rising Stars and Top Decks.
+- **Mobile stores map**: Compact 200px map with store cards below.
+- **Mobile CSS foundation**: New `www/mobile.css` with shared card, horizontal scroll, compact map, and section header styles.
+- **PWA icon sizes**: 7 additional icon sizes (48–384px) for broader device support.
+- **Dark mode tab bar**: Dedicated dark theme variant for mobile bottom navigation.
+- **Mobile dashboard accordion**: All dashboard sections (Top Decks, Rising Stars, Recent Tournaments, analytics charts) in a unified collapsible accordion. Top Decks and Rising Stars open by default.
+- **Mobile compact cards**: Redesigned Top Decks (150px with 130px card art, color borders, win rate bars) and Rising Stars (rank badges, desktop-matching placement badges, JetBrains Mono rating).
+- **Mobile recent tournaments**: Card-based layout with date badge, store/winner info, player count, and country flags for "All Scenes" view.
+- **Meta Share Over Time tooltip grouping**: Decks under 3% meta share are summed into an "Other (N decks)" line in the tooltip.
+
+### Fixed
+- **iOS Safari auto-zoom**: Added `font-size: 16px` to mobile form inputs to prevent zoom on focus.
+- **Upload Results responsive**: Converted 4 fixed `col_widths` to `breakpoints()` for proper mobile stacking.
+- **Safe area insets**: Added `env(safe-area-inset-bottom)` to tab bar, content, and footer for iPhone X+ notch/home bar.
+- **Mobile content clipping**: Reset sidebar layout negative margins on mobile and increased content padding.
+- **Store form alignment**: Replaced hardcoded `padding-top: 32px` with flexbox alignment.
+- **Format dropdown not populating**: Format choices are now computed at render time inside each page's `renderUI`, fixing a race condition where `updateSelectInput` fired before dynamically-rendered selectInputs existed in the DOM.
+- **Mobile header-content gap**: Neutralized bslib's `layout_sidebar` CSS grid on mobile (`display: block`) to eliminate ~1 inch of whitespace between header and content.
+- **Mobile value boxes 1x4 layout**: Replaced `layout_columns` (which collapsed to 1 column below bslib's `md` breakpoint) with CSS grid for guaranteed 2x2 layout.
+
+### Changed
+- **Conditional page rendering**: Public pages now use `uiOutput` wrappers with `renderUI` that sources either desktop or mobile view files based on `is_mobile()`.
+- **Scrollbar selector**: Scoped from `*` to `body` for better performance.
+- **Shared data reactives**: Meta and Tournaments server modules refactored to share data between desktop tables and mobile cards.
+- **Value box labels**: Renamed "HOT DECK" to "TRENDING" and "TOP DECK" to "MOST PLAYED" on both desktop and mobile for clarity.
+- **Title strip dropdowns**: Restyled from white to semi-transparent blue (`rgba(255,255,255,0.1)`) with white text, matching the header scene selector aesthetic.
+- **Meta Share Over Time legend**: Removed on both desktop and mobile (tooltip provides deck details on hover).
+- **Dead CSS removed**: ~195 lines of responsive CSS that targeted components no longer rendered on mobile (replaced by dedicated mobile views).
+- **UI files sourced at render time**: Desktop UI files (`dashboard-ui.R`, `players-ui.R`, etc.) changed from static startup-sourced variables to render-time sourced tagLists, enabling format choices to be populated at render time.
+
+### Infrastructure
+- Added `viewport-fit=cover` meta tag and `apple-mobile-web-app-title` for PWA.
+- CSS media query index comment added to top of `custom.css`.
+- Design docs: `docs/plans/2026-03-03-mobile-views-design.md`, `docs/plans/2026-03-03-mobile-views-plan.md`.
+
+---
+
 ## [1.2.0] - 2026-03-03 - Rating System Redesign & DigiLab Website
 
 ### Changed

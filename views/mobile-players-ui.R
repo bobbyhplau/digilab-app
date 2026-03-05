@@ -1,19 +1,19 @@
-# views/players-ui.R
-# Players tab UI with player profiles
+# views/mobile-players-ui.R
+# Mobile-optimized Players view with stacked cards replacing reactable.
+# Sourced inside output$players_page when is_mobile() is TRUE.
+# Returns a bare tagList (no assignment) so source(...)$value works.
 
 tagList(
-  # Title strip with integrated filters
+  # -- Title strip with filters (SAME input IDs as desktop) ------------------
   div(
-    class = "page-title-strip mb-3",
+    class = "page-title-strip mb-2",
     div(
       class = "title-strip-content",
-      # Left side: page title
       div(
         class = "title-strip-context",
         bsicons::bs_icon("people", class = "title-strip-icon"),
         tags$span(class = "title-strip-text", "Player Standings")
       ),
-      # Right side: compact filters
       div(
         class = "title-strip-controls",
         div(
@@ -54,32 +54,8 @@ tagList(
   # Historical rating indicator (shown when viewing past format)
   uiOutput("historical_rating_badge"),
 
-  # Help text
-  div(class = "page-help-text",
-    div(class = "info-hint-box text-center",
-      bsicons::bs_icon("info-circle", class = "info-hint-icon"),
-      "Player leaderboard ranked by ",
-      actionLink("goto_faq_rating", "Competitive Rating", class = "info-hint-link"),
-      " and ",
-      actionLink("goto_faq_score", "Achievement Score", class = "info-hint-link"),
-      ". Click any player to see their full tournament history and stats."
-    )
-  ),
-
-  card(
-    card_header(
-      class = "d-flex justify-content-between align-items-center",
-      "Player Leaderboard",
-      span(class = "small text-muted", "Click a row for player profile")
-    ),
-    card_body(
-      div(
-        id = "player_standings_skeleton",
-        skeleton_table(rows = 8)
-      ),
-      reactableOutput("player_standings")
-    )
-  ),
+  # Card container rendered by server
+  uiOutput("mobile_players_cards"),
 
   # Player detail modal (rendered dynamically)
   uiOutput("player_detail_modal")

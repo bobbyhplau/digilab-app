@@ -8,6 +8,18 @@
 # - All dashboard charts (meta share, conversion, color distribution, trends)
 
 # ---------------------------------------------------------------------------
+# Page Rendering (desktop vs mobile)
+# ---------------------------------------------------------------------------
+output$dashboard_page <- renderUI({
+  format_choices_with_all <- get_format_choices_with_all(db_pool)
+  if (is_mobile()) {
+    source("views/mobile-dashboard-ui.R", local = TRUE)$value
+  } else {
+    source("views/dashboard-ui.R", local = TRUE)$value
+  }
+})
+
+# ---------------------------------------------------------------------------
 # Dashboard Data
 # ---------------------------------------------------------------------------
 
@@ -571,16 +583,27 @@ output$meta_share_timeline <- renderHighchart({
     )
   })
 
-  # Custom tooltip formatter: filter 0% values and sort by percentage descending
+  # Custom tooltip formatter: filter 0% values, sort desc, group <3% into "Other"
   tooltip_formatter <- JS("
     function() {
       var points = this.points.filter(function(p) { return p.percentage > 0; });
       points.sort(function(a, b) { return b.percentage - a.percentage; });
       var html = '<b>' + this.x + '</b><br/>';
+      var otherPct = 0;
+      var otherCount = 0;
       points.forEach(function(p) {
-        html += '<span style=\"color:' + p.series.color + '\">\u25CF</span> ' +
-                p.series.name + ': <b>' + Highcharts.numberFormat(p.percentage, 1) + '%</b><br/>';
+        if (p.percentage >= 3) {
+          html += '<span style=\"color:' + p.series.color + '\">\u25CF</span> ' +
+                  p.series.name + ': <b>' + Highcharts.numberFormat(p.percentage, 1) + '%</b><br/>';
+        } else {
+          otherPct += p.percentage;
+          otherCount++;
+        }
       });
+      if (otherCount > 0) {
+        html += '<span style=\"color:#6B7280\">\u25CF</span> Other (' + otherCount + ' decks): <b>' +
+                Highcharts.numberFormat(otherPct, 1) + '%</b><br/>';
+      }
       if (points.length === 0) {
         html += '<em>No data for this week</em>';
       }
@@ -616,7 +639,7 @@ output$meta_share_timeline <- renderHighchart({
       tickmarkPlacement = "on"
     ) |>
     hc_yAxis(
-      title = list(text = "Meta Share"),
+      title = list(text = if (is_mobile()) "" else "Meta Share"),
       labels = list(format = "{value}%"),
       min = 0
     ) |>
@@ -626,18 +649,7 @@ output$meta_share_timeline <- renderHighchart({
       useHTML = TRUE,
       formatter = tooltip_formatter
     ) |>
-    hc_legend(
-      enabled = TRUE,
-      layout = "vertical",
-      align = "right",
-      verticalAlign = "middle",
-      itemStyle = list(fontSize = "10px"),
-      maxHeight = 280,
-      navigation = list(
-        activeColor = "#0F4C81",
-        inactiveColor = "#CCC"
-      )
-    ) |>
+    hc_legend(enabled = FALSE) |>
     hc_add_series_list(series_list) |>
     hc_add_theme(hc_theme_atom_switch(chart_mode))
 }) |> bindCache(input$dashboard_format, input$dashboard_event_type, rv$current_scene, rv$community_filter, input$dark_mode, rv$data_refresh)
@@ -899,7 +911,7 @@ output$tournaments_trend_chart <- renderHighchart({
       type = "datetime",
       title = list(text = NULL)
     ) |>
-    hc_yAxis(title = list(text = "Players"), min = 0) |>
+    hc_yAxis(title = list(text = if (is_mobile()) "" else "Players"), min = 0) |>
     hc_add_series(
       name = "Daily Avg",
       data = lapply(1:nrow(result), function(i) {
@@ -1161,7 +1173,7 @@ output$player_growth_chart <- renderHighchart({
       title = list(text = NULL)
     ) |>
     hc_yAxis(
-      title = list(text = "Players"),
+      title = list(text = if (is_mobile()) "" else "Players"),
       stackLabels = list(enabled = FALSE)
     ) |>
     hc_plotOptions(
@@ -1278,3 +1290,270 @@ observeEvent(input$overview_rising_star_clicked, {
   req(input$overview_rising_star_clicked)
   rv$selected_player_id <- input$overview_rising_star_clicked
 })
+
+# ---------------------------------------------------------------------------
+# Mobile Dashboard Renderers
+# ---------------------------------------------------------------------------
+
+# Mobile Rising Stars — horizontal scroll cards reusing same data source
+output$mobile_rising_stars <- renderUI({
+  req(is_mobile())
+
+  # Same query as output$rising_stars_cards (community section - scene-only filtering)
+  filters <- build_community_filters("t", "s", start_idx = 2)
+  today <- Sys.Date()
+  date_30_ago <- format(today - 30, "%Y-%m-%d")
+
+  query_params <- c(list(date_30_ago), filters$params)
+  result <- safe_query(db_pool, paste("
+    SELECT
+      p.player_id,
+      p.display_name,
+      COUNT(CASE WHEN r.placement = 1 THEN 1 END) as recent_wins,
+      COUNT(CASE WHEN r.placement <= 3 THEN 1 END) as recent_top3,
+      COUNT(*) as recent_events
+    FROM results r
+    JOIN players p ON r.player_id = p.player_id
+    JOIN tournaments t ON r.tournament_id = t.tournament_id
+    JOIN stores s ON t.store_id = s.store_id
+    WHERE t.event_date >= $1", filters$sql, "
+    GROUP BY p.player_id, p.display_name
+    HAVING COUNT(CASE WHEN r.placement <= 3 THEN 1 END) > 0
+    ORDER BY
+      COUNT(CASE WHEN r.placement = 1 THEN 1 END) DESC,
+      COUNT(CASE WHEN r.placement <= 3 THEN 1 END) DESC,
+      COUNT(*) DESC
+    LIMIT 8
+  "), params = query_params, default = data.frame())
+
+  if (nrow(result) == 0) {
+    return(div(class = "text-muted text-center py-3", "No recent top placements"))
+  }
+
+  # Get competitive ratings
+  comp_ratings <- player_competitive_ratings()
+  result <- merge(result, comp_ratings, by = "player_id", all.x = TRUE)
+  result$competitive_rating[is.na(result$competitive_rating)] <- 1500
+  result <- result[order(-result$recent_wins, -result$recent_top3, -result$recent_events), ]
+
+  div(class = "mobile-horizontal-scroll mobile-scroll-compact",
+    lapply(seq_len(nrow(result)), function(i) {
+      player <- result[i, ]
+
+      # Build placement badges (same classes as desktop)
+      badges <- tagList()
+      if (player$recent_wins > 0) {
+        badges <- tagList(badges,
+          span(class = "mobile-star-badge mobile-star-badge-gold",
+            bsicons::bs_icon("trophy-fill"),
+            player$recent_wins
+          )
+        )
+      }
+      if (player$recent_top3 - player$recent_wins > 0) {
+        badges <- tagList(badges,
+          span(class = "mobile-star-badge mobile-star-badge-silver",
+            bsicons::bs_icon("award-fill"),
+            player$recent_top3 - player$recent_wins
+          )
+        )
+      }
+
+      div(
+        class = "mobile-star-card",
+        onclick = sprintf("Shiny.setInputValue('overview_rising_star_clicked', %d, {priority: 'event'})", player$player_id),
+        # Rank badge
+        div(class = "mobile-rank-badge", i),
+        # Player name
+        div(class = "mobile-star-card-name", player$display_name),
+        # Badges row
+        div(class = "mobile-star-card-badges", badges),
+        # Rating
+        div(class = "mobile-star-card-rating",
+          span(class = "mobile-star-card-rating-value", player$competitive_rating),
+          span(class = "mobile-star-card-rating-label", "Rating")
+        )
+      )
+    })
+  )
+}) |> bindCache(rv$current_scene, rv$community_filter, rv$data_refresh)
+
+# Mobile Top Decks — horizontal scroll cards reusing deck_analytics() reactive
+output$mobile_top_decks <- renderUI({
+  req(is_mobile())
+
+  top_data <- deck_analytics()
+  total_tournaments <- filtered_tournament_count()
+
+  if (is.null(top_data) || nrow(top_data) == 0 || total_tournaments == 0) {
+    return(div(class = "text-muted text-center py-3", "No tournament data"))
+  }
+
+  # Sort by first places then entries, take top 8 (same as desktop)
+  top_data <- top_data[order(-top_data$first_places, -top_data$entries), ]
+  result <- head(top_data, 8)
+  result$win_rate <- round(result$first_places / total_tournaments * 100, 1)
+
+  div(class = "mobile-horizontal-scroll mobile-scroll-compact",
+    lapply(seq_len(nrow(result)), function(i) {
+      row <- result[i, ]
+
+      # Card image
+      img_url <- if (!is.na(row$display_card_id) && nchar(row$display_card_id) > 0) {
+        sprintf("https://images.digimoncard.io/images/cards/%s.jpg", row$display_card_id)
+      } else {
+        NULL
+      }
+
+      # Deck color for accent
+      deck_color <- digimon_deck_colors[row$primary_color]
+      if (is.na(deck_color)) deck_color <- "#6B7280"
+
+      # Bar width = win rate percentage (capped at 100)
+      bar_width <- min(row$win_rate, 100)
+
+      div(
+        class = "mobile-deck-card",
+        style = sprintf("border-left: 3px solid %s;", deck_color),
+        onclick = sprintf("Shiny.setInputValue('overview_deck_clicked', %d, {priority: 'event'})", row$archetype_id),
+        # Rank badge
+        div(class = "mobile-rank-badge", i),
+        # Card image thumbnail (if available)
+        if (!is.null(img_url)) {
+          tags$img(
+            class = "mobile-deck-card-img",
+            src = img_url,
+            alt = row$archetype_name,
+            loading = "lazy"
+          )
+        },
+        # Deck name
+        div(class = "mobile-deck-card-name", row$archetype_name),
+        # Win rate bar (matches desktop)
+        div(class = "mobile-deck-card-bar",
+          div(class = "mobile-deck-card-bar-fill",
+            style = sprintf("width: %s%%; background-color: %s;", bar_width, deck_color)
+          )
+        ),
+        # Stats row
+        div(class = "mobile-deck-card-stats",
+          span(sprintf("%d wins", as.integer(row$first_places))),
+          span(class = "mobile-deck-card-wins",
+            sprintf("%.1f%% win", row$win_rate)
+          )
+        )
+      )
+    })
+  )
+}) |> bindCache(input$dashboard_format, input$dashboard_event_type, rv$current_scene, rv$community_filter, rv$data_refresh)
+
+# Mobile Recent Tournaments — vertical card list replacing reactable
+output$mobile_recent_tournaments <- renderUI({
+  req(is_mobile())
+
+  # Same query as output$recent_tournaments (community section - scene-only filtering)
+  show_all_scenes <- is.null(rv$current_scene) || rv$current_scene == "all"
+  filters <- build_community_filters("t", "s")
+
+  # Include scene_type + country when showing all scenes (for flag display)
+  if (show_all_scenes) {
+    query <- paste("
+      SELECT t.tournament_id, s.name as store_name,
+             t.event_date, t.player_count,
+             p.display_name as winner_name,
+             sc.scene_type, s.country
+      FROM tournaments t
+      JOIN stores s ON t.store_id = s.store_id
+      LEFT JOIN scenes sc ON s.scene_id = sc.scene_id
+      LEFT JOIN LATERAL (
+        SELECT r2.player_id
+        FROM results r2
+        WHERE r2.tournament_id = t.tournament_id AND r2.placement = 1
+        ORDER BY r2.result_id
+        LIMIT 1
+      ) r ON true
+      LEFT JOIN players p ON r.player_id = p.player_id
+      WHERE 1=1", filters$sql, "
+      ORDER BY t.event_date DESC
+      LIMIT 5
+    ")
+  } else {
+    query <- paste("
+      SELECT t.tournament_id, s.name as store_name,
+             t.event_date, t.player_count,
+             p.display_name as winner_name
+      FROM tournaments t
+      JOIN stores s ON t.store_id = s.store_id
+      LEFT JOIN LATERAL (
+        SELECT r2.player_id
+        FROM results r2
+        WHERE r2.tournament_id = t.tournament_id AND r2.placement = 1
+        ORDER BY r2.result_id
+        LIMIT 1
+      ) r ON true
+      LEFT JOIN players p ON r.player_id = p.player_id
+      WHERE 1=1", filters$sql, "
+      ORDER BY t.event_date DESC
+      LIMIT 5
+    ")
+  }
+
+  data <- safe_query(db_pool, query, params = filters$params, default = data.frame())
+  if (nrow(data) == 0) {
+    return(div(class = "text-muted text-center py-3", "No tournaments yet"))
+  }
+
+  # Country code mapping (same as desktop recent_tournaments)
+  country_codes <- c(
+    "USA" = "us", "Canada" = "ca", "UK" = "gb", "United Kingdom" = "gb",
+    "Australia" = "au", "Germany" = "de", "France" = "fr", "Japan" = "jp",
+    "Mexico" = "mx", "Brazil" = "br", "New Zealand" = "nz",
+    "Netherlands" = "nl", "Spain" = "es", "Italy" = "it",
+    "South Korea" = "kr", "Philippines" = "ph", "Singapore" = "sg",
+    "Malaysia" = "my", "Indonesia" = "id", "Thailand" = "th"
+  )
+
+  div(class = "mobile-tournament-list",
+    lapply(seq_len(nrow(data)), function(i) {
+      row <- data[i, ]
+      winner <- if (is.na(row$winner_name)) "\u2014" else row$winner_name
+
+      # Build flag element for all-scenes view
+      flag_el <- NULL
+      if (show_all_scenes) {
+        if (!is.na(row$scene_type) && row$scene_type == "online") {
+          flag_el <- span(class = "mobile-tournament-flag",
+            bsicons::bs_icon("globe"))
+        } else if (!is.na(row$country) && row$country %in% names(country_codes)) {
+          flag_el <- span(class = "mobile-tournament-flag",
+            tags$span(class = sprintf("fi fi-%s", country_codes[row$country])))
+        }
+      }
+
+      div(
+        class = "mobile-tournament-card",
+        onclick = sprintf("Shiny.setInputValue('overview_tournament_clicked', %d, {priority: 'event'})", row$tournament_id),
+        # Left: date badge
+        div(class = "mobile-tournament-date",
+          tags$span(class = "mobile-tournament-date-day",
+            format(as.Date(row$event_date), "%d")),
+          tags$span(class = "mobile-tournament-date-month",
+            toupper(format(as.Date(row$event_date), "%b")))
+        ),
+        # Middle: store + winner
+        div(class = "mobile-tournament-info",
+          div(class = "mobile-tournament-store", flag_el, row$store_name),
+          div(class = "mobile-tournament-winner",
+            bsicons::bs_icon("trophy-fill", class = "me-1"),
+            winner
+          )
+        ),
+        # Right: player count pill
+        div(class = "mobile-tournament-players",
+          span(class = "mobile-tournament-players-count", row$player_count),
+          span(class = "mobile-tournament-players-label", "players")
+        )
+      )
+    })
+  )
+}) |> bindCache(rv$current_scene, rv$community_filter, rv$data_refresh)
