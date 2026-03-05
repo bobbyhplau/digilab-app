@@ -1546,12 +1546,28 @@ output$mobile_stores_cards <- renderUI({
         "No events yet"
       }
 
+      # Events badge
+      events_badge <- if (store$tournament_count > 0) {
+        span(class = "mobile-card-format-badge",
+          sprintf("%d events", store$tournament_count))
+      }
+
       div(
         class = "mobile-list-card",
         onclick = sprintf("Shiny.setInputValue('store_clicked', %d, {priority: 'event'})", store$store_id),
-        div(class = "mobile-card-primary", store$name),
-        if (nchar(location_line) > 0) div(class = "mobile-card-secondary", location_line),
-        div(class = "mobile-card-tertiary", stats_line)
+        # Row 1: Name + Events badge
+        div(class = "mobile-card-row",
+          span(class = "mobile-card-primary", store$name),
+          events_badge
+        ),
+        # Row 2: Location
+        if (nchar(location_line) > 0) {
+          div(class = "mobile-card-row",
+            span(class = "mobile-card-meta-stats",
+              bsicons::bs_icon("globe", class = "me-1"),
+              location_line)
+          )
+        }
       )
     })
 
@@ -1564,7 +1580,8 @@ output$mobile_stores_cards <- renderUI({
         tags$button(
           class = "mobile-load-more",
           onclick = "Shiny.setInputValue('load_more_mobile_stores', Math.random(), {priority: 'event'})",
-          sprintf("Show more (%d remaining)", remaining)
+          span(class = "mobile-load-more-label", "LOAD MORE"),
+          span(class = "mobile-load-more-count", sprintf("%d remaining", remaining))
         )
       ))
     }
@@ -1714,13 +1731,41 @@ output$mobile_stores_cards <- renderUI({
       "No events yet"
     }
 
+    # Events badge
+    events_badge <- if (!is.na(store$tournament_count) && store$tournament_count > 0) {
+      span(class = "mobile-card-format-badge",
+        sprintf("%d events", store$tournament_count))
+    }
+
+    # Rating display
+    store_rating <- avg_ratings$avg_player_rating[avg_ratings$store_id == store$store_id]
+    rating_tag <- if (length(store_rating) > 0 && !is.na(store_rating) && store_rating > 0) {
+      sprintf("\u2605 %d", round(store_rating))
+    }
+
     div(
       class = "mobile-list-card",
       onclick = sprintf("Shiny.setInputValue('store_clicked', %d, {priority: 'event'})", store$store_id),
-      div(class = "mobile-card-primary", store$name),
-      if (!is.null(schedule_line)) div(class = "mobile-card-secondary", schedule_line),
-      if (nchar(location_line) > 0) div(class = "mobile-card-tertiary", location_line),
-      div(class = "mobile-card-tertiary", stats_line)
+      # Row 1: Store name + Events badge
+      div(class = "mobile-card-row",
+        span(class = "mobile-card-primary", store$name),
+        events_badge
+      ),
+      # Row 2: Schedule/Location (left) | Rating (right)
+      div(class = "mobile-card-row",
+        span(class = "mobile-card-meta-stats",
+          if (!is.null(schedule_line)) {
+            tagList(schedule_line)
+          } else if (nchar(location_line) > 0) {
+            tagList(location_line)
+          } else {
+            "No schedule yet"
+          }
+        ),
+        if (!is.null(rating_tag)) {
+          span(class = "mobile-card-meta-stats", rating_tag)
+        }
+      )
     )
   })
 
@@ -1733,7 +1778,8 @@ output$mobile_stores_cards <- renderUI({
       tags$button(
         class = "mobile-load-more",
         onclick = "Shiny.setInputValue('load_more_mobile_stores', Math.random(), {priority: 'event'})",
-        sprintf("Show more (%d remaining)", remaining)
+        span(class = "mobile-load-more-label", "LOAD MORE"),
+        span(class = "mobile-load-more-count", sprintf("%d remaining", remaining))
       )
     )
   } else {
