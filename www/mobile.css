@@ -58,6 +58,24 @@
   margin-top: 0.15rem;
 }
 
+/* Player card detail row — deck badge + record on one line */
+.mobile-card-details {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-top: 0.2rem;
+  flex-wrap: wrap;
+}
+
+.mobile-card-details .deck-badge {
+  opacity: 1;
+}
+
+.mobile-card-record {
+  font-size: 0.8rem;
+  opacity: 0.7;
+}
+
 .mobile-card-tertiary {
   font-size: 0.75rem;
   opacity: 0.55;

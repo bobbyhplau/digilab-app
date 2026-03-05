@@ -482,21 +482,15 @@ output$mobile_players_cards <- renderUI({
         span(class = paste("mobile-card-rating", rating_class), rating)
       ),
 
-      # Row 2: Deck badge (left-aligned under name)
-      if (!is.null(deck_tag)) {
-        div(class = "mobile-card-row",
-          div(class = "mobile-card-secondary", style = "padding-left: 2.5rem;",
-            deck_tag
-          )
-        )
-      },
-
-      # Row 3: Record | Events (left-aligned under name)
+      # Row 2: Deck badge + Record · Events | Events count under rating
       div(class = "mobile-card-row",
-        div(class = "mobile-card-secondary", style = "padding-left: 2.5rem;",
-          record_tag,
-          span(class = "mobile-card-separator", "\u00b7"),
-          span(sprintf("%d events", as.integer(row$Events)))
+        div(class = "mobile-card-details", style = "padding-left: 2.5rem;",
+          if (!is.null(deck_tag)) deck_tag,
+          span(class = "mobile-card-record",
+            record_tag,
+            span(class = "mobile-card-separator", "\u00b7"),
+            span(sprintf("%d events", as.integer(row$Events)))
+          )
         )
       )
     )
