@@ -4,6 +4,25 @@ This log tracks development decisions, blockers, and technical notes for DigiLab
 
 ---
 
+## 2026-03-04: Mobile Dashboard Redesign & Format Dropdown Fix
+
+### Mobile Dashboard Overhaul
+- Replaced `layout_columns` value boxes with CSS grid (`mobile-value-boxes-grid`) for guaranteed 2x2 on mobile — bslib's `md` breakpoint collapsed them to 1 column
+- Unified all dashboard sections into a single `bslib::accordion()` with Top Decks and Rising Stars open by default
+- Redesigned Top Decks cards (150px compact with 130px card art, color-coded borders, win rate bars) and Rising Stars cards (rank badges, desktop-matching placement badges)
+- Built mobile Recent Tournaments as card-based layout with date badges and country flag support
+
+### Format Dropdown Race Condition
+All public page UIs live inside `uiOutput()` → `renderUI()`. The observer that called `updateSelectInput` to populate format choices fired at startup before the `renderUI` content reached the client DOM, so the update silently failed. Fix: compute `format_choices_with_all` inside each `renderUI` and pass it to the UI file at source time. Desktop UI files changed from static startup-sourced variables to render-time sourced tagLists.
+
+### Mobile Header-Content Gap
+bslib's `layout_sidebar` uses CSS grid even when the sidebar is hidden on mobile (`display: none`). The grid layout reserved space for the sidebar column/toggle, creating ~1 inch gap. Fix: `display: block !important` on mobile, completely neutralizing the grid.
+
+### Title Strip Dropdown Styling
+Changed from white background with dark text to semi-transparent blue (`rgba(255,255,255,0.1)`) with white text, matching the header scene selector. Applied to both desktop and mobile.
+
+---
+
 ## 2026-02-28: v1.1.1 - Tournament Query Fix
 
 ### Problem

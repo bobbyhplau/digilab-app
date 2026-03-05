@@ -1,7 +1,9 @@
 # views/dashboard-ui.R
 # Dashboard tab UI
+# Sourced inside output$dashboard_page renderUI.
+# Expects `format_choices_with_all` in local environment.
 
-dashboard_ui <- tagList(
+tagList(
   # Title strip with integrated filters
   div(
     class = "page-title-strip mb-2",
@@ -19,7 +21,7 @@ dashboard_ui <- tagList(
         div(
           class = "title-strip-select",
           selectInput("dashboard_format", NULL,
-                      choices = list("All Formats" = ""),
+                      choices = format_choices_with_all,
                       selected = "",
                       width = "140px",
                       selectize = FALSE)
@@ -82,7 +84,7 @@ dashboard_ui <- tagList(
           div(class = "vb-subtitle", "unique")
         )
       ),
-      # Box 3: Hot Deck (trending with card image)
+      # Box 3: Trending deck (biggest meta share increase)
       div(
         class = "value-box-digital vb-hotdeck",
         div(class = "vb-digital-grid"),
@@ -96,13 +98,13 @@ dashboard_ui <- tagList(
             class = "vb-content",
             div(class = "vb-label",
                 bsicons::bs_icon("fire", class = "vb-label-icon"),
-                "HOT DECK"),
+                "TRENDING"),
             div(class = "vb-value vb-value-deck", uiOutput("hot_deck_name", inline = TRUE)),
             div(class = "vb-subtitle", uiOutput("hot_deck_trend", inline = TRUE))
           )
         )
       ),
-      # Box 4: Top Deck (most popular with card image)
+      # Box 4: Most Played deck (highest meta share)
       div(
         class = "value-box-digital vb-topdeck",
         div(class = "vb-digital-grid"),
@@ -116,7 +118,7 @@ dashboard_ui <- tagList(
             class = "vb-content",
             div(class = "vb-label",
                 bsicons::bs_icon("trophy", class = "vb-label-icon"),
-                "TOP DECK"),
+                "MOST PLAYED"),
             div(class = "vb-value vb-value-deck", textOutput("most_popular_deck_val", inline = TRUE)),
             div(class = "vb-subtitle", uiOutput("top_deck_meta_share", inline = TRUE))
           )

@@ -8,10 +8,11 @@
 # Page Rendering (desktop vs mobile)
 # ---------------------------------------------------------------------------
 output$players_page <- renderUI({
+  format_choices_with_all <- get_format_choices_with_all(db_pool)
   if (is_mobile()) {
     source("views/mobile-players-ui.R", local = TRUE)$value
   } else {
-    players_ui
+    source("views/players-ui.R", local = TRUE)$value
   }
 })
 

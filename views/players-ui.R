@@ -1,7 +1,7 @@
 # views/players-ui.R
 # Players tab UI with player profiles
 
-players_ui <- tagList(
+tagList(
   # Title strip with integrated filters
   div(
     class = "page-title-strip mb-3",
@@ -23,7 +23,7 @@ players_ui <- tagList(
         div(
           class = "title-strip-select",
           selectInput("players_format", NULL,
-                      choices = list("All Formats" = ""),
+                      choices = format_choices_with_all,
                       selected = "",
                       width = "140px",
                       selectize = FALSE)

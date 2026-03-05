@@ -1,7 +1,7 @@
 # views/meta-ui.R
 # Meta analysis tab UI with deck profiles
 
-meta_ui <- tagList(
+tagList(
   # Title strip with integrated filters
   div(
     class = "page-title-strip mb-3",
@@ -23,7 +23,7 @@ meta_ui <- tagList(
         div(
           class = "title-strip-select",
           selectInput("meta_format", NULL,
-                      choices = list("All Formats" = ""),
+                      choices = format_choices_with_all,
                       selected = "",
                       width = "140px",
                       selectize = FALSE)

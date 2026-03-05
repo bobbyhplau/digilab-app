@@ -1,7 +1,7 @@
 # views/stores-ui.R
 # Stores tab UI with interactive map
 
-stores_ui <- tagList(
+tagList(
   # Title strip
   div(
     class = "page-title-strip mb-3",
