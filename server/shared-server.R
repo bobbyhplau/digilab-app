@@ -196,37 +196,50 @@ observeEvent(input$modal_admin_scenes, {
 observeEvent(input$help_menu_link, {
   showModal(modalDialog(
     title = tagList(bsicons::bs_icon("three-dots-vertical"), " Help & Resources"),
+    # Links section
+    tags$div(class = "help-modal-section-label", "LINKS"),
     div(
-      class = "help-modal-links",
+      class = "help-modal-group",
       tags$a(href = "https://digilab.cards/faq",
              target = "_blank", rel = "noopener noreferrer",
              class = "help-modal-item",
-             bsicons::bs_icon("question-circle"), " FAQ"),
+             bsicons::bs_icon("question-circle"),
+             span("FAQ"),
+             bsicons::bs_icon("box-arrow-up-right", class = "help-modal-external")),
       tags$a(href = "https://digilab.cards/organizers",
              target = "_blank", rel = "noopener noreferrer",
              class = "help-modal-item",
-             bsicons::bs_icon("person-badge"), " For Organizers"),
+             bsicons::bs_icon("person-badge"),
+             span("For Organizers"),
+             bsicons::bs_icon("box-arrow-up-right", class = "help-modal-external")),
       tags$a(href = "https://digilab.cards/roadmap",
              target = "_blank", rel = "noopener noreferrer",
              class = "help-modal-item",
-             bsicons::bs_icon("map"), " Roadmap")
+             bsicons::bs_icon("map"),
+             span("Roadmap"),
+             bsicons::bs_icon("box-arrow-up-right", class = "help-modal-external"))
     ),
-    tags$hr(class = "my-2", style = "border-color: rgba(255,255,255,0.1);"),
+    # Actions section
+    tags$div(class = "help-modal-section-label", "ACTIONS"),
     div(
-      class = "help-modal-actions",
+      class = "help-modal-group",
       actionLink("help_modal_bug_report",
-                 tagList(bsicons::bs_icon("bug"), " Report a Bug"),
+                 tagList(bsicons::bs_icon("bug"), span("Report a Bug")),
                  class = "help-modal-item"),
       actionLink("help_modal_store_request",
-                 tagList(bsicons::bs_icon("plus-circle"), " Request a Store"),
+                 tagList(bsicons::bs_icon("plus-circle"), span("Request a Store")),
                  class = "help-modal-item")
     ),
+    # Upload (mobile only)
     div(
       class = "help-modal-mobile-only",
-      tags$hr(class = "my-2", style = "border-color: rgba(255,255,255,0.1);"),
-      actionLink("help_modal_upload",
-                 tagList(bsicons::bs_icon("cloud-upload"), " Upload Results"),
-                 class = "help-modal-item")
+      tags$div(class = "help-modal-section-label", "QUICK NAV"),
+      div(
+        class = "help-modal-group",
+        actionLink("help_modal_upload",
+                   tagList(bsicons::bs_icon("cloud-upload"), span("Upload Results")),
+                   class = "help-modal-item")
+      )
     ),
     footer = modalButton("Close"),
     easyClose = TRUE
@@ -241,7 +254,8 @@ observeEvent(input$help_modal_bug_report, {
 
 observeEvent(input$help_modal_store_request, {
   removeModal()
-  shinyjs::click("open_store_request")
+  # Delay click so the help modal fully closes before store request modal opens
+  shinyjs::delay(350, shinyjs::click("open_store_request"))
 })
 
 observeEvent(input$help_modal_upload, {

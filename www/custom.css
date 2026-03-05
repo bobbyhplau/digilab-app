@@ -267,40 +267,86 @@ body {
 }
 
 /* Help & Resources modal */
+.help-modal-section-label {
+  font-size: 0.65rem;
+  font-weight: 700;
+  letter-spacing: 1.5px;
+  opacity: 0.45;
+  text-transform: uppercase;
+  margin-bottom: 0.4rem;
+  margin-top: 0.75rem;
+}
+
+.help-modal-section-label:first-child {
+  margin-top: 0;
+}
+
+.help-modal-group {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+
 .help-modal-item {
   display: flex;
   align-items: center;
-  gap: 0.5rem;
-  padding: 0.6rem 0.75rem;
-  color: rgba(0, 0, 0, 0.8) !important;
+  gap: 0.6rem;
+  padding: 0.55rem 0.75rem;
+  color: #0F4C81 !important;
   text-decoration: none !important;
-  border-radius: 6px;
-  transition: background 0.15s ease;
+  border-radius: 8px;
+  border: 1px solid rgba(10, 48, 85, 0.1);
+  background: rgba(10, 48, 85, 0.04);
+  transition: all 0.2s ease;
 }
 
 .help-modal-item:hover,
 .help-modal-item:focus {
-  background: rgba(0, 0, 0, 0.06);
-  color: #000000 !important;
+  background: rgba(10, 48, 85, 0.12);
+  border-color: rgba(247, 148, 29, 0.3);
+  color: #0F4C81 !important;
+  transform: translateX(2px);
+}
+
+.help-modal-item .bi {
+  font-size: 1.1rem;
+  opacity: 0.7;
+  flex-shrink: 0;
+}
+
+.help-modal-item:hover .bi {
+  opacity: 1;
+  color: #D97706;
+}
+
+.help-modal-item span {
+  flex: 1;
+}
+
+.help-modal-external {
+  font-size: 0.7rem !important;
+  opacity: 0.35 !important;
+  margin-left: auto;
 }
 
 [data-bs-theme="dark"] .help-modal-item {
   color: rgba(255, 255, 255, 0.9) !important;
+  background: rgba(255, 255, 255, 0.06);
+  border-color: rgba(255, 255, 255, 0.08);
 }
 
 [data-bs-theme="dark"] .help-modal-item:hover,
 [data-bs-theme="dark"] .help-modal-item:focus {
-  background: rgba(255, 255, 255, 0.08);
-  color: #FFFFFF !important;
+  background: rgba(247, 148, 29, 0.12);
+  border-color: rgba(247, 148, 29, 0.3);
+  color: #FBBF24 !important;
 }
 
-.help-modal-links,
-.help-modal-actions {
-  display: flex;
-  flex-direction: column;
+[data-bs-theme="dark"] .help-modal-item:hover .bi {
+  color: #D97706;
 }
 
-/* Upload Results link: hidden on desktop, shown on mobile */
+/* Upload Results: hidden on desktop, shown on mobile */
 .help-modal-mobile-only {
   display: none;
 }
