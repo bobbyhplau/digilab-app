@@ -14,7 +14,7 @@ submit_ui <- tagList(
       ),
       div(
         class = "title-strip-controls",
-        span(class = "small text-muted", "Upload Bandai TCG+ screenshots to add tournament data")
+        span(class = "small text-muted", "Upload Bandai TCG+ screenshots or CSV exports to add tournament data")
       )
     )
   ),
@@ -38,7 +38,7 @@ submit_ui <- tagList(
             id = "submit_step1_indicator",
             class = "wizard-step active",
             span(class = "step-number", "1"),
-            span(class = "step-label", "Upload Screenshots")
+            span(class = "step-label", "Upload Results")
           ),
           div(
             id = "submit_step2_indicator",
@@ -112,8 +112,8 @@ submit_ui <- tagList(
                   # Tips - compact inline
                   div(
                     class = "upload-tips small text-muted",
-                    div(class = "mb-1", bsicons::bs_icon("info-circle", class = "me-1"), "Bandai TCG+ standings screenshots"),
-                    div(class = "mb-1", bsicons::bs_icon("filetype-csv", class = "me-1"), "Or upload a Bandai TCG+ CSV export"),
+                    div(class = "mb-1 fw-semibold", bsicons::bs_icon("filetype-csv", class = "me-1"), "Bandai TCG+ CSV export (recommended)"),
+                    div(class = "mb-1", bsicons::bs_icon("camera", class = "me-1"), "Or upload standings screenshots from Bandai TCG+"),
                     div(bsicons::bs_icon("images", class = "me-1"), "Multiple screenshots OK if standings span screens")
                   )
                 ),
@@ -125,7 +125,7 @@ submit_ui <- tagList(
               # Process button - right aligned
               div(
                 class = "d-flex justify-content-end mt-3 pt-2",
-                actionButton("submit_process_ocr", "Process Screenshots",
+                actionButton("submit_process_ocr", "Process Results",
                              class = "btn-primary",
                              icon = icon("arrow-right"))
               )

@@ -391,21 +391,17 @@ calculate_competitive_ratings <- function(db_con, format_filter = NULL, date_cut
 #' @return Data frame with player_id and achievement_score
 calculate_achievement_scores <- function(db_con) {
 
-  # Get all results with tournament info (exclude unrated event types)
+  # Get all results with tournament info
+  # Achievement scores include ALL event types (only competitive rating excludes unrated)
   # Include archetype_name to filter out UNKNOWN for deck variety calculation
-  unrated_types <- if (exists("UNRATED_EVENT_TYPES")) UNRATED_EVENT_TYPES
-                   else c("casuals", "regulation_battle", "release_event", "other")
-  unrated_sql <- paste0("'", unrated_types, "'", collapse = ", ")
-
-  results <- DBI::dbGetQuery(db_con, sprintf("
+  results <- DBI::dbGetQuery(db_con, "
     SELECT r.player_id, r.tournament_id, r.placement, r.archetype_id,
            t.player_count, t.store_id, t.format, da.archetype_name
     FROM results r
     JOIN tournaments t ON r.tournament_id = t.tournament_id
     LEFT JOIN deck_archetypes da ON r.archetype_id = da.archetype_id
     WHERE r.placement IS NOT NULL
-      AND (t.event_type IS NULL OR t.event_type NOT IN (%s))
-  ", unrated_sql))
+  ")
 
   if (nrow(results) == 0) {
     return(data.frame(player_id = integer(), achievement_score = numeric()))

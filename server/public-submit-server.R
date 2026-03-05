@@ -147,8 +147,14 @@ output$submit_screenshot_preview <- renderUI({
 # Helper: Parse Bandai TCG+ CSV export into standings data frame
 # CSV columns: Ranking, Membership Number, User Name, Win Points, OMW %, OOMW %, Memo, Deck URLs
 parse_tcgplus_csv <- function(file_path, total_rounds = 4) {
+  # File size check — reject files over 500KB (TCG+ CSVs are tiny)
+  file_size <- file.info(file_path)$size
+  if (is.na(file_size) || file_size > 500 * 1024) {
+    stop("File too large — expected a small Bandai TCG+ CSV export")
+  }
+
   csv <- tryCatch(
-    read.csv(file_path, stringsAsFactors = FALSE, strip.white = TRUE),
+    read.csv(file_path, stringsAsFactors = FALSE, strip.white = TRUE, nrows = 300),
     error = function(e) {
       message("[CSV] Parse error: ", e$message)
       return(NULL)
@@ -167,8 +173,28 @@ parse_tcgplus_csv <- function(file_path, total_rounds = 4) {
   points_col <- grep("^Win.Points$|^Points$|^WinPoints$", names(csv), ignore.case = TRUE, value = TRUE)[1]
 
   if (is.na(rank_col) || is.na(name_col)) {
-    message("[CSV] Missing required columns (Ranking, User Name). Found: ", paste(names(csv), collapse = ", "))
-    return(data.frame())
+    stop("Not a Bandai TCG+ CSV — missing Ranking or User Name columns")
+  }
+
+  # Validate data types — rankings must be numeric integers
+  ranks <- suppressWarnings(as.integer(csv[[rank_col]]))
+  if (all(is.na(ranks))) {
+    stop("Ranking column contains no valid numbers")
+  }
+
+  # Validate rankings are sequential and reasonable (1 to N)
+  valid_ranks <- ranks[!is.na(ranks)]
+  if (min(valid_ranks) != 1 || max(valid_ranks) > 256) {
+    stop("Rankings out of expected range (1-256)")
+  }
+
+  # Validate points if present — must be non-negative integers
+  if (!is.na(points_col)) {
+    pts <- suppressWarnings(as.integer(csv[[points_col]]))
+    valid_pts <- pts[!is.na(pts)]
+    if (length(valid_pts) > 0 && (any(valid_pts < 0) || any(valid_pts > 100))) {
+      stop("Win Points out of expected range (0-100)")
+    }
   }
 
   # Build result data frame matching OCR output format
