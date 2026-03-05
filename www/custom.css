@@ -1004,20 +1004,13 @@ body.bslib-gap-spacing {
   color: #FFFFFF;
 }
 
-.title-strip-select .form-select option,
-.title-strip-controls .form-select option,
-.dashboard-title-strip .form-select option,
-.page-title-strip .form-select option {
-  background-color: #FFFFFF !important;
-  color: #1a1a1a !important;
-}
-
-[data-bs-theme="dark"] .title-strip-select .form-select option,
-[data-bs-theme="dark"] .title-strip-controls .form-select option,
-[data-bs-theme="dark"] .dashboard-title-strip .form-select option,
-[data-bs-theme="dark"] .page-title-strip .form-select option {
-  background-color: #0A3055 !important;
-  color: #FFFFFF !important;
+/* Force dark color scheme on title strip selects so browser renders
+   options with dark background + light text in the native dropdown */
+.title-strip-select .form-select,
+.title-strip-controls .form-select,
+.dashboard-title-strip .form-select,
+.page-title-strip .form-select {
+  color-scheme: dark;
 }
 
 .btn-title-strip-reset {
