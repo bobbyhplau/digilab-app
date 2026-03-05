@@ -278,13 +278,21 @@ output$player_standings <- renderReactable({
       player_id = colDef(show = FALSE),
       Player = colDef(minWidth = 140),
       Events = colDef(minWidth = 60, align = "center"),
-      competitive_rating = colDef(show = FALSE),
-      rating_html = colDef(
+      competitive_rating = colDef(
         name = "Rating",
         minWidth = 85,
         align = "center",
+        cell = JS("function(cellInfo) {
+          var r = cellInfo.value;
+          var tier = r >= 1800 ? 'rating-tier-elite' :
+                    r >= 1700 ? 'rating-tier-strong' :
+                    r >= 1600 ? 'rating-tier-good' :
+                    r < 1500  ? 'rating-tier-low' : '';
+          return '<span class=\"desktop-rating-badge ' + tier + '\">' + r + '</span>';
+        }"),
         html = TRUE
       ),
+      rating_html = colDef(show = FALSE),
       achievement_score = colDef(
         name = "Score",
         minWidth = 65,
