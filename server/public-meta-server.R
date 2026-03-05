@@ -6,10 +6,11 @@
 # Page Rendering (desktop vs mobile)
 # ---------------------------------------------------------------------------
 output$meta_page <- renderUI({
+  format_choices_with_all <- get_format_choices_with_all(db_pool)
   if (is_mobile()) {
     source("views/mobile-meta-ui.R", local = TRUE)$value
   } else {
-    meta_ui
+    source("views/meta-ui.R", local = TRUE)$value
   }
 })
 

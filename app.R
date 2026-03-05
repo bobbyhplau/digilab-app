@@ -381,11 +381,9 @@ if (nzchar(Sys.getenv("SENTRY_DSN", ""))) {
 # Source Views
 # =============================================================================
 
-source("views/dashboard-ui.R", local = TRUE)
-source("views/stores-ui.R", local = TRUE)
-source("views/players-ui.R", local = TRUE)
-source("views/meta-ui.R", local = TRUE)
-source("views/tournaments-ui.R", local = TRUE)
+# Public page UIs (dashboard, stores, players, meta, tournaments) are sourced
+# at render time inside each page's renderUI so format choices can be populated
+# from the database. See server/public-*-server.R files.
 source("views/submit-ui.R", local = TRUE)
 source("views/onboarding-modal-ui.R", local = TRUE)
 source("views/community-banner-ui.R", local = TRUE)

@@ -12,7 +12,7 @@ output$stores_page <- renderUI({
   if (is_mobile()) {
     source("views/mobile-stores-ui.R", local = TRUE)$value
   } else {
-    stores_ui
+    source("views/stores-ui.R", local = TRUE)$value
   }
 })
 

@@ -1,7 +1,7 @@
 # views/tournaments-ui.R
 # Tournaments history tab UI with filters and detail modal
 
-tournaments_ui <- tagList(
+tagList(
   # Title strip with integrated filters
   div(
     class = "page-title-strip mb-3",
@@ -23,7 +23,7 @@ tournaments_ui <- tagList(
         div(
           class = "title-strip-select",
           selectInput("tournaments_format", NULL,
-                      choices = list("All Formats" = ""),
+                      choices = format_choices_with_all,
                       selected = "",
                       width = "140px",
                       selectize = FALSE)

@@ -25,7 +25,7 @@ tagList(
         div(
           class = "title-strip-select",
           selectInput("meta_format", NULL,
-                      choices = list("All Formats" = ""),
+                      choices = format_choices_with_all,
                       selected = "",
                       width = "140px",
                       selectize = FALSE)
