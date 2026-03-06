@@ -4,6 +4,33 @@ This log tracks development decisions, blockers, and technical notes for DigiLab
 
 ---
 
+## 2026-03-06: v1.4 Phase 1 Infrastructure
+
+Started v1.4 implementation on `feature/v1.4-infrastructure` branch.
+
+**Database migrations (applied to Neon):**
+- `admin_requests` table — unified request queue with JSONB payload, status tracking, indexes
+- `announcements` table — admin-managed announcements with type and optional expiry
+- `store_schedules` — added `week_of_month` (monthly) and `next_occurrence` (biweekly) columns
+- `updated_by TEXT` audit column added to tournaments, stores, players, deck_archetypes, scenes
+- Migration script: `db/migrations/001_v1.4_infrastructure.sql`
+
+**postMessage iframe storage bridge:**
+- Refactored `www/scene-selector.js` with `DigilabStorage` abstraction (Promise-based)
+- In-iframe mode: delegates storage to parent frame via postMessage
+- Direct mode: wraps localStorage in Promises for consistent API
+- Added `current_admin_username(rv)` helper to `shared-server.R` for audit columns
+
+**digilab-web changes (parent frame):**
+- `app.astro`: Added storage relay handlers using cookies on `.digilab.cards` domain
+- `middleware.js`: Promotes client-set digilab_* cookies to server-set via Set-Cookie headers
+- Removed GA from `app.astro` — was triggering Safari ITP tracker classification
+
+**Safari ITP investigation (pinned, unresolved):**
+iOS Safari evicts ALL storage for `app.digilab.cards` on browser close because user interaction only happens in the cross-origin iframe, not the parent page. Tried localStorage, cookies, server-set cookies, removing GA — all evicted. Works on desktop and within mobile sessions. Potential fix: a cookie consent banner would force user interaction with the parent page, which may make Safari treat it as "interactive." Deferred to future session.
+
+---
+
 ## 2026-03-06: Deck Classification Audit & Fixes
 
 Full audit of `classify_decklists.py` revealed several rule ordering and naming issues causing misclassification of online tournament results:
