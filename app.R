@@ -440,7 +440,7 @@ ui <- page_fillable(
     tags$meta(name = "theme-color", content = "#1a1a2e"),
     # Favicon and app icons
     tags$link(rel = "icon", type = "image/x-icon", href = "favicon.ico"),
-    tags$link(rel = "apple-touch-icon", href = "icons/icon-192.png"),
+    tags$link(rel = "apple-touch-icon", href = "apple-touch-icon.png"),
     # Viewport with safe area support for iPhone X+ PWA mode
     tags$meta(name = "viewport",
               content = "width=device-width, initial-scale=1, viewport-fit=cover"),
