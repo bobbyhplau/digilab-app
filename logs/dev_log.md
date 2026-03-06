@@ -4,6 +4,26 @@ This log tracks development decisions, blockers, and technical notes for DigiLab
 
 ---
 
+## 2026-03-06: PWA Icon Fix & GitHub Pages Migration
+
+### PWA Icons Were Invisible
+All regular PWA icons in `www/icons/` (icon-48 through icon-512) were white Digivice logos on transparent backgrounds — rendering invisible on phones. The maskable icons and `apple-touch-icon.png` had proper dark backgrounds. Regenerated all regular icons with `#1a1a2e` navy background using Pillow. Also fixed `apple-touch-icon` link in `app.R` to point to `apple-touch-icon.png` instead of `icons/icon-192.png`.
+
+### Migrated app.digilab.cards from GitHub Pages to Vercel
+`app.digilab.cards` was served from `docs/index.html` in this repo via GitHub Pages. This was the wrong place — the iframe wrapper belongs in `digilab-web` alongside the marketing site. Moved everything to `digilab-web`:
+- `src/pages/app.astro` already existed with the iframe wrapper
+- Added `<link rel="manifest">` and `<link rel="apple-touch-icon">` to `app.astro`
+- Fixed same transparent icon issue in `digilab-web/public/icons/`
+- DNS updated in Porkbun: `app.digilab.cards` CNAME now points to Vercel instead of GitHub Pages
+
+### Vercel Subdomain Routing
+Static rewrites in `vercel.json` with `has: host` condition don't override `index.html` for the root path — the static file wins. Added Edge Middleware (`middleware.js`) which runs before static file resolution and correctly rewrites `app.digilab.cards/` to `/app`.
+
+### Cleanup
+Removed GitHub Pages artifacts from this repo: `docs/CNAME`, `docs/index.html`, `docs/favicon.svg`, `docs/icons/`, SVG logos. Disabled GitHub Pages in repo settings. `docs/` now only contains actual documentation (plans, solutions, analysis).
+
+---
+
 ## 2026-03-05: Sentry Error Triage & Fixes (v1.3.2)
 
 Pulled all 31 unresolved Sentry issues via MCP and traced each to source code. Three root causes found:
