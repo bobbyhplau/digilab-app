@@ -349,7 +349,7 @@ python scripts/sync_limitless.py --all-tier1 --since 2025-10-01 --classify
 # Automated: GitHub Actions runs weekly (sync-limitless.yml)
 ```
 
-**Tier 1 Organizers:** Eagle's Nest (452), PHOENIX REBORN (281), DMV Drakes (559), MasterRukasu (578)
+**Tier 1 Organizers:** Eagle's Nest (452), PHOENIX REBORN (281), DMV Drakes (559), MasterRukasu (578), Expanse Italia (2536)
 
 ## Code Style Notes
 

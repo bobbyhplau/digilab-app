@@ -4,6 +4,30 @@ This log tracks development decisions, blockers, and technical notes for DigiLab
 
 ---
 
+## 2026-03-06: Deck Classification Audit & Fixes
+
+Full audit of `classify_decklists.py` revealed several rule ordering and naming issues causing misclassification of online tournament results:
+
+**Rule ordering bugs:**
+- **Rocks vs Bagra Army (62 results)**: Both share Blastmon. Rules were correct but results were classified under an older version and never re-run. Reclassified directly in DB.
+- **Royal Knights vs Chronicle (50 results)**: Chronicle rule `["Alphamon: Ouryuken", ...], 1` (min_matches=1) caught Royal Knights decks using Alphamon: Ouryuken ACE as tech. Fixed by moving Royal Knights rules before Chronicle.
+- **Hudiemon vs Shakkoumon (152 results)**: BT20 Hudiemon decks include Shakkoumon as tech. Moved Hudiemon rules before Shakkoumon and added `["Hudiemon", "Shakkoumon"]` rule.
+
+**Substring false positive:**
+- **Eaters matching "In-Between Theater"**: The substring `"eater"` appears in `"theater"`. Changed Eaters rule from min_matches=1 to min_matches=2 (require both Eater AND EDEN's Javelin). This is a known limitation of the substring-based matching approach — short card names can match unrelated words.
+
+**Archetype name mismatches (script vs DB):**
+- `Fenriloogamon` (script, correct) vs `Fenriloggamon` (DB, typo) → renamed in DB
+- `Olympus XII` (script, correct) vs `Olympos XII` (DB, typo) → renamed in DB
+- `Mastemon` → split into three DB subtypes: Tribal (full package with Mirei), KDA (Dark Animals with SkullBaluchimon/Cerberusmon), CS (Gotsumon/Betamon/Seadramon)
+- `Red Hybrid` → split into `Red Hybrid EmperorGreymon` / `Red Hybrid AncientGreymon`
+- `Angoramon` → renamed to `Diarbbitmon`
+- `Vortexdramon` → renamed to `Vortex`
+
+**New organizer:** Added Expanse Italia (Limitless organizer 2536) as Tier 1. Created online store, synced 4 tournaments (18 results, 9 new players). Fixed mislinked `limitless_organizer_id` on physical store Il laboratorio Giochi Roma.
+
+---
+
 ## 2026-03-06: Rating Recalculation Failure Warning
 
 Discovered that `recalculate_ratings_cache()` can fail silently after tournament submission — it's wrapped in `tryCatch` and returns `FALSE` on error, but nothing checked the return value. This caused a player's rating to not update after a tournament was submitted (the recalculation at app startup ran before the tournament was entered, and the post-submission recalculation failed silently).

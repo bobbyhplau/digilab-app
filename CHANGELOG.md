@@ -5,6 +5,18 @@ All notable changes to DigiLab will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Fixed
+- **Deck classification audit**: Fixed rule ordering bugs causing 62 Rocks→Bagra Army, 50 Royal Knights→Chronicle, and 152 Hudiemon→Shakkoumon misclassifications. Moved specific rules before generic ones.
+- **Eaters false positive**: "Eater" substring matched "In-Between Theater" card — changed to require both Eater AND EDEN's Javelin.
+- **Archetype name mismatches**: Fixed Fenriloggamon→Fenriloogamon, Olympos XII→Olympus XII typos in DB. Renamed Vortexdramon→Vortex, Angoramon→Diarbbitmon in classifier.
+- **Mastemon classification**: Split generic Mastemon into three subtypes — Tribal (Gatomon+Angewomon+LadyDevimon+Mirei), KDA (SkullBaluchimon/Cerberusmon/Dobermon), CS (Gotsumon/Betamon/Seadramon).
+- **Red Hybrid classification**: Split into Red Hybrid EmperorGreymon and Red Hybrid AncientGreymon variants.
+
+### Added
+- **Expanse Italia organizer**: Added Limitless organizer 2536 (Expanse Italia) to Tier 1 sync. Synced 4 tournaments, 18 results.
+
 ## [1.3.2] - 2026-03-05 - Sentry Error Fixes
 
 ### Fixed
