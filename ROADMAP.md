@@ -20,7 +20,7 @@ planned:
 
   - id: scene-onboarding-automation
     title: "Scene Onboarding Automation"
-    description: "Automated Discord forum thread creation in #scene-coordination via webhook API. Preview modal for welcome message. Auto-save thread ID. Auto-post to #new-scenes. End-to-end scene creation flow from request to live scene."
+    description: "Automated Discord forum thread creation in #scene-coordination via webhook API. Preview modal for welcome message. Auto-save thread ID. Auto-post to #scene-updates. End-to-end scene creation flow from request to live scene."
     tags: [admin, integration]
     targetVersion: "v1.4.0"
 
@@ -449,7 +449,7 @@ completed:
 |---------|-------------|
 | **Admin Request Queue** | Unified admin_requests table with notification widget, approve/reject workflow, Discord integration |
 | **Webhook Modal Improvements** | Required Discord username, fuzzy store matching, DB persistence, request type dropdowns |
-| **Scene Onboarding Automation** | Auto-create #scene-coordination forum threads, preview modal, thread ID auto-save, #new-scenes announcements |
+| **Scene Onboarding Automation** | Auto-create #scene-coordination forum threads, preview modal, thread ID auto-save, #scene-updates announcements |
 | **Admin Tab Improvements** | Search bars, filters, Users tab grouped by scene, required store fields, schedule qualifiers, auto-message templates |
 | **iframe Storage Fix** | postMessage bridge for mobile localStorage, announcement system, version changelog modal |
 | **Audit Columns** | updated_at/updated_by on main tables |
@@ -610,7 +610,7 @@ Design doc: `docs/plans/2026-03-06-v1.4-admin-improvements-design.md`
 | SO2 | FEATURE | Auto-create #scene-coordination forum thread via Discord webhook API (thread_name param) |
 | SO3 | UX | Preview modal — editable welcome message before posting to Discord |
 | SO4 | FEATURE | Auto-save discord_thread_id from webhook response — no manual thread ID entry |
-| SO5 | FEATURE | Auto-post short announcement to #new-scenes channel |
+| SO5 | FEATURE | Auto-post short announcement to #scene-updates channel |
 | SO6 | FEATURE | Auto-post request details to #scene-requests forum on submission |
 
 ### Admin Tab Improvements
