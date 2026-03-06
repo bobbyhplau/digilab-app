@@ -1,5 +1,7 @@
 // scene-selector.js - Scene selection and localStorage persistence
 // Handles first-visit detection, scene preference storage, and geolocation
+// Includes postMessage iframe storage bridge for cross-origin iframe contexts
+// (Mobile Safari/Chrome block third-party localStorage in cross-origin iframes)
 
 (function() {
   'use strict';
@@ -8,55 +10,174 @@
   var ONBOARDING_KEY = 'digilab_onboarding_complete';
 
   // ==========================================================================
-  // LocalStorage Helpers
+  // PostMessage Storage Bridge
   // ==========================================================================
 
+  var isInIframe = window !== window.parent;
+  var pendingRequests = {};
+  var REQUEST_TIMEOUT = 2000; // 2 seconds
+
   /**
-   * Get saved scene preference from localStorage
-   * @returns {string|null} Scene slug or null if not set
+   * Generate a unique request ID
+   * @returns {string}
    */
-  function getSavedScene() {
-    try {
-      return localStorage.getItem(STORAGE_KEY);
-    } catch (e) {
-      // localStorage may be unavailable
-      return null;
-    }
+  function generateRequestId() {
+    return Date.now() + '-' + Math.random().toString(36).substr(2, 9);
   }
 
   /**
-   * Save scene preference to localStorage
+   * Listen for storage responses from parent frame
+   */
+  window.addEventListener('message', function(event) {
+    if (event.data && event.data.type === 'digilab-storage-result') {
+      var requestId = event.data.requestId;
+      if (requestId && pendingRequests[requestId]) {
+        clearTimeout(pendingRequests[requestId].timer);
+        pendingRequests[requestId].resolve(event.data.value);
+        delete pendingRequests[requestId];
+      }
+    }
+  });
+
+  /**
+   * Send a storage request to the parent frame and wait for response
+   * @param {string} action - 'get', 'set', or 'remove'
+   * @param {string} key - Storage key
+   * @param {string} [value] - Value for set operations
+   * @returns {Promise<string|null>}
+   */
+  function postMessageStorage(action, key, value) {
+    return new Promise(function(resolve) {
+      var requestId = generateRequestId();
+      var messageType = 'digilab-storage-' + action;
+
+      var message = {
+        type: messageType,
+        key: key,
+        requestId: requestId
+      };
+      if (value !== undefined) {
+        message.value = value;
+      }
+
+      // Set up timeout - resolve with null if parent doesn't respond
+      var timer = setTimeout(function() {
+        if (pendingRequests[requestId]) {
+          delete pendingRequests[requestId];
+          resolve(null);
+        }
+      }, REQUEST_TIMEOUT);
+
+      pendingRequests[requestId] = {
+        resolve: resolve,
+        timer: timer
+      };
+
+      window.parent.postMessage(message, '*');
+    });
+  }
+
+  // ==========================================================================
+  // DigilabStorage - Abstraction over localStorage / postMessage bridge
+  // ==========================================================================
+
+  var DigilabStorage = {
+    /**
+     * Get an item from storage
+     * @param {string} key
+     * @returns {Promise<string|null>}
+     */
+    getItem: function(key) {
+      if (isInIframe) {
+        return postMessageStorage('get', key);
+      }
+      // Direct mode - wrap in Promise for consistent API
+      return new Promise(function(resolve) {
+        try {
+          resolve(localStorage.getItem(key));
+        } catch (e) {
+          resolve(null);
+        }
+      });
+    },
+
+    /**
+     * Set an item in storage
+     * @param {string} key
+     * @param {string} value
+     * @returns {Promise<void>}
+     */
+    setItem: function(key, value) {
+      if (isInIframe) {
+        return postMessageStorage('set', key, value);
+      }
+      return new Promise(function(resolve) {
+        try {
+          localStorage.setItem(key, value);
+        } catch (e) {
+          // localStorage may be unavailable
+        }
+        resolve();
+      });
+    },
+
+    /**
+     * Remove an item from storage
+     * @param {string} key
+     * @returns {Promise<void>}
+     */
+    removeItem: function(key) {
+      if (isInIframe) {
+        return postMessageStorage('remove', key);
+      }
+      return new Promise(function(resolve) {
+        try {
+          localStorage.removeItem(key);
+        } catch (e) {
+          // localStorage may be unavailable
+        }
+        resolve();
+      });
+    }
+  };
+
+  // ==========================================================================
+  // Storage Helpers (async, using DigilabStorage)
+  // ==========================================================================
+
+  /**
+   * Get saved scene preference from storage
+   * @returns {Promise<string|null>} Scene slug or null if not set
+   */
+  function getSavedScene() {
+    return DigilabStorage.getItem(STORAGE_KEY);
+  }
+
+  /**
+   * Save scene preference to storage
    * @param {string} sceneSlug Scene slug to save
+   * @returns {Promise<void>}
    */
   function saveScene(sceneSlug) {
-    try {
-      localStorage.setItem(STORAGE_KEY, sceneSlug);
-    } catch (e) {
-      // localStorage may be unavailable
-    }
+    return DigilabStorage.setItem(STORAGE_KEY, sceneSlug);
   }
 
   /**
    * Check if onboarding has been completed
-   * @returns {boolean}
+   * @returns {Promise<boolean>}
    */
   function isOnboardingComplete() {
-    try {
-      return localStorage.getItem(ONBOARDING_KEY) === 'true';
-    } catch (e) {
-      return false;
-    }
+    return DigilabStorage.getItem(ONBOARDING_KEY).then(function(value) {
+      return value === 'true';
+    });
   }
 
   /**
    * Mark onboarding as complete
+   * @returns {Promise<void>}
    */
   function completeOnboarding() {
-    try {
-      localStorage.setItem(ONBOARDING_KEY, 'true');
-    } catch (e) {
-      // localStorage may be unavailable
-    }
+    return DigilabStorage.setItem(ONBOARDING_KEY, 'true');
   }
 
   // ==========================================================================
@@ -114,21 +235,25 @@
 
   $(document).on('shiny:connected', function() {
 
-    // Send initial scene preference to Shiny
-    var savedScene = getSavedScene();
-    var needsOnboarding = !isOnboardingComplete();
+    // Send initial scene preference to Shiny (async storage read)
+    Promise.all([getSavedScene(), isOnboardingComplete()])
+      .then(function(results) {
+        var savedScene = results[0];
+        var onboardingDone = results[1];
 
-    Shiny.setInputValue('scene_from_storage', {
-      scene: savedScene,
-      needsOnboarding: needsOnboarding,
-      timestamp: Date.now()
-    }, {priority: 'event'});
+        Shiny.setInputValue('scene_from_storage', {
+          scene: savedScene,
+          needsOnboarding: !onboardingDone,
+          timestamp: Date.now()
+        }, {priority: 'event'});
+      });
 
-    // Handler for saving scene to localStorage
+    // Handler for saving scene to storage
     Shiny.addCustomMessageHandler('saveScenePreference', function(message) {
       var sceneSlug = message.scene;
-      saveScene(sceneSlug);
-      completeOnboarding();
+      saveScene(sceneSlug).then(function() {
+        completeOnboarding();
+      });
     });
 
     // Handler for geolocation request
@@ -182,29 +307,25 @@
 
     // Handler for clearing onboarding (for testing)
     Shiny.addCustomMessageHandler('clearOnboarding', function(message) {
-      try {
-        localStorage.removeItem(STORAGE_KEY);
-        localStorage.removeItem(ONBOARDING_KEY);
-      } catch (e) {
-        // Ignore
-      }
+      DigilabStorage.removeItem(STORAGE_KEY).then(function() {
+        DigilabStorage.removeItem(ONBOARDING_KEY);
+      });
     });
 
   });
 
-  // Expose for debugging
+  // Expose for debugging (all functions return Promises)
   window.digilabScene = {
     getSavedScene: getSavedScene,
     saveScene: saveScene,
     isOnboardingComplete: isOnboardingComplete,
     clearOnboarding: function() {
-      try {
-        localStorage.removeItem(STORAGE_KEY);
-        localStorage.removeItem(ONBOARDING_KEY);
-      } catch (e) {
-        // Ignore
-      }
-    }
+      return DigilabStorage.removeItem(STORAGE_KEY).then(function() {
+        return DigilabStorage.removeItem(ONBOARDING_KEY);
+      });
+    },
+    isInIframe: isInIframe,
+    storage: DigilabStorage
   };
 
 })();
