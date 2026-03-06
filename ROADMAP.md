@@ -143,6 +143,14 @@ planned:
     targetVersion: "Future"
 
 completed:
+  # v1.3.2
+  - id: rating-recalc-warning
+    title: "Rating Recalculation Failure Warning"
+    description: "Admin warning toast when post-submission rating recalculation fails silently. Covers all 4 recalculation call sites."
+    tags: [fix, admin]
+    date: "2026-03"
+    version: "v1.3.2"
+
   # v1.3.1
   - id: casual-event-types
     title: "Casual Event Types"

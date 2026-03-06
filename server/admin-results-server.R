@@ -244,11 +244,14 @@ observeEvent(input$clear_results_only, {
     rv$results_refresh <- (rv$results_refresh %||% 0) + 1
 
     # Recalculate ratings cache
-    recalculate_ratings_cache(db_pool)
+    ratings_ok <- recalculate_ratings_cache(db_pool)
     rv$data_refresh <- (rv$data_refresh %||% 0) + 1
 
     removeModal()
     notify("Results cleared. Tournament kept for re-entry.", type = "message")
+    if (!isTRUE(ratings_ok)) {
+      notify("Ratings failed to update. They will refresh on next app restart.", type = "warning", duration = 8)
+    }
 
   }, error = function(e) {
     notify(paste("Error:", e$message), type = "error")
@@ -281,10 +284,14 @@ observeEvent(input$delete_tournament_confirm, {
     notify("Tournament deleted.", type = "message")
 
     # Recalculate ratings cache
-    recalculate_ratings_cache(db_pool)
+    ratings_ok <- recalculate_ratings_cache(db_pool)
 
     # Trigger refresh of public tables
     rv$data_refresh <- (rv$data_refresh %||% 0) + 1
+
+    if (!isTRUE(ratings_ok)) {
+      notify("Ratings failed to update. They will refresh on next app restart.", type = "warning", duration = 8)
+    }
 
   }, error = function(e) {
     notify(paste("Error:", e$message), type = "error")
@@ -912,8 +919,13 @@ observeEvent(input$admin_submit_results, {
     }
 
     # Recalculate ratings
-    recalculate_ratings_cache(db_pool)
+    ratings_ok <- recalculate_ratings_cache(db_pool)
     rv$data_refresh <- (rv$data_refresh %||% 0) + 1
+
+    if (!isTRUE(ratings_ok)) {
+      notify("Tournament saved but ratings failed to update. They will refresh on next app restart.",
+             type = "warning", duration = 8)
+    }
 
     notify(sprintf("Tournament submitted! %d results recorded.", as.integer(result_count)),
                      type = "message", duration = 5)

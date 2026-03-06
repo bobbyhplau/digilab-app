@@ -4,6 +4,14 @@ This log tracks development decisions, blockers, and technical notes for DigiLab
 
 ---
 
+## 2026-03-06: Rating Recalculation Failure Warning
+
+Discovered that `recalculate_ratings_cache()` can fail silently after tournament submission — it's wrapped in `tryCatch` and returns `FALSE` on error, but nothing checked the return value. This caused a player's rating to not update after a tournament was submitted (the recalculation at app startup ran before the tournament was entered, and the post-submission recalculation failed silently).
+
+Added warning toasts at all 4 call sites (`admin-results-server.R` x3, `admin-tournaments-server.R` x1) so admins see "Ratings failed to update. They will refresh on next app restart." when recalculation fails. The recalculation itself is fast (~2 seconds for 416 tournaments, 1,298 players) so no need for batching or daily-only runs.
+
+---
+
 ## 2026-03-06: Geocoding Fix — Mapbox Blocked on Posit Connect Cloud
 
 Mapbox Geocoding API (both v5 and v6) returns HTTP 403 from Posit Connect Cloud server IPs — same pattern as DigimonCard.io API blocking cloud IPs. Map tiles work because they load client-side in the browser, but server-side `httr2` geocoding calls are blocked.

@@ -964,8 +964,13 @@ observeEvent(input$edit_grid_save, {
     ", params = list(nrow(filled_rows), tournament_id))
 
     # Recalculate ratings
-    recalculate_ratings_cache(db_pool)
+    ratings_ok <- recalculate_ratings_cache(db_pool)
     rv$data_refresh <- (rv$data_refresh %||% 0) + 1
+
+    if (!isTRUE(ratings_ok)) {
+      notify("Results saved but ratings failed to update. They will refresh on next app restart.",
+             type = "warning", duration = 8)
+    }
 
     # Build summary message
     parts <- c()
