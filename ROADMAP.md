@@ -1,126 +1,142 @@
 ---
 currentVersion: "1.3.2"
-lastUpdated: "2026-03-05"
+lastUpdated: "2026-03-06"
 
 inProgress: []
 
 planned:
-  # v1.4.0 — Mobile Admin & Data Entry
-  - id: mobile-upload-tabs
-    title: "Mobile Upload Tabs"
-    description: "Mobile-optimized layouts for Upload Results and Enter Results tabs with touch-friendly grids and camera upload flow."
-    tags: [mobile, ux]
+  # v1.4.0 — Admin Improvements & Request Queue
+  - id: admin-request-queue
+    title: "Admin Request Queue & Notification Widget"
+    description: "Unified admin_requests table for all community submissions (store requests, scene requests, data errors, bug reports). Notification bar surfaces pending items to admins. Approve/reject workflow with Discord webhook integration."
+    tags: [admin, ux]
     targetVersion: "v1.4.0"
+
+  - id: webhook-modal-improvements
+    title: "Webhook Modal Improvements"
+    description: "Required Discord username on all modals, fuzzy store matching, request type dropdowns, DB persistence. Scene requests include suggested store names."
+    tags: [admin, ux]
+    targetVersion: "v1.4.0"
+
+  - id: scene-onboarding-automation
+    title: "Scene Onboarding Automation"
+    description: "Automated Discord forum thread creation in #scene-coordination via webhook API. Preview modal for welcome message. Auto-save thread ID. Auto-post to #new-scenes. End-to-end scene creation flow from request to live scene."
+    tags: [admin, integration]
+    targetVersion: "v1.4.0"
+
+  - id: admin-tab-improvements
+    title: "Admin Tab Improvements"
+    description: "Search bars and filters on all admin tables. Users tab grouped by scene (50+ scenes). Stores tab: required street/city, schedule frequency qualifiers, geocode status. Players tab: rating and scene columns. Auto-message copy buttons for scene admin DMs and scene announcements."
+    tags: [admin, ux]
+    targetVersion: "v1.4.0"
+
+  - id: iframe-storage-fix
+    title: "iframe localStorage Fix & Announcement System"
+    description: "postMessage bridge to fix mobile localStorage bug in PWA iframe. Announcements table with admin UI on Scenes tab. Welcome modal -> announcement -> version changelog priority flow."
+    tags: [ux, fix]
+    targetVersion: "v1.4.0"
+
+  - id: audit-columns
+    title: "Audit Columns (updated_at/updated_by)"
+    description: "Add updated_at and updated_by columns to tournaments, stores, players, deck_archetypes, and scenes tables. Track last modifier on all admin edits."
+    tags: [admin, data]
+    targetVersion: "v1.4.0"
+
+  # v1.5.0 — Results Redesign & Data Entry
+  - id: results-upload-redesign
+    title: "Results & Upload Tab Redesign"
+    description: "Paired redesign of Enter Results and Upload Results tabs. Touch-friendly grids, camera upload flow, mobile optimization, tournament data quality checks."
+    tags: [admin, ux, mobile]
+    targetVersion: "v1.5.0"
 
   - id: mobile-admin-tabs
     title: "Mobile Admin Tabs"
     description: "Mobile layouts for scene admin tabs (Edit Stores, Edit Tournaments, Edit Players) and super admin tabs (Edit Scenes, Edit Admins, Edit Decks)."
     tags: [mobile, admin]
-    targetVersion: "v1.4.0"
+    targetVersion: "v1.5.0"
 
-  - id: admin-search
-    title: "Admin Search Functionality"
-    description: "Add search and filtering to scene admin and super admin pages for faster data management at scale."
-    tags: [admin, ux]
-    targetVersion: "v1.4.0"
-
-  - id: admin-onboarding-rethink
-    title: "Admin Onboarding & Scene Creation Rethink"
-    description: "Review and streamline the scene/store/admin creation process. Rethink Discord webhook modals and scene-coordination thread setup to reduce manual steps."
-    tags: [admin, ux]
-    targetVersion: "v1.4.0"
-
-  - id: tournament-data-quality
-    title: "Tournament Data Quality Checks"
-    description: "Validation rules for tournament submissions: prevent future dates, require store selection, confirm OCR-parsed player count matches entered player count, and add confirmation dialogs for suspicious data."
-    tags: [data, admin]
-    targetVersion: "v1.4.0"
-
-  # v1.5.0 — Tournament Data & Ingestion
+  # v1.6.0 — Tournament Data & Ingestion
   - id: decklist-entry
     title: "Decklist Entry & Backfill"
     description: "Add decklists during tournament result entry or backfill them later from the Edit Tournaments tab."
     tags: [feature, data]
-    targetVersion: "v1.5.0"
-
+    targetVersion: "v1.6.0"
 
   - id: ocr-improvements
     title: "OCR Upload Improvements"
     description: "Bug fixes and process improvements for screenshot-based OCR uploads including better error handling and accuracy."
     tags: [feature, data]
-    targetVersion: "v1.5.0"
+    targetVersion: "v1.6.0"
 
   - id: round-by-round
     title: "Round-by-Round Enhancements"
     description: "Improved UX for match history uploads, better database handling, and player-facing visibility for round-by-round data."
     tags: [feature, data]
-    targetVersion: "v1.5.0"
+    targetVersion: "v1.6.0"
 
-  # v1.6.0 — UX Polish & Store Improvements
+  # v1.7.0 — UX Polish & Store Improvements
   - id: modal-improvements
     title: "Modal Improvements"
     description: "Enhanced player, store, and deck modals with rating sparklines, global vs local rank, deck history, and other data-rich additions."
     tags: [ux, feature]
-    targetVersion: "v1.6.0"
-
+    targetVersion: "v1.7.0"
 
   - id: scene-selector-redesign
     title: "Scene Selector Redesign"
     description: "Rethink the scene selection UX to handle growth beyond a single dropdown — grouped, searchable, or hierarchical selection."
     tags: [ux, scaling]
-    targetVersion: "v1.6.0"
+    targetVersion: "v1.7.0"
 
-  # v1.7.0 — Performance & Caching
+  # v1.8.0 — Performance & Caching
   - id: query-optimization
     title: "Query Optimization"
     description: "Audit slow queries with EXPLAIN ANALYZE, add missing indexes, and implement materialized views for dashboard aggregations."
     tags: [scaling]
-    targetVersion: "v1.7.0"
+    targetVersion: "v1.8.0"
 
   - id: caching-expansion
     title: "Caching Expansion"
     description: "Expand bindCache() coverage across all outputs, batch startup queries, and tune Neon connection pool settings."
     tags: [scaling]
-    targetVersion: "v1.7.0"
+    targetVersion: "v1.8.0"
 
   - id: lazy-tab-loading
     title: "Lazy Tab Loading"
     description: "Defer data fetching until a tab is actually visited instead of loading all tabs on startup."
     tags: [scaling]
-    targetVersion: "v1.7.0"
+    targetVersion: "v1.8.0"
 
-
-  # v1.8.0 — Achievement Badges & Gamification
+  # v1.9.0 — Achievement Badges & Gamification
   - id: achievement-badges
     title: "Achievement Badges"
     description: "Auto-calculated player achievements displayed in player modals — tournament streaks, deck mastery, and scene milestones."
     tags: [gamification, feature]
-    targetVersion: "v1.8.0"
+    targetVersion: "v1.9.0"
 
-  # v1.9.0 — Regional Admin & Multi-Region
+  # v2.0.0 — Regional Admin & Multi-Region
   - id: regional-admin-tier
     title: "Regional Admin Tier"
     description: "New admin role between Super Admin and Scene Admin for country or state-level oversight with cross-scene management."
     tags: [admin, scaling]
-    targetVersion: "v1.9.0"
+    targetVersion: "v2.0.0"
 
   - id: admin-audit-log
     title: "Admin Audit Log"
     description: "Track who changed what and when across all admin actions with before/after snapshots and optional undo."
     tags: [admin, security]
-    targetVersion: "v1.9.0"
+    targetVersion: "v2.0.0"
 
   - id: tournament-tiers
     title: "Tournament Tiers"
     description: "Add tier classification to tournaments (local, regional, national, international) for filtering and ranking context."
     tags: [feature, data]
-    targetVersion: "v1.9.0"
+    targetVersion: "v2.0.0"
 
   - id: cross-scene-badges
     title: "Cross-Scene Player Badges"
     description: "Show which scenes a player has competed in within their player modal, with home scene inference."
     tags: [feature, community]
-    targetVersion: "v1.9.0"
+    targetVersion: "v2.0.0"
 
   # Future
   - id: meta-insights-app
@@ -412,8 +428,8 @@ completed:
 
 # DigiLab Roadmap
 
-**Current Version:** v1.3.0
-**Last Updated:** 2026-03-04
+**Current Version:** v1.3.2
+**Last Updated:** 2026-03-06
 
 > This file is the source of truth for the [public roadmap](https://digilab.cards/roadmap).
 > A GitHub Action syncs the YAML frontmatter to the website on every push to main.
@@ -422,53 +438,56 @@ completed:
 
 ## In Progress
 
-| Feature | Description | Target |
-|---------|-------------|--------|
-| **Mobile Public Views** | Dedicated mobile layouts for all 5 public tabs with device detection and stacked card layouts | v1.3.0 |
-| **PWA Enhancements** | Expanded icon sizes, dark mode tab bar, safe area insets, installability improvements | v1.3.0 |
+*No features currently in active development.*
 
 ---
 
 ## Planned
 
-### v1.4.0 — Mobile Admin & Data Entry
+### v1.4.0 — Admin Improvements & Request Queue
 | Feature | Description |
 |---------|-------------|
-| **Mobile Upload Tabs** | Mobile-optimized Upload Results and Enter Results with touch-friendly grids |
-| **Mobile Admin Tabs** | Mobile layouts for all scene admin and super admin tabs |
-| **Admin Search** | Search and filtering across all admin pages |
-| **Admin Onboarding Rethink** | Streamline scene/store/admin creation and Discord webhook modals to reduce manual steps |
-| **Tournament Data Quality Checks** | Validation rules: no future dates, required store, OCR player count confirmation, suspicious data dialogs |
+| **Admin Request Queue** | Unified admin_requests table with notification widget, approve/reject workflow, Discord integration |
+| **Webhook Modal Improvements** | Required Discord username, fuzzy store matching, DB persistence, request type dropdowns |
+| **Scene Onboarding Automation** | Auto-create #scene-coordination forum threads, preview modal, thread ID auto-save, #new-scenes announcements |
+| **Admin Tab Improvements** | Search bars, filters, Users tab grouped by scene, required store fields, schedule qualifiers, auto-message templates |
+| **iframe Storage Fix** | postMessage bridge for mobile localStorage, announcement system, version changelog modal |
+| **Audit Columns** | updated_at/updated_by on main tables |
 
-### v1.5.0 — Tournament Data & Ingestion
+Design doc: `docs/plans/2026-03-06-v1.4-admin-improvements-design.md`
+
+### v1.5.0 — Results Redesign & Data Entry
+| Feature | Description |
+|---------|-------------|
+| **Results & Upload Tab Redesign** | Paired redesign of Enter Results and Upload Results with mobile optimization and data quality checks |
+| **Mobile Admin Tabs** | Mobile layouts for all scene admin and super admin tabs |
+
+### v1.6.0 — Tournament Data & Ingestion
 | Feature | Description |
 |---------|-------------|
 | **Decklist Entry & Backfill** | Add decklists during result entry or backfill from Edit Tournaments |
-| **Casual Event Types** | Regulation battles, casual night, experimental formats (no Elo impact) |
-| **CSV Result Upload** | Import from Bandai TCG+ organizer CSV exports |
 | **OCR Improvements** | Bug fixes and accuracy improvements for screenshot uploads |
 | **Round-by-Round Enhancements** | Better UX, database handling, and player visibility |
 
-### v1.6.0 — UX Polish & Store Improvements
+### v1.7.0 — UX Polish & Store Improvements
 | Feature | Description |
 |---------|-------------|
 | **Modal Improvements** | Rating sparklines, global vs local rank, deck history in player/store/deck modals |
-| **All Scenes Store Reorg** | Group stores by scene with collapsible sections and filtering |
 | **Scene Selector Redesign** | Scalable scene selection beyond a single dropdown |
 
-### v1.7.0 — Performance & Caching
+### v1.8.0 — Performance & Caching
 | Feature | Description |
 |---------|-------------|
 | **Query Optimization** | EXPLAIN ANALYZE audit, missing indexes, materialized views |
 | **Caching Expansion** | Broader bindCache() coverage, batched startup queries, pool tuning |
 | **Lazy Tab Loading** | Defer data fetch until tab is visited |
 
-### v1.8.0 — Achievement Badges & Gamification
+### v1.9.0 — Achievement Badges & Gamification
 | Feature | Description |
 |---------|-------------|
 | **Achievement Badges** | Auto-calculated player achievements — streaks, deck mastery, scene milestones |
 
-### v1.9.0 — Regional Admin & Multi-Region
+### v2.0.0 — Regional Admin & Multi-Region
 | Feature | Description |
 |---------|-------------|
 | **Regional Admin Tier** | Country/state-level admin role with cross-scene management |
@@ -491,6 +510,8 @@ completed:
 
 | Version | Feature | Shipped |
 |---------|---------|---------|
+| v1.3.2 | Sentry Error Fixes | 2026-03 |
+| v1.3.1 | Fixes & Upload Improvements | 2026-03 |
 | v1.3.0 | Mobile Views & PWA Fixes | 2026-03 |
 | v1.2.0 | Rating System Redesign | 2026-03 |
 | v1.2.0 | DigiLab Website | 2026-03 |
@@ -555,13 +576,80 @@ This section is internal-only and not published to the website.
 
 ---
 
-## v1.4.0 — Mobile Admin & Data Entry
+## v1.4.0 — Admin Improvements & Request Queue
 
-### Mobile Upload Tabs
+Design doc: `docs/plans/2026-03-06-v1.4-admin-improvements-design.md`
+
+### Infrastructure
 | ID | Type | Description |
 |----|------|-------------|
-| MOB-UL1 | FEATURE | Mobile Upload Results — touch-friendly review grid, camera upload flow |
-| MOB-UL2 | FEATURE | Mobile Enter Results — responsive grid entry for admin on mobile |
+| INF-PM1 | FIX | postMessage iframe storage bridge — fix mobile localStorage bug in PWA iframe |
+| INF-AR1 | SCHEMA | `admin_requests` table — unified request queue for store/scene/data error/bug report submissions |
+| INF-AN1 | SCHEMA | `announcements` table — admin-managed announcements for all users |
+| INF-AU1 | SCHEMA | Audit columns — `updated_at`/`updated_by` on tournaments, stores, players, deck_archetypes, scenes |
+
+### Notification Widget
+| ID | Type | Description |
+|----|------|-------------|
+| NW1 | FEATURE | Admin notification bar — pending request counts, clickable navigation to relevant tabs |
+| NW2 | FEATURE | Scene-aware filtering — scene admins see their scene, super admins see all |
+| NW3 | FEATURE | Background refresh via reactiveTimer + manual invalidation |
+
+### Webhook Modals & Request Queue
+| ID | Type | Description |
+|----|------|-------------|
+| WM1 | UX | Required Discord username on all modals |
+| WM2 | FEATURE | Store request: fuzzy name matching, request type dropdown, suggested stores for new scenes |
+| WM3 | FEATURE | DB persistence — all submissions saved to admin_requests + Discord webhook |
+| WM4 | FEATURE | Admin resolution flow — approve/reject with Discord auto-post for scene-relevant actions |
+
+### Scene Onboarding Automation
+| ID | Type | Description |
+|----|------|-------------|
+| SO1 | FEATURE | Scene request cards on Scenes tab — "Create Scene + Stores" / "Just Create Scene" / "Reject" |
+| SO2 | FEATURE | Auto-create #scene-coordination forum thread via Discord webhook API (thread_name param) |
+| SO3 | UX | Preview modal — editable welcome message before posting to Discord |
+| SO4 | FEATURE | Auto-save discord_thread_id from webhook response — no manual thread ID entry |
+| SO5 | FEATURE | Auto-post short announcement to #new-scenes channel |
+| SO6 | FEATURE | Auto-post request details to #scene-requests forum on submission |
+
+### Admin Tab Improvements
+| ID | Type | Description |
+|----|------|-------------|
+| AT1 | UX | Tournaments tab: filter bar (scene, store, type, date range), 0-results warning |
+| AT2 | UX | Decks tab (super admin): prominent request cards, searchable table, color filter chips, result count on edit |
+| AT3 | UX | Stores tab: request cards, searchable table, scene filter, required street/city, geocode status indicator |
+| AT4 | UX | Stores tab: schedule frequency qualifiers — biweekly next-occurrence date, monthly week-of-month dropdown |
+| AT5 | UX | Players tab: rating + scene columns, scene filter, merge history display |
+| AT6 | UX | Formats tab: searchable table |
+| AT7 | UX | Scenes tab: announcements sub-section, store + admin count columns |
+| AT8 | UX | Users tab: grouped-by-scene collapsible view, "No Admin Assigned" section |
+
+### Auto-Message Templates
+| ID | Type | Description |
+|----|------|-------------|
+| AM1 | FEATURE | Scene admin welcome DM — credentials, first steps, resource links, Discord thread link |
+| AM2 | FEATURE | New scene Discord welcome message — detailed onboarding posted to #scene-coordination thread |
+| AM3 | FEATURE | Copy-to-clipboard buttons via navigator.clipboard.writeText() |
+
+### User-Facing Modals
+| ID | Type | Description |
+|----|------|-------------|
+| UM1 | FIX | Welcome modal localStorage fix via postMessage bridge |
+| UM2 | FEATURE | Announcement modal — show latest unseen announcement to returning visitors |
+| UM3 | FEATURE | Version changelog modal — show what's new after app updates |
+| UM4 | FEATURE | Modal priority: Welcome > Announcement > Version (one per page load) |
+
+---
+
+## v1.5.0 — Results Redesign & Data Entry
+
+### Results & Upload Tab Redesign
+| ID | Type | Description |
+|----|------|-------------|
+| RU1 | UX | Paired redesign of Enter Results and Upload Results tabs |
+| RU2 | FEATURE | Mobile-optimized result entry with touch-friendly grids |
+| RU3 | VALIDATION | Tournament data quality checks — future dates, store required, player count confirmation |
 
 ### Mobile Admin Tabs
 | ID | Type | Description |
@@ -569,50 +657,15 @@ This section is internal-only and not published to the website.
 | MOB-AD1 | FEATURE | Mobile scene admin tabs (Edit Stores, Edit Tournaments, Edit Players) |
 | MOB-AD2 | FEATURE | Mobile super admin tabs (Edit Scenes, Edit Admins, Edit Decks) |
 
-### Admin Search
-| ID | Type | Description |
-|----|------|-------------|
-| AS-SEARCH1 | FEATURE | Search/filter on Edit Stores, Edit Tournaments, Edit Players |
-| AS-SEARCH2 | FEATURE | Search/filter on Edit Scenes, Edit Admins, Edit Decks |
-
-### Admin Onboarding & Scene Creation Rethink
-| ID | Type | Description |
-|----|------|-------------|
-| AO1 | UX | Review current scene/store/admin creation flow — identify manual steps that could be automated or combined |
-| AO2 | UX | Rethink Discord webhook modals — consolidate scene-request, scene-coordination, and admin DM workflows |
-| AO3 | FEATURE | Consider in-app scene creation wizard that handles scene + stores + admin account + Discord thread in one flow |
-
-### Tournament Data Quality Checks
-| ID | Type | Description |
-|----|------|-------------|
-| TDQ1 | VALIDATION | Prevent tournament dates in the future — block or warn on save |
-| TDQ2 | VALIDATION | Require store selection for tournament submissions |
-| TDQ3 | VALIDATION | OCR player count confirmation — compare parsed player count to entered player count, flag mismatches |
-| TDQ4 | UX | Confirmation dialog for suspicious data (large player count discrepancies, duplicate tournaments, etc.) |
-
 ---
 
-## v1.5.0 — Tournament Data & Ingestion
+## v1.6.0 — Tournament Data & Ingestion
 
 ### Decklist Entry & Backfill
 | ID | Type | Description |
 |----|------|-------------|
 | DL1 | FEATURE | Add decklist URL/data during tournament result entry |
 | DL2 | FEATURE | Backfill decklists from Edit Tournaments tab for past events |
-
-### Casual Event Types
-| ID | Type | Description |
-|----|------|-------------|
-| CE1 | FEATURE | New event types: Regulation Battle, Casual Night, Experimental Format |
-| CE2 | FEATURE | Casual events excluded from Elo rating calculations |
-| CE3 | UI | Visual distinction for casual events in tournament lists and modals |
-
-### CSV Upload
-| ID | Type | Description |
-|----|------|-------------|
-| CSV1 | FEATURE | Parse Bandai TCG+ organizer CSV export format |
-| CSV2 | FEATURE | Map CSV columns to DigiLab result fields with preview |
-| CSV3 | FEATURE | Player matching and deck resolution from CSV data |
 
 ### OCR Improvements
 | ID | Type | Description |
@@ -629,8 +682,7 @@ This section is internal-only and not published to the website.
 
 ---
 
-## v1.6.0 — UX Polish & Store Improvements
-
+## v1.7.0 — UX Polish & Store Improvements
 
 ### Modal Improvements
 | ID | Type | Description |
@@ -640,13 +692,6 @@ This section is internal-only and not published to the website.
 | MOD3 | UX | Player modal: deck history timeline across formats |
 | MOD4 | UX | Store and deck modal enhancements (TBD based on review) |
 
-### Store Page Reorganization
-| ID | Type | Description |
-|----|------|-------------|
-| SP1 | UX | Group stores by scene on All Scenes view with collapsible sections |
-| SP2 | UX | Add filtering within store groups (by size, activity, rating) |
-| SP3 | UX | Improve All Scenes map for large store counts |
-
 ### Scene Selector Redesign
 | ID | Type | Description |
 |----|------|-------------|
@@ -655,7 +700,7 @@ This section is internal-only and not published to the website.
 
 ---
 
-## v1.7.0 — Performance & Caching
+## v1.8.0 — Performance & Caching
 
 | ID | Type | Description |
 |----|------|-------------|
@@ -668,7 +713,7 @@ This section is internal-only and not published to the website.
 
 ---
 
-## v1.8.0 — Achievement Badges & Gamification
+## v1.9.0 — Achievement Badges & Gamification
 
 | ID | Type | Description |
 |----|------|-------------|
@@ -680,8 +725,7 @@ This section is internal-only and not published to the website.
 
 ---
 
-## v1.9.0 — Regional Admin & Multi-Region
-
+## v2.0.0 — Regional Admin & Multi-Region
 
 ### Regional Admin Tier
 | ID | Type | Description |
@@ -722,8 +766,6 @@ Items for future consideration, not scheduled:
 | MR12 | FEATURE | Scene health dashboard | Admin trends, retention, store activity |
 | P4 | FEATURE | One Piece TCG support | Multi-game expansion |
 | LI12 | FEATURE | Online store links | Discord/YouTube instead of address/map (partially done) |
-| FB2 | FEATURE | Feedback admin queue | View/triage/respond to submissions in admin panel |
-| DC1 | FEATURE | Discord bot for scene admin onboarding | Admin requests via Discord, Super Admin approves |
 | DC4 | INTEGRATION | Link Discord users to DigiLab accounts | Enables bot-based workflows |
 | INF1 | DEVEX | Sentry MCP integration | Claude Code workflow for proactive error monitoring |
 | INF2 | DEVEX | Sentry error collection workflow | Process for identifying and addressing production errors |
