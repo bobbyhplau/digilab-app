@@ -60,6 +60,7 @@ TIER1_ORGANIZERS = {
     281: "PHOENIX REBORN",
     559: "DMV Drakes",
     578: "MasterRukasu",
+    2536: "Expanse Italia",
 }
 
 
