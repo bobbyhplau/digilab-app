@@ -1827,6 +1827,7 @@ observeEvent(input$submit_store_request, {
   store_name <- trimws(input$store_req_name)
   location <- trimws(input$store_req_location)
   scene_val <- input$store_req_scene
+  discord_username <- trimws(input$store_req_discord)
 
   if (nchar(store_name) == 0) {
     notify("Store name is required", type = "warning")
@@ -1836,19 +1837,48 @@ observeEvent(input$submit_store_request, {
     notify("Location is required", type = "warning")
     return()
   }
+  if (nchar(discord_username) == 0) {
+    notify("Discord username is required so we can follow up", type = "warning")
+    return()
+  }
 
   tryCatch({
     if (scene_val == "new") {
-      discord_username <- trimws(input$store_req_discord)
+      # Persist as scene_request
+      payload <- list(
+        store_name = store_name,
+        location = location,
+        request_subtype = "new_scene"
+      )
+      safe_execute(db_pool, "
+        INSERT INTO admin_requests (request_type, scene_id, payload, discord_username)
+        VALUES ($1, NULL, $2, $3)
+      ", params = list("scene_request", jsonlite::toJSON(payload, auto_unbox = TRUE), discord_username))
+
       discord_post_scene_request(store_name, location, discord_username)
       removeModal()
-      notify("Your scene request has been submitted! Join our Discord to follow up.", type = "message", duration = 5)
+      notify("Your scene request has been submitted! We'll follow up on Discord.", type = "message", duration = 5)
     } else {
       scene_id <- as.integer(scene_val)
+
+      # Persist as store_request
+      payload <- list(
+        store_name = store_name,
+        location = location,
+        request_subtype = "new_store"
+      )
+      safe_execute(db_pool, "
+        INSERT INTO admin_requests (request_type, scene_id, payload, discord_username)
+        VALUES ($1, $2, $3, $4)
+      ", params = list("store_request", scene_id, jsonlite::toJSON(payload, auto_unbox = TRUE), discord_username))
+
       discord_post_to_scene(scene_id, store_name, location, db_pool)
       removeModal()
-      notify("Your store request has been sent to the scene admin!", type = "message", duration = 5)
+      notify("Your store request has been sent to the scene admin! We'll follow up on Discord.", type = "message", duration = 5)
     }
+
+    # Refresh notification bar
+    rv$requests_refresh <- (rv$requests_refresh %||% 0) + 1
   }, error = function(e) {
     warning(paste("Store request error:", e$message))
     removeModal()

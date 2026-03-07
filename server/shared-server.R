@@ -35,17 +35,18 @@ show_store_request_modal <- function() {
                   selectize = FALSE),
       textInput("store_req_name", "Store Name"),
       textInput("store_req_location", "City / State"),
+      textInput("store_req_discord", "Your Discord Username *",
+                placeholder = "So we can follow up"),
       div(id = "store_req_new_scene_fields", style = "display: none;",
         tags$small(class = "form-text text-muted d-block mb-2",
-                   "Include country if outside the US (e.g., 'S\u00e3o Paulo, Brazil')"),
-        textInput("store_req_discord", "Your Discord Username"),
-        div(class = "mt-2 text-center",
-          tags$a(
-            href = LINKS$discord, target = "_blank",
-            class = "btn btn-sm btn-outline-primary",
-            bsicons::bs_icon("discord", class = "me-1"),
-            "Join our Discord"
-          )
+                   "Include country if outside the US (e.g., 'S\u00e3o Paulo, Brazil')")
+      ),
+      div(class = "mt-2 text-center",
+        tags$a(
+          href = LINKS$discord, target = "_blank",
+          class = "btn btn-sm btn-outline-primary",
+          bsicons::bs_icon("discord", class = "me-1"),
+          "Join our Discord"
         )
       ),
       tags$script(HTML("
@@ -429,7 +430,7 @@ show_data_error_modal <- function(item_type, item_name) {
       textAreaInput("data_error_description", "What's wrong?",
                     placeholder = "Describe the error (e.g., 'Deck should be Blue Flare, not Jesmon')",
                     rows = 3),
-      textInput("data_error_discord", "Your Discord Username (optional)",
+      textInput("data_error_discord", "Your Discord Username *",
                 placeholder = "So we can follow up")
     ),
     footer = tagList(
@@ -450,6 +451,12 @@ observeEvent(input$submit_data_error, {
     return()
   }
 
+  discord_username <- trimws(input$data_error_discord)
+  if (nchar(discord_username) == 0) {
+    notify("Discord username is required so we can follow up", type = "warning")
+    return()
+  }
+
   tryCatch({
     # Use item's scene first (from tournament/player), fall back to user's selected scene
     scene_id <- data_error_context$scene_id
@@ -461,8 +468,17 @@ observeEvent(input$submit_data_error, {
       if (nrow(scene_row) > 0) scene_id <- scene_row$scene_id[1]
     }
 
-    discord_username <- trimws(input$data_error_discord)
+    # Persist to admin_requests table
+    payload <- list(
+      context = paste(data_error_context$item_type, "-", data_error_context$item_name),
+      description = description
+    )
+    safe_execute(db_pool, "
+      INSERT INTO admin_requests (request_type, scene_id, payload, discord_username)
+      VALUES ($1, $2, $3, $4)
+    ", params = list("data_error", scene_id, jsonlite::toJSON(payload, auto_unbox = TRUE), discord_username))
 
+    # Fire Discord webhook
     if (!is.null(scene_id)) {
       discord_post_data_error(
         scene_id = scene_id,
@@ -473,7 +489,6 @@ observeEvent(input$submit_data_error, {
         db_pool = db_pool
       )
     } else {
-      # No scene context — fall back to bug report
       discord_post_bug_report(
         title = paste("Data Error:", data_error_context$item_type, "-", data_error_context$item_name),
         description = description,
@@ -482,8 +497,11 @@ observeEvent(input$submit_data_error, {
       )
     }
 
+    # Refresh notification bar
+    rv$requests_refresh <- (rv$requests_refresh %||% 0) + 1
+
     removeModal()
-    notify("Error report submitted! Thank you for helping improve DigiLab.", type = "message", duration = 5)
+    notify("Error report submitted! We'll follow up on Discord.", type = "message", duration = 5)
   }, error = function(e) {
     warning(paste("Data error report failed:", e$message))
     removeModal()
@@ -509,7 +527,7 @@ show_bug_report_modal <- function() {
       textAreaInput("bug_report_description", "What happened?",
                     placeholder = "What were you trying to do? What went wrong?",
                     rows = 4),
-      textInput("bug_report_discord", "Your Discord Username (optional)",
+      textInput("bug_report_discord", "Your Discord Username *",
                 placeholder = "So we can follow up")
     ),
     footer = tagList(
@@ -535,6 +553,12 @@ observeEvent(input$submit_bug_report, {
     return()
   }
 
+  discord_username <- trimws(input$bug_report_discord)
+  if (nchar(discord_username) == 0) {
+    notify("Discord username is required so we can follow up", type = "warning")
+    return()
+  }
+
   tryCatch({
     context_parts <- c()
     if (!is.null(rv$current_nav)) context_parts <- c(context_parts, paste("Tab:", rv$current_nav))
@@ -543,8 +567,14 @@ observeEvent(input$submit_bug_report, {
     }
     context <- paste(context_parts, collapse = ", ")
 
-    discord_username <- trimws(input$bug_report_discord)
+    # Persist to admin_requests table
+    payload <- list(title = title, description = description, context = context)
+    safe_execute(db_pool, "
+      INSERT INTO admin_requests (request_type, scene_id, payload, discord_username)
+      VALUES ($1, NULL, $2, $3)
+    ", params = list("bug_report", jsonlite::toJSON(payload, auto_unbox = TRUE), discord_username))
 
+    # Fire Discord webhook
     discord_post_bug_report(
       title = title,
       description = description,
@@ -552,8 +582,11 @@ observeEvent(input$submit_bug_report, {
       discord_username = discord_username
     )
 
+    # Refresh notification bar
+    rv$requests_refresh <- (rv$requests_refresh %||% 0) + 1
+
     removeModal()
-    notify("Bug report submitted! Thank you for helping improve DigiLab.", type = "message", duration = 5)
+    notify("Bug report submitted! We'll follow up on Discord.", type = "message", duration = 5)
   }, error = function(e) {
     warning(paste("Bug report failed:", e$message))
     removeModal()
