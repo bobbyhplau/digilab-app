@@ -1825,7 +1825,8 @@ observeEvent(input$open_store_request, {
 # Handle store request submission
 observeEvent(input$submit_store_request, {
   store_name <- trimws(input$store_req_name)
-  location <- trimws(input$store_req_location)
+  city <- trimws(input$store_req_city)
+  state <- trimws(input$store_req_state)
   scene_val <- input$store_req_scene
   discord_username <- trimws(input$store_req_discord)
 
@@ -1833,8 +1834,16 @@ observeEvent(input$submit_store_request, {
     notify("Store name is required", type = "warning")
     return()
   }
-  if (nchar(location) == 0) {
-    notify("Location is required", type = "warning")
+  if (nchar(city) == 0) {
+    notify("City is required", type = "warning")
+    return()
+  }
+  if (nchar(state) == 0) {
+    notify("State / Country is required", type = "warning")
+    return()
+  }
+  if (is.null(scene_val) || nchar(scene_val) == 0) {
+    notify("Please select a scene", type = "warning")
     return()
   }
   if (nchar(discord_username) == 0) {
@@ -1843,44 +1852,83 @@ observeEvent(input$submit_store_request, {
   }
 
   tryCatch({
-    if (scene_val == "new") {
-      # Persist as scene_request
-      payload <- list(
-        store_name = store_name,
-        location = location,
-        request_subtype = "new_scene"
-      )
-      safe_execute(db_pool, "
-        INSERT INTO admin_requests (request_type, scene_id, payload, discord_username)
-        VALUES ($1, NULL, $2, $3)
-      ", params = list("scene_request", jsonlite::toJSON(payload, auto_unbox = TRUE), discord_username))
+    scene_id <- as.integer(scene_val)
+    location <- paste(city, state, sep = ", ")
 
-      discord_post_scene_request(store_name, location, discord_username)
-      removeModal()
-      notify("Your scene request has been submitted! We'll follow up on Discord.", type = "message", duration = 5)
-    } else {
-      scene_id <- as.integer(scene_val)
+    # Persist as store_request
+    payload <- list(
+      store_name = store_name,
+      city = city,
+      state = state,
+      request_subtype = "new_store"
+    )
+    safe_execute(db_pool, "
+      INSERT INTO admin_requests (request_type, scene_id, payload, discord_username)
+      VALUES ($1, $2, $3, $4)
+    ", params = list("store_request", scene_id, jsonlite::toJSON(payload, auto_unbox = TRUE), discord_username))
 
-      # Persist as store_request
-      payload <- list(
-        store_name = store_name,
-        location = location,
-        request_subtype = "new_store"
-      )
-      safe_execute(db_pool, "
-        INSERT INTO admin_requests (request_type, scene_id, payload, discord_username)
-        VALUES ($1, $2, $3, $4)
-      ", params = list("store_request", scene_id, jsonlite::toJSON(payload, auto_unbox = TRUE), discord_username))
-
-      discord_post_to_scene(scene_id, store_name, location, db_pool)
-      removeModal()
-      notify("Your store request has been sent to the scene admin! We'll follow up on Discord.", type = "message", duration = 5)
-    }
+    discord_post_to_scene(scene_id, store_name, location, db_pool)
+    removeModal()
+    notify("Your store request has been sent to the scene admin! We'll follow up on Discord.", type = "message", duration = 5)
 
     # Refresh notification bar
     rv$requests_refresh <- (rv$requests_refresh %||% 0) + 1
   }, error = function(e) {
     warning(paste("Store request error:", e$message))
+    removeModal()
+    notify("Your request was received but we couldn't send it to Discord. We'll follow up manually.", type = "warning", duration = 5)
+  })
+})
+
+# Handle scene request submission
+observeEvent(input$submit_scene_request, {
+  city_name <- trimws(input$scene_req_name)
+  state <- trimws(input$scene_req_state)
+  stores <- trimws(input$scene_req_stores)
+  notes <- trimws(input$scene_req_notes)
+  discord_username <- trimws(input$scene_req_discord)
+
+  if (nchar(city_name) == 0) {
+    notify("City / Area name is required", type = "warning")
+    return()
+  }
+  if (nchar(state) == 0) {
+    notify("State / Country is required", type = "warning")
+    return()
+  }
+  if (nchar(discord_username) == 0) {
+    notify("Discord username is required so we can follow up", type = "warning")
+    return()
+  }
+
+  tryCatch({
+    location <- paste(city_name, state, sep = ", ")
+
+    # Build payload
+    payload <- list(
+      city = city_name,
+      state = state,
+      request_subtype = "new_scene"
+    )
+    if (nchar(stores) > 0) payload$suggested_stores <- stores
+    if (nchar(notes) > 0) payload$notes <- notes
+
+    # Persist as scene_request
+    safe_execute(db_pool, "
+      INSERT INTO admin_requests (request_type, scene_id, payload, discord_username)
+      VALUES ($1, NULL, $2, $3)
+    ", params = list("scene_request", jsonlite::toJSON(payload, auto_unbox = TRUE), discord_username))
+
+    # Discord webhook
+    discord_post_scene_request(city_name, location, discord_username)
+
+    # Refresh notification bar
+    rv$requests_refresh <- (rv$requests_refresh %||% 0) + 1
+
+    removeModal()
+    notify("Your scene request has been submitted! We'll follow up on Discord.", type = "message", duration = 5)
+  }, error = function(e) {
+    warning(paste("Scene request error:", e$message))
     removeModal()
     notify("Your request was received but we couldn't send it to Discord. We'll follow up manually.", type = "warning", duration = 5)
   })

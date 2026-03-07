@@ -21,26 +21,68 @@ show_store_request_modal <- function() {
     "SELECT scene_id, display_name FROM scenes WHERE is_active = TRUE ORDER BY display_name",
     default = data.frame())
 
-  scene_choices <- c("My area isn't listed" = "new")
+  scene_choices <- list()
   if (nrow(scenes) > 0) {
-    named <- setNames(as.character(scenes$scene_id), scenes$display_name)
-    scene_choices <- c(scene_choices, named)
+    scene_choices <- setNames(as.character(scenes$scene_id), scenes$display_name)
+  }
+
+  # Pre-select current scene if it's a real scene (not "all" or "online")
+  selected_scene <- NULL
+  if (!is.null(rv$current_scene) && !rv$current_scene %in% c("all", "online")) {
+    scene_row <- safe_query(db_pool,
+      "SELECT scene_id FROM scenes WHERE slug = $1",
+      params = list(rv$current_scene), default = data.frame())
+    if (nrow(scene_row) > 0) selected_scene <- as.character(scene_row$scene_id[1])
   }
 
   showModal(modalDialog(
-    title = tagList(span(id = "store_req_title", "Request a Store")),
+    title = tagList(bsicons::bs_icon("shop"), " Request a Store"),
     div(
-      selectInput("store_req_scene", "Scene / Area",
+      selectInput("store_req_scene", "Scene / Area *",
                   choices = scene_choices,
+                  selected = selected_scene,
                   selectize = FALSE),
-      textInput("store_req_name", "Store Name"),
-      textInput("store_req_location", "City / State"),
+      textInput("store_req_name", "Store Name *"),
+      textInput("store_req_city", "City *"),
+      textInput("store_req_state", "State / Country *",
+                placeholder = "e.g., TX or Germany"),
       textInput("store_req_discord", "Your Discord Username *",
                 placeholder = "So we can follow up"),
-      div(id = "store_req_new_scene_fields", style = "display: none;",
-        tags$small(class = "form-text text-muted d-block mb-2",
-                   "Include country if outside the US (e.g., 'S\u00e3o Paulo, Brazil')")
-      ),
+      tags$small(class = "form-text text-muted d-block mt-2",
+                 "Don't see your scene? Use ",
+                 actionLink("store_req_switch_to_scene", "Request a Scene"),
+                 " instead.")
+    ),
+    footer = tagList(
+      modalButton("Cancel"),
+      actionButton("submit_store_request", "Submit", class = "btn-primary")
+    ),
+    easyClose = TRUE
+  ))
+}
+
+# ---------------------------------------------------------------------------
+# Shared Helper: Scene Request Modal
+# ---------------------------------------------------------------------------
+
+show_scene_request_modal <- function() {
+  showModal(modalDialog(
+    title = tagList(bsicons::bs_icon("globe2"), " Request a Scene"),
+    div(
+      tags$p(class = "text-muted mb-3",
+             "Request a new scene for your city or region. We'll review and set it up."),
+      textInput("scene_req_name", "City / Area Name *",
+                placeholder = "e.g., Houston, S\u00e3o Paulo, Berlin"),
+      textInput("scene_req_state", "State / Country *",
+                placeholder = "e.g., TX, Brazil, Germany"),
+      textAreaInput("scene_req_stores", "Known Stores (optional)",
+                    placeholder = "List any stores that run Digimon TCG locals in this area, one per line",
+                    rows = 3),
+      textAreaInput("scene_req_notes", "Additional Info (optional)",
+                    placeholder = "e.g., We run weekly locals with 8-12 players",
+                    rows = 2),
+      textInput("scene_req_discord", "Your Discord Username *",
+                placeholder = "So we can follow up"),
       div(class = "mt-2 text-center",
         tags$a(
           href = LINKS$discord, target = "_blank",
@@ -48,20 +90,11 @@ show_store_request_modal <- function() {
           bsicons::bs_icon("discord", class = "me-1"),
           "Join our Discord"
         )
-      ),
-      tags$script(HTML("
-        $(document).on('change', '#store_req_scene', function() {
-          var isNew = $(this).val() === 'new';
-          $('#store_req_new_scene_fields').toggle(isNew);
-          $('#store_req_title').text(isNew ? 'Request a Scene' : 'Request a Store');
-          $('label[for=store_req_name]').text(isNew ? 'Store or Community Name' : 'Store Name');
-          $('label[for=store_req_location]').text(isNew ? 'City / Region' : 'City / State');
-        });
-      "))
+      )
     ),
     footer = tagList(
       modalButton("Cancel"),
-      actionButton("submit_store_request", "Submit", class = "btn-primary")
+      actionButton("submit_scene_request", "Submit", class = "btn-primary")
     ),
     easyClose = TRUE
   ))
@@ -291,7 +324,10 @@ observeEvent(input$help_menu_link, {
                  tagList(bsicons::bs_icon("bug"), span("Report a Bug")),
                  class = "help-modal-item"),
       actionLink("help_modal_store_request",
-                 tagList(bsicons::bs_icon("plus-circle"), span("Request a Store")),
+                 tagList(bsicons::bs_icon("shop"), span("Request a Store")),
+                 class = "help-modal-item"),
+      actionLink("help_modal_scene_request",
+                 tagList(bsicons::bs_icon("globe2"), span("Request a Scene")),
                  class = "help-modal-item")
     ),
     # Upload (mobile only)
@@ -319,6 +355,17 @@ observeEvent(input$help_modal_bug_report, {
 observeEvent(input$help_modal_store_request, {
   removeModal()
   show_store_request_modal()
+})
+
+observeEvent(input$help_modal_scene_request, {
+  removeModal()
+  show_scene_request_modal()
+})
+
+# Switch from store request modal to scene request modal
+observeEvent(input$store_req_switch_to_scene, {
+  removeModal()
+  show_scene_request_modal()
 })
 
 observeEvent(input$help_modal_upload, {
