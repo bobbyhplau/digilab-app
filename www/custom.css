@@ -1894,9 +1894,9 @@ body.bslib-gap-spacing {
   background: rgba(var(--bs-warning-rgb), 0.06);
   border: 1px solid rgba(var(--bs-warning-rgb), 0.15);
   border-radius: 6px;
-  padding: 6px 10px;
-  margin-bottom: 4px;
-  font-size: 0.825rem;
+  padding: 8px 12px;
+  margin-bottom: 6px;
+  font-size: 0.925rem;
 }
 
 .request-card-row {
@@ -1927,7 +1927,7 @@ body.bslib-gap-spacing {
 
 .req-label {
   color: rgba(var(--bs-body-color-rgb), 0.5);
-  font-size: 0.75rem;
+  font-size: 0.8rem;
   text-transform: uppercase;
   letter-spacing: 0.03em;
   margin-right: 3px;
