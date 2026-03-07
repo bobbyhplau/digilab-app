@@ -1913,10 +1913,24 @@ body.bslib-gap-spacing {
   flex: 1;
 }
 
-.req-summary {
+.req-details {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 12px;
+}
+
+.req-field {
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+}
+
+.req-label {
+  color: rgba(var(--bs-body-color-rgb), 0.5);
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  margin-right: 3px;
 }
 
 .req-meta {
@@ -1945,9 +1959,8 @@ body.bslib-gap-spacing {
 }
 
 .request-card-actions .btn-sm {
-  padding: 2px 6px;
-  font-size: 0.75rem;
-  line-height: 1.2;
+  padding: 4px 10px;
+  font-size: 0.8rem;
 }
 
 /* =============================================================================

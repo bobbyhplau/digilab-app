@@ -72,32 +72,40 @@ render_request_card <- function(req_row) {
     error = function(e) list()
   )
 
-  # Build a compact summary based on request type
-  summary <- switch(req_row$request_type,
+  # Build labeled detail tags based on request type
+  details <- switch(req_row$request_type,
     store_request = {
-      parts <- c(payload$store_name, payload$city, payload$state)
-      paste(parts[nchar(parts %||% "") > 0], collapse = ", ")
+      tagList(
+        if (!is.null(payload$store_name)) span(class = "req-field", span(class = "req-label", "Store:"), payload$store_name),
+        if (!is.null(payload$city) || !is.null(payload$state))
+          span(class = "req-field", span(class = "req-label", "Location:"), paste(c(payload$city, payload$state), collapse = ", "))
+      )
     },
     scene_request = {
       location <- paste(c(payload$city, payload$state), collapse = ", ")
-      if (!is.null(payload$suggested_stores) && nchar(payload$suggested_stores) > 0) {
-        paste0(location, " \u2014 Stores: ", payload$suggested_stores)
-      } else {
-        location
-      }
+      tagList(
+        span(class = "req-field", span(class = "req-label", "Area:"), location),
+        if (!is.null(payload$suggested_stores) && nchar(payload$suggested_stores) > 0)
+          span(class = "req-field", span(class = "req-label", "Stores:"), payload$suggested_stores)
+      )
     },
     data_error = {
       desc <- payload$description %||% ""
-      ctx <- payload$context %||% ""
-      if (nchar(ctx) > 0) paste0(ctx, " \u2014 ", desc) else desc
+      if (nchar(desc) > 100) desc <- paste0(substr(desc, 1, 97), "...")
+      tagList(
+        if (!is.null(payload$context)) span(class = "req-field", span(class = "req-label", "Item:"), payload$context),
+        span(class = "req-field", span(class = "req-label", "Issue:"), desc)
+      )
     },
     bug_report = {
-      title <- payload$title %||% ""
       desc <- payload$description %||% ""
-      if (nchar(desc) > 80) desc <- paste0(substr(desc, 1, 77), "...")
-      if (nchar(title) > 0) paste0(title, " \u2014 ", desc) else desc
+      if (nchar(desc) > 100) desc <- paste0(substr(desc, 1, 97), "...")
+      tagList(
+        if (!is.null(payload$title)) span(class = "req-field", span(class = "req-label", "Bug:"), payload$title),
+        span(class = "req-field", span(class = "req-label", "Details:"), desc)
+      )
     },
-    ""
+    tagList()
   )
 
   time_ago <- format(as.POSIXct(req_row$submitted_at), "%b %d")
@@ -105,14 +113,14 @@ render_request_card <- function(req_row) {
   # Extra details for scene requests (notes)
   extra <- NULL
   if (req_row$request_type == "scene_request" && !is.null(payload$notes) && nchar(payload$notes) > 0) {
-    extra <- div(class = "req-notes", payload$notes)
+    extra <- div(class = "req-notes", span(class = "req-label", "Notes:"), " ", payload$notes)
   }
 
   div(
     class = "request-card",
     div(class = "request-card-row",
       div(class = "request-card-info",
-        tags$span(class = "req-summary", summary),
+        div(class = "req-details", details),
         tags$span(class = "req-meta",
           tags$span(class = "req-discord", paste0("@", req_row$discord_username)),
           tags$span(class = "req-time", time_ago)
@@ -121,13 +129,15 @@ render_request_card <- function(req_row) {
       div(class = "request-card-actions",
         tags$button(
           class = "btn btn-sm btn-outline-success",
+          title = "Mark as Done",
           onclick = sprintf("Shiny.setInputValue('resolve_request', {id: %d, action: 'resolved', ts: Date.now()}, {priority: 'event'})", req_row$id),
-          bsicons::bs_icon("check-lg")
+          bsicons::bs_icon("check-lg"), " Done"
         ),
         tags$button(
           class = "btn btn-sm btn-outline-danger",
+          title = "Reject",
           onclick = sprintf("Shiny.setInputValue('resolve_request', {id: %d, action: 'rejected', ts: Date.now()}, {priority: 'event'})", req_row$id),
-          bsicons::bs_icon("x-lg")
+          bsicons::bs_icon("x-lg"), " Reject"
         )
       )
     ),
