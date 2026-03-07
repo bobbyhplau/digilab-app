@@ -1865,53 +1865,89 @@ body.bslib-gap-spacing {
 .pending-requests-hint {
   font-size: 0.8rem;
   color: rgba(var(--bs-body-color-rgb), 0.6);
-  margin-bottom: 0.75rem;
+  margin-bottom: 0.5rem;
   font-style: italic;
+}
+
+.pending-requests-panel .request-card:last-child {
+  margin-bottom: 0;
+}
+
+/* Scrollable container when many requests */
+.pending-requests-panel {
+  max-height: 280px;
+  overflow-y: auto;
+  margin-bottom: 1rem;
+  padding-right: 4px;
+}
+
+.pending-requests-panel > h4,
+.pending-requests-panel > .pending-requests-hint {
+  position: sticky;
+  top: 0;
+  background: var(--bs-body-bg);
+  z-index: 1;
+  padding-bottom: 4px;
 }
 
 .request-card {
   background: rgba(var(--bs-warning-rgb), 0.06);
-  border: 1px solid rgba(var(--bs-warning-rgb), 0.2);
+  border: 1px solid rgba(var(--bs-warning-rgb), 0.15);
   border-radius: 6px;
-  padding: 10px 14px;
-  margin-bottom: 8px;
+  padding: 6px 10px;
+  margin-bottom: 4px;
+  font-size: 0.825rem;
 }
 
-.request-card-header {
+.request-card-row {
   display: flex;
-  justify-content: space-between;
   align-items: center;
-  margin-bottom: 6px;
-  flex-wrap: wrap;
-  gap: 6px;
+  justify-content: space-between;
+  gap: 8px;
 }
 
-.request-card-actions {
+.request-card-info {
   display: flex;
-  gap: 6px;
-  flex-shrink: 0;
+  flex-direction: column;
+  min-width: 0;
+  flex: 1;
+}
+
+.req-summary {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.req-meta {
+  display: flex;
+  gap: 8px;
+  font-size: 0.75rem;
+  color: rgba(var(--bs-body-color-rgb), 0.5);
 }
 
 .req-discord {
   font-weight: 600;
-  margin-right: 8px;
+  color: rgba(var(--bs-body-color-rgb), 0.7);
 }
 
-.req-time {
-  font-size: 0.8rem;
+.req-notes {
+  font-size: 0.75rem;
+  color: rgba(var(--bs-body-color-rgb), 0.5);
+  margin-top: 2px;
+  font-style: italic;
 }
 
-.request-card-body {
-  font-size: 0.875rem;
+.request-card-actions {
+  display: flex;
+  gap: 4px;
+  flex-shrink: 0;
 }
 
-.req-detail {
-  margin-bottom: 2px;
-}
-
-.req-label {
-  color: rgba(var(--bs-body-color-rgb), 0.6);
-  margin-right: 4px;
+.request-card-actions .btn-sm {
+  padding: 2px 6px;
+  font-size: 0.75rem;
+  line-height: 1.2;
 }
 
 /* =============================================================================

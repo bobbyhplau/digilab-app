@@ -72,48 +72,66 @@ render_request_card <- function(req_row) {
     error = function(e) list()
   )
 
-  # Build detail lines from payload
-  details <- list()
-  for (key in names(payload)) {
-    if (key == "request_subtype") next
-    label <- gsub("_", " ", key)
-    label <- paste0(toupper(substring(label, 1, 1)), substring(label, 2))
-    val <- payload[[key]]
-    if (!is.null(val) && nchar(as.character(val)) > 0) {
-      details <- c(details, list(
-        div(class = "req-detail",
-          tags$span(class = "req-label", paste0(label, ":")),
-          tags$span(val)
-        )
-      ))
-    }
-  }
+  # Build a compact summary based on request type
+  summary <- switch(req_row$request_type,
+    store_request = {
+      parts <- c(payload$store_name, payload$city, payload$state)
+      paste(parts[nchar(parts %||% "") > 0], collapse = ", ")
+    },
+    scene_request = {
+      location <- paste(c(payload$city, payload$state), collapse = ", ")
+      if (!is.null(payload$suggested_stores) && nchar(payload$suggested_stores) > 0) {
+        paste0(location, " \u2014 Stores: ", payload$suggested_stores)
+      } else {
+        location
+      }
+    },
+    data_error = {
+      desc <- payload$description %||% ""
+      ctx <- payload$context %||% ""
+      if (nchar(ctx) > 0) paste0(ctx, " \u2014 ", desc) else desc
+    },
+    bug_report = {
+      title <- payload$title %||% ""
+      desc <- payload$description %||% ""
+      if (nchar(desc) > 80) desc <- paste0(substr(desc, 1, 77), "...")
+      if (nchar(title) > 0) paste0(title, " \u2014 ", desc) else desc
+    },
+    ""
+  )
 
-  time_ago <- format(as.POSIXct(req_row$submitted_at), "%b %d, %Y %I:%M %p")
+  time_ago <- format(as.POSIXct(req_row$submitted_at), "%b %d")
+
+  # Extra details for scene requests (notes)
+  extra <- NULL
+  if (req_row$request_type == "scene_request" && !is.null(payload$notes) && nchar(payload$notes) > 0) {
+    extra <- div(class = "req-notes", payload$notes)
+  }
 
   div(
     class = "request-card",
-    div(class = "request-card-header",
-      div(
-        tags$span(class = "req-discord", paste0("@", req_row$discord_username)),
-        tags$span(class = "req-time text-muted", time_ago)
+    div(class = "request-card-row",
+      div(class = "request-card-info",
+        tags$span(class = "req-summary", summary),
+        tags$span(class = "req-meta",
+          tags$span(class = "req-discord", paste0("@", req_row$discord_username)),
+          tags$span(class = "req-time", time_ago)
+        )
       ),
       div(class = "request-card-actions",
-        actionButton(
-          paste0("resolve_req_", req_row$id),
-          "Mark as Done",
+        tags$button(
           class = "btn btn-sm btn-outline-success",
-          onclick = sprintf("Shiny.setInputValue('resolve_request', {id: %d, action: 'resolved', ts: Date.now()}, {priority: 'event'})", req_row$id)
+          onclick = sprintf("Shiny.setInputValue('resolve_request', {id: %d, action: 'resolved', ts: Date.now()}, {priority: 'event'})", req_row$id),
+          bsicons::bs_icon("check-lg")
         ),
-        actionButton(
-          paste0("reject_req_", req_row$id),
-          "Reject",
+        tags$button(
           class = "btn btn-sm btn-outline-danger",
-          onclick = sprintf("Shiny.setInputValue('resolve_request', {id: %d, action: 'rejected', ts: Date.now()}, {priority: 'event'})", req_row$id)
+          onclick = sprintf("Shiny.setInputValue('resolve_request', {id: %d, action: 'rejected', ts: Date.now()}, {priority: 'event'})", req_row$id),
+          bsicons::bs_icon("x-lg")
         )
       )
     ),
-    div(class = "request-card-body", details)
+    extra
   )
 }
 
