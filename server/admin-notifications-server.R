@@ -219,16 +219,10 @@ output$admin_notification_bar <- renderUI({
     ))
   }
 
-  separated <- list()
-  for (i in seq_along(items)) {
-    if (i > 1) separated <- c(separated, list(span(class = "notif-sep", "\u00b7")))
-    separated <- c(separated, list(items[[i]]))
-  }
-
   div(
     class = "admin-notification-bar",
     bsicons::bs_icon("bell-fill", class = "notif-icon"),
-    div(class = "notif-items", separated)
+    div(class = "notif-items", items)
   )
 })
 
