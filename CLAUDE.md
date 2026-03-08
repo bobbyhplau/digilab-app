@@ -300,12 +300,14 @@ Keep documentation in sync with code changes. Update these files regularly:
 | `ARCHITECTURE.md` | New reactive values, server modules, or patterns |
 | `README.md` | New features, changed setup instructions, updated screenshots |
 | `ROADMAP.md` | Completed milestones, new planned features |
+| `version_changelog_content()` | Feature releases (x.X.0) only — update highlights in `server/scene-server.R` |
 
 **Guidelines:**
 - Update `CHANGELOG.md` when releasing a new version (not every commit)
 - Update `dev_log.md` for technical decisions worth remembering
 - Update `README.md` when user-facing features change significantly
 - Update `ARCHITECTURE.md` before adding new reactive values or modules
+- On **feature releases (x.X.0)**: bump `APP_VERSION` in `app.R` and update `version_changelog_content()` in `server/scene-server.R` with 3-5 user-facing highlights (see ARCHITECTURE.md > Modal Patterns for details)
 - Don't let documentation drift - if you change code, check if docs need updating
 
 ## Development Workflow

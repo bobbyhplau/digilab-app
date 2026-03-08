@@ -396,6 +396,32 @@ show_results_editor()
 3. Modal actions use the ID from `rv$selected_{entity}_id`
 4. On close, optionally clear `rv$selected_{entity}_id`
 
+### Page-Load Modal Priority (Welcome → Announcement → Version)
+
+On each page load, **one** modal may appear. Priority order:
+
+1. **Welcome modal** — first-time visitors (no `digilab_onboarding_complete` in storage)
+2. **Announcement modal** — latest active, unexpired announcement the user hasn't seen (from `announcements` table)
+3. **Version changelog modal** — `APP_VERSION` differs from user's stored `digilab_last_seen_version`
+
+Logic lives in `observeEvent(input$scene_from_storage)` in `server/scene-server.R`. Storage tracking uses the postMessage bridge (`www/scene-selector.js`).
+
+**On minor releases (x.x.X):** No action needed. Patch bumps don't trigger the version modal — only update `APP_VERSION` in `app.R`.
+
+**On feature releases (x.X.0):** Two required steps:
+
+1. **Bump `APP_VERSION`** in `app.R` (line 30)
+2. **Update `version_changelog_content()`** in `server/scene-server.R` — replace the items with 3-5 highlights for the new release. Each item is:
+   ```r
+   div(class = "version-changelog-item",
+     bsicons::bs_icon("icon-name", class = "text-color"),
+     span("Short description of the feature")
+   )
+   ```
+   Icon classes: `text-warning` (orange), `text-info` (cyan), `text-primary` (blue), `text-success` (green), `text-danger` (red). Browse icons at icons.getbootstrap.com.
+
+**Announcements** (admin-created via Scenes tab) are separate — they can be pushed anytime without a code release for ad-hoc messages like "new scenes added" or "maintenance tonight".
+
 ---
 
 ## Database Patterns
