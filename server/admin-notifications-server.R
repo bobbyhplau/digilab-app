@@ -48,6 +48,24 @@ get_pending_request_counts <- function(pool, scene_id, is_superadmin) {
     type_counts$deck_request <- 0
   }
 
+  # Stores missing schedules
+  if (is_superadmin) {
+    missing <- safe_query(pool, "
+      SELECT COUNT(*) as n FROM stores s
+      WHERE s.is_active = TRUE AND s.is_online = FALSE
+        AND NOT EXISTS (SELECT 1 FROM store_schedules ss WHERE ss.store_id = s.store_id AND ss.is_active = TRUE)
+    ", default = data.frame(n = 0))
+    type_counts$missing_schedule <- missing$n[1]
+  } else {
+    missing <- safe_query(pool, "
+      SELECT COUNT(*) as n FROM stores s
+      JOIN scenes sc ON s.scene_id = sc.scene_id
+      WHERE s.is_active = TRUE AND s.is_online = FALSE AND sc.scene_id = $1
+        AND NOT EXISTS (SELECT 1 FROM store_schedules ss WHERE ss.store_id = s.store_id AND ss.is_active = TRUE)
+    ", params = list(scene_id), default = data.frame(n = 0))
+    type_counts$missing_schedule <- missing$n[1]
+  }
+
   type_counts
 }
 
@@ -212,6 +230,14 @@ output$admin_notification_bar <- renderUI({
     ))
   }
 
+  if ((counts$missing_schedule %||% 0) > 0) {
+    items <- c(items, list(
+      actionLink("notif_missing_schedules", paste0(counts$missing_schedule, " missing ",
+        if (counts$missing_schedule == 1) "schedule" else "schedules"),
+        class = "notif-link")
+    ))
+  }
+
   div(
     class = "admin-notification-bar",
     bsicons::bs_icon("bell-fill", class = "notif-icon"),
@@ -349,4 +375,9 @@ observeEvent(input$notif_data_errors, {
 observeEvent(input$notif_decks, {
   nav_select("main_content", "admin_decks")
   session$sendCustomMessage("updateSidebarNav", "nav_admin_decks")
+})
+
+observeEvent(input$notif_missing_schedules, {
+  nav_select("main_content", "admin_stores")
+  session$sendCustomMessage("updateSidebarNav", "nav_admin_stores")
 })

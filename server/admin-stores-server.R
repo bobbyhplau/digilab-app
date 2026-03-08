@@ -158,6 +158,26 @@ observe({
   }
 })
 
+# --- Populate stores scene filter dropdown (superadmin only) ---
+observe({
+  req(rv$is_superadmin, db_pool)
+  # Wait for UI to render
+  if (is.null(input$admin_stores_scene_filter)) {
+    invalidateLater(100)
+    return()
+  }
+  scenes <- safe_query(db_pool,
+    "SELECT slug, display_name FROM scenes WHERE is_active = TRUE ORDER BY display_name",
+    default = data.frame())
+  if (nrow(scenes) > 0) {
+    choices <- c("Current Scene" = "current", "All Scenes" = "all",
+                 setNames(scenes$slug, scenes$display_name))
+    current <- isolate(input$admin_stores_scene_filter)
+    updateSelectInput(session, "admin_stores_scene_filter",
+                      choices = choices, selected = current %||% "current")
+  }
+})
+
 # --- Refresh tournament_store dropdown on data changes ---
 # Separated from add/update/delete handlers to prevent catalog race conditions.
 # The SELECT runs in the next reactive cycle, after writes complete.
@@ -359,10 +379,23 @@ output$admin_store_list <- renderReactable({
   # the handler, racing on the same connection
   rv$data_refresh
   rv$schedules_refresh
-  input$admin_stores_show_all_scenes
+  input$admin_stores_scene_filter
+  input$admin_stores_incomplete_only
 
   scene <- rv$current_scene
-  show_all <- isTRUE(input$admin_stores_show_all_scenes) && isTRUE(rv$is_superadmin)
+  scene_filter_val <- input$admin_stores_scene_filter %||% "current"
+
+  # Determine effective scene filter
+  if (isTRUE(rv$is_superadmin) && scene_filter_val == "all") {
+    # Super admin showing all scenes
+    show_all <- TRUE
+  } else if (isTRUE(rv$is_superadmin) && !scene_filter_val %in% c("current", "all")) {
+    # Super admin filtering to specific scene
+    show_all <- FALSE
+    scene <- scene_filter_val  # Use the selected scene slug
+  } else {
+    show_all <- FALSE
+  }
 
   # Build scene filter
   scene_filter <- ""
@@ -414,6 +447,14 @@ output$admin_store_list <- renderReactable({
       "complete"
     }
   })
+
+  # Apply "incomplete only" filter
+  if (isTRUE(input$admin_stores_incomplete_only)) {
+    data <- data[data$status != "complete", , drop = FALSE]
+    if (nrow(data) == 0) {
+      return(reactable(data.frame(Message = "All stores are complete!"), compact = TRUE))
+    }
+  }
 
   # Store data for selection handler (avoids re-query with different ORDER BY)
   rv$admin_store_list_data <- data

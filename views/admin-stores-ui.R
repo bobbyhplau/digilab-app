@@ -8,8 +8,14 @@ admin_stores_ui <- tagList(
   conditionalPanel(
     condition = "output.is_superadmin == true",
     div(
-      class = "d-flex justify-content-end mb-2",
-      checkboxInput("admin_stores_show_all_scenes", "Show all scenes", value = FALSE)
+      class = "d-flex justify-content-end align-items-center gap-2 mb-2",
+      checkboxInput("admin_stores_incomplete_only", "Incomplete only", value = FALSE),
+      selectInput("admin_stores_scene_filter", NULL,
+        choices = c("Current Scene" = "current", "All Scenes" = "all"),
+        selected = "current",
+        selectize = FALSE,
+        width = "160px"
+      )
     )
   ),
   uiOutput("admin_stores_scene_indicator"),
