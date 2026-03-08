@@ -57,7 +57,7 @@ output$player_list <- renderReactable({
   query <- sprintf("
     SELECT p.player_id,
            p.display_name as \"Player Name\",
-           p.competitive_rating,
+           prc.competitive_rating,
            COUNT(r.result_id) as \"Results\",
            SUM(CASE WHEN r.placement = 1 THEN 1 ELSE 0 END) as \"Wins\",
            (SELECT STRING_AGG(DISTINCT sc.display_name, ', ' ORDER BY sc.display_name)
@@ -68,10 +68,11 @@ output$player_list <- renderReactable({
             WHERE r2.player_id = p.player_id) as scenes,
            MAX(t.event_date) as \"Last Event\"
     FROM players p
+    LEFT JOIN player_ratings_cache prc ON p.player_id = prc.player_id
     LEFT JOIN results r ON p.player_id = r.player_id
     LEFT JOIN tournaments t ON r.tournament_id = t.tournament_id
     WHERE 1=1 %s %s
-    GROUP BY p.player_id, p.display_name, p.competitive_rating
+    GROUP BY p.player_id, p.display_name, prc.competitive_rating
     ORDER BY p.display_name
   ", scene_filter, search_filter)
 

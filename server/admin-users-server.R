@@ -165,7 +165,7 @@ output$admin_users_grouped <- renderUI({
     return(div(class = "text-muted text-center py-3", "No admins match this filter"))
   }
 
-  sections
+  div(class = "admin-users-scroll", sections)
 })
 
 # --- Row Click: Populate edit form ---

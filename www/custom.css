@@ -6916,6 +6916,11 @@ div.player-match-indicator.new {
    ADMIN USERS GROUPED VIEW
    ============================================================================= */
 
+.admin-users-scroll {
+  max-height: 600px;
+  overflow-y: auto;
+}
+
 .admin-users-group {
   margin-bottom: 1rem;
 }

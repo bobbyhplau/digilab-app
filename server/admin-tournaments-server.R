@@ -159,6 +159,7 @@ output$admin_tournament_list <- renderReactable({
     selection = "single",
     searchable = TRUE,
     groupBy = if (use_grouping) "Scene" else NULL,
+    defaultExpanded = use_grouping,
     onClick = JS("function(rowInfo, column) {
       if (rowInfo) {
         Shiny.setInputValue('admin_tournament_list_clicked', {
@@ -175,17 +176,23 @@ output$admin_tournament_list <- renderReactable({
     highlight = TRUE,
     compact = TRUE,
     pagination = TRUE,
-    defaultPageSize = 12,
+    defaultPageSize = if (use_grouping) 50 else 12,
+    showPageSizeOptions = TRUE,
+    pageSizeOptions = c(12, 25, 50, 100),
     columns = list(
       ID = colDef(show = FALSE),
-      Scene = colDef(minWidth = 120),
+      Scene = colDef(minWidth = 140,
+        grouped = JS("function(cellInfo) { return cellInfo.value + ' (' + cellInfo.subRows.length + ')'; }")
+      ),
       Store = colDef(minWidth = 150),
       Date = colDef(width = 100),
       Type = colDef(width = 90),
       Format = colDef(minWidth = 100),
-      Players = colDef(width = 70, align = "center"),
+      Players = colDef(width = 70, align = "center",
+        aggregate = "sum"),
       Rounds = colDef(width = 65, align = "center"),
-      Results = colDef(width = 70, align = "center")
+      Results = colDef(width = 70, align = "center",
+        aggregate = "sum")
     )
   )
 })
