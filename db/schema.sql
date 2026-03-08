@@ -5,6 +5,12 @@
 -- Updated: 2026-03-06 - Added admin_requests, announcements, audit columns, schedule qualifiers
 
 -- =============================================================================
+-- EXTENSIONS
+-- =============================================================================
+
+CREATE EXTENSION IF NOT EXISTS pg_trgm;  -- Trigram fuzzy matching for duplicate detection
+
+-- =============================================================================
 -- SCENES TABLE
 -- Hierarchical geographic organization (Global -> Country -> State -> Metro)
 -- Enables multi-region support and deep linking with ?scene=dfw URLs

@@ -13,10 +13,73 @@ current_admin_username <- function(rv) {
 }
 
 # ---------------------------------------------------------------------------
+# Shared Helper: Fuzzy Match Check (pg_trgm)
+# ---------------------------------------------------------------------------
+
+find_similar_stores <- function(pool, store_name, scene_id) {
+  safe_query(pool, "
+    SELECT name, city,
+           similarity(LOWER(name), LOWER($1)) AS sim
+    FROM stores
+    WHERE is_active = TRUE AND scene_id = $2
+      AND similarity(LOWER(name), LOWER($1)) > 0.3
+    ORDER BY sim DESC
+    LIMIT 5
+  ", params = list(store_name, as.integer(scene_id)),
+  default = data.frame(name = character(), city = character(), sim = numeric()))
+}
+
+find_similar_scenes <- function(pool, city_name) {
+  # Two-pronged search:
+  # 1. Fuzzy match against scene display names
+  # 2. Check if any store city matches — surfaces the parent scene
+  safe_query(pool, "
+    SELECT display_name, MAX(sim) AS sim FROM (
+      SELECT display_name, similarity(LOWER(display_name), LOWER($1)) AS sim
+      FROM scenes
+      WHERE is_active = TRUE
+        AND similarity(LOWER(display_name), LOWER($1)) > 0.25
+
+      UNION ALL
+
+      SELECT sc.display_name, similarity(LOWER(s.city), LOWER($1)) AS sim
+      FROM stores s
+      JOIN scenes sc ON s.scene_id = sc.scene_id
+      WHERE s.is_active = TRUE AND sc.is_active = TRUE
+        AND similarity(LOWER(s.city), LOWER($1)) > 0.4
+    ) matches
+    GROUP BY display_name
+    ORDER BY MAX(sim) DESC
+    LIMIT 5
+  ", params = list(city_name),
+  default = data.frame(display_name = character(), sim = numeric()))
+}
+
+show_fuzzy_match_modal <- function(matches_ui, original_action_id, title, icon) {
+  showModal(modalDialog(
+    title = tagList(bsicons::bs_icon(icon), " ", title),
+    div(
+      div(class = "alert alert-warning d-flex align-items-start gap-2 mb-3",
+        bsicons::bs_icon("exclamation-triangle-fill", class = "flex-shrink-0 mt-1"),
+        div("We found similar entries that already exist. Is this a duplicate?")
+      ),
+      matches_ui,
+      div(class = "text-muted small mt-3",
+        "If none of these match, go ahead and submit.")
+    ),
+    footer = tagList(
+      actionButton(paste0(original_action_id, "_cancel_fuzzy"), "Go Back & Edit", class = "btn-secondary"),
+      actionButton(paste0(original_action_id, "_confirm_fuzzy"), "Not a Duplicate — Submit", class = "btn-primary")
+    ),
+    easyClose = TRUE
+  ))
+}
+
+# ---------------------------------------------------------------------------
 # Shared Helper: Store Request Modal
 # ---------------------------------------------------------------------------
 
-show_store_request_modal <- function() {
+show_store_request_modal <- function(prefill = NULL) {
   scenes <- safe_query(db_pool,
     "SELECT scene_id, display_name FROM scenes WHERE is_active = TRUE ORDER BY display_name",
     default = data.frame())
@@ -26,9 +89,9 @@ show_store_request_modal <- function() {
     scene_choices <- setNames(as.character(scenes$scene_id), scenes$display_name)
   }
 
-  # Pre-select current scene if it's a real scene (not "all" or "online")
-  selected_scene <- NULL
-  if (!is.null(rv$current_scene) && !rv$current_scene %in% c("all", "online")) {
+  # Pre-select: use prefill if returning from fuzzy check, else current scene
+  selected_scene <- prefill$scene_id
+  if (is.null(selected_scene) && !is.null(rv$current_scene) && !rv$current_scene %in% c("all", "online")) {
     scene_row <- safe_query(db_pool,
       "SELECT scene_id FROM scenes WHERE slug = $1",
       params = list(rv$current_scene), default = data.frame())
@@ -42,11 +105,13 @@ show_store_request_modal <- function() {
                   choices = scene_choices,
                   selected = selected_scene,
                   selectize = FALSE),
-      textInput("store_req_name", "Store Name *"),
-      textInput("store_req_city", "City *"),
+      textInput("store_req_name", "Store Name *", value = prefill$store_name %||% ""),
+      textInput("store_req_city", "City *", value = prefill$city %||% ""),
       textInput("store_req_state", "State / Country *",
+                value = prefill$state %||% "",
                 placeholder = "e.g., TX or Germany"),
       textInput("store_req_discord", "Your Discord Username *",
+                value = prefill$discord_username %||% "",
                 placeholder = "So we can follow up"),
       tags$small(class = "form-text text-muted d-block mt-2",
                  "Don't see your scene? Use ",
@@ -65,23 +130,28 @@ show_store_request_modal <- function() {
 # Shared Helper: Scene Request Modal
 # ---------------------------------------------------------------------------
 
-show_scene_request_modal <- function() {
+show_scene_request_modal <- function(prefill = NULL) {
   showModal(modalDialog(
     title = tagList(bsicons::bs_icon("globe2"), " Request a Scene"),
     div(
       tags$p(class = "text-muted mb-3",
              "Request a new scene for your city or region. We'll review and set it up."),
       textInput("scene_req_name", "City / Area Name *",
+                value = prefill$city_name %||% "",
                 placeholder = "e.g., Houston, S\u00e3o Paulo, Berlin"),
       textInput("scene_req_state", "State / Country *",
+                value = prefill$state %||% "",
                 placeholder = "e.g., TX, Brazil, Germany"),
       textAreaInput("scene_req_stores", "Known Stores (optional)",
+                    value = prefill$stores %||% "",
                     placeholder = "List any stores that run Digimon TCG locals in this area, one per line",
                     rows = 3),
       textAreaInput("scene_req_notes", "Additional Info (optional)",
+                    value = prefill$notes %||% "",
                     placeholder = "e.g., We run weekly locals with 8-12 players",
                     rows = 2),
       textInput("scene_req_discord", "Your Discord Username *",
+                value = prefill$discord_username %||% "",
                 placeholder = "So we can follow up"),
       div(class = "mt-2 text-center",
         tags$a(

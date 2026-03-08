@@ -1997,6 +1997,16 @@ body.bslib-gap-spacing {
   padding: 0.75rem;
 }
 
+/* Fuzzy match confirmation modal */
+.fuzzy-match-item {
+  background: rgba(245, 183, 0, 0.08);
+  border: 1px solid rgba(245, 183, 0, 0.2);
+}
+[data-bs-theme="dark"] .fuzzy-match-item {
+  background: rgba(245, 183, 0, 0.12);
+  border-color: rgba(245, 183, 0, 0.3);
+}
+
 /* =============================================================================
    ADMIN PANELS
    ============================================================================= */

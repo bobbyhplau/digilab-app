@@ -1863,11 +1863,57 @@ observeEvent(input$submit_store_request, {
     return()
   }
 
+  # Fuzzy match check
+  scene_id <- as.integer(scene_val)
+  similar <- find_similar_stores(db_pool, store_name, scene_id)
+
+  if (nrow(similar) > 0) {
+    # Stash form values for confirm handler
+    rv$pending_store_request <- list(
+      store_name = store_name, city = city, state = state,
+      scene_id = as.character(scene_id), discord_username = discord_username
+    )
+
+    matches_ui <- div(class = "fuzzy-match-list",
+      lapply(seq_len(nrow(similar)), function(i) {
+        div(class = "fuzzy-match-item d-flex justify-content-between align-items-center p-2 mb-1 rounded",
+          span(tags$strong(similar$name[i]),
+               if (!is.na(similar$city[i]) && nchar(similar$city[i]) > 0)
+                 span(class = "text-muted ms-2", similar$city[i])),
+          span(class = "badge bg-warning text-dark",
+               paste0(round(similar$sim[i] * 100), "% match"))
+        )
+      })
+    )
+
+    show_fuzzy_match_modal(matches_ui, "submit_store_request", "Similar Stores Found", "shop")
+    return()
+  }
+
+  submit_store_request_final(store_name, city, state, scene_id, discord_username)
+})
+
+# Fuzzy match: go back to edit (restore form values)
+observeEvent(input$submit_store_request_cancel_fuzzy, {
+  prefill <- rv$pending_store_request
+  rv$pending_store_request <- NULL
+  removeModal()
+  show_store_request_modal(prefill = prefill)
+})
+
+# Fuzzy match: confirm submit anyway
+observeEvent(input$submit_store_request_confirm_fuzzy, {
+  req(rv$pending_store_request)
+  p <- rv$pending_store_request
+  rv$pending_store_request <- NULL
+  submit_store_request_final(p$store_name, p$city, p$state, p$scene_id, p$discord_username)
+})
+
+# Extracted submission logic
+submit_store_request_final <- function(store_name, city, state, scene_id, discord_username) {
   tryCatch({
-    scene_id <- as.integer(scene_val)
     location <- paste(city, state, sep = ", ")
 
-    # Persist as store_request
     payload <- list(
       store_name = store_name,
       city = city,
@@ -1883,14 +1929,13 @@ observeEvent(input$submit_store_request, {
     removeModal()
     notify("Your store request has been sent to the scene admin! We'll follow up on Discord.", type = "message", duration = 5)
 
-    # Refresh notification bar
     rv$requests_refresh <- (rv$requests_refresh %||% 0) + 1
   }, error = function(e) {
     warning(paste("Store request error:", e$message))
     removeModal()
     notify("Your request was received but we couldn't send it to Discord. We'll follow up manually.", type = "warning", duration = 5)
   })
-})
+}
 
 # Handle scene request submission
 observeEvent(input$submit_scene_request, {
@@ -1913,10 +1958,59 @@ observeEvent(input$submit_scene_request, {
     return()
   }
 
+  # Fuzzy match check — combine city + state for better matching against display_name
+  search_term <- paste(city_name, state, sep = " ")
+  similar <- find_similar_scenes(db_pool, search_term)
+
+  # Also check city alone (display_name often contains just city)
+  if (nrow(similar) == 0) {
+    similar <- find_similar_scenes(db_pool, city_name)
+  }
+
+  if (nrow(similar) > 0) {
+    rv$pending_scene_request <- list(
+      city_name = city_name, state = state, stores = stores,
+      notes = notes, discord_username = discord_username
+    )
+
+    matches_ui <- div(class = "fuzzy-match-list",
+      lapply(seq_len(nrow(similar)), function(i) {
+        div(class = "fuzzy-match-item d-flex justify-content-between align-items-center p-2 mb-1 rounded",
+          span(tags$strong(similar$display_name[i])),
+          span(class = "badge bg-warning text-dark",
+               paste0(round(similar$sim[i] * 100), "% match"))
+        )
+      })
+    )
+
+    show_fuzzy_match_modal(matches_ui, "submit_scene_request", "Similar Scenes Found", "globe2")
+    return()
+  }
+
+  submit_scene_request_final(city_name, state, stores, notes, discord_username)
+})
+
+# Fuzzy match: go back to edit (restore form values)
+observeEvent(input$submit_scene_request_cancel_fuzzy, {
+  prefill <- rv$pending_scene_request
+  rv$pending_scene_request <- NULL
+  removeModal()
+  show_scene_request_modal(prefill = prefill)
+})
+
+# Fuzzy match: confirm submit anyway
+observeEvent(input$submit_scene_request_confirm_fuzzy, {
+  req(rv$pending_scene_request)
+  p <- rv$pending_scene_request
+  rv$pending_scene_request <- NULL
+  submit_scene_request_final(p$city_name, p$state, p$stores, p$notes, p$discord_username)
+})
+
+# Extracted submission logic
+submit_scene_request_final <- function(city_name, state, stores, notes, discord_username) {
   tryCatch({
     location <- paste(city_name, state, sep = ", ")
 
-    # Build payload
     payload <- list(
       city = city_name,
       state = state,
@@ -1925,16 +2019,12 @@ observeEvent(input$submit_scene_request, {
     if (nchar(stores) > 0) payload$suggested_stores <- stores
     if (nchar(notes) > 0) payload$notes <- notes
 
-    # Persist as scene_request
     safe_execute(db_pool, "
       INSERT INTO admin_requests (request_type, scene_id, payload, discord_username)
       VALUES ($1, NULL, $2, $3)
     ", params = list("scene_request", jsonlite::toJSON(payload, auto_unbox = TRUE), discord_username))
 
-    # Discord webhook
     discord_post_scene_request(city_name, location, discord_username)
-
-    # Refresh notification bar
     rv$requests_refresh <- (rv$requests_refresh %||% 0) + 1
 
     removeModal()
@@ -1944,5 +2034,5 @@ observeEvent(input$submit_scene_request, {
     removeModal()
     notify("Your request was received but we couldn't send it to Discord. We'll follow up manually.", type = "warning", duration = 5)
   })
-})
+}
 
