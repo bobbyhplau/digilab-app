@@ -534,19 +534,35 @@ version_changelog_content <- function() {
     div(class = "version-changelog-items",
       div(class = "version-changelog-item",
         bsicons::bs_icon("bell-fill", class = "text-warning"),
-        span("Admin notification bar with pending request queue")
+        span("Admin notification bar shows pending requests at a glance")
+      ),
+      div(class = "version-changelog-item",
+        bsicons::bs_icon("inbox-fill", class = "text-warning"),
+        span("Approve or reject store, scene, and data error requests in-app")
       ),
       div(class = "version-changelog-item",
         bsicons::bs_icon("megaphone-fill", class = "text-primary"),
-        span("Announcement system for community updates")
+        span("Announcement system for community-wide updates")
       ),
       div(class = "version-changelog-item",
         bsicons::bs_icon("search", class = "text-info"),
-        span("Search, filters, and scene grouping on admin tables")
+        span("Search bars and filters on all admin tables")
+      ),
+      div(class = "version-changelog-item",
+        bsicons::bs_icon("people-fill", class = "text-info"),
+        span("Users tab grouped by scene for easier management")
       ),
       div(class = "version-changelog-item",
         bsicons::bs_icon("shop", class = "text-success"),
-        span("Duplicate detection when requesting stores or scenes")
+        span("Fuzzy duplicate detection when requesting stores or scenes")
+      ),
+      div(class = "version-changelog-item",
+        bsicons::bs_icon("discord", class = "text-primary"),
+        span("One-click Discord thread creation for new scenes")
+      ),
+      div(class = "version-changelog-item",
+        bsicons::bs_icon("calendar-check", class = "text-success"),
+        span("Monthly and biweekly schedule options for stores")
       ),
       div(class = "version-changelog-item",
         bsicons::bs_icon("palette-fill", class = "text-danger"),
