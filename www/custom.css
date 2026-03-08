@@ -3163,39 +3163,141 @@ a:hover, .nav-link:hover {
    ANNOUNCEMENT & VERSION MODALS
    ============================================================================= */
 
-/* --- Announcement Modal --- */
-.announcement-modal .modal-dialog { max-width: 480px; margin-top: 8vh; }
-.announcement-modal .modal-content {
-  border: 1px solid rgba(0, 200, 255, 0.3);
-  background: linear-gradient(180deg, #FFFFFF 0%, #F0F7FF 100%);
+/* --- Shared: Announcement & Version modals (matches onboarding style) --- */
+.announcement-modal .modal-dialog,
+.version-modal .modal-dialog {
+  max-width: 480px;
+  margin-top: 6vh;
 }
-[data-bs-theme="dark"] .announcement-modal .modal-content {
-  background: linear-gradient(180deg, #0A1929 0%, #0D2137 100%);
-  border-color: rgba(0, 200, 255, 0.4);
-}
-.announcement-modal-icon { font-size: 2rem; color: #F7941D; text-align: center; margin-bottom: 0.5rem; }
-.announcement-modal-title { text-align: center; font-size: 1.25rem; font-weight: 600; margin-bottom: 1rem; }
-.announcement-modal-body { font-size: 0.95rem; line-height: 1.6; }
-.announcement-modal-body p { margin-bottom: 0.75rem; }
-.announcement-modal .modal-footer { border-top: none; justify-content: center; }
 
-/* --- Version Modal --- */
-.version-modal .modal-dialog { max-width: 480px; margin-top: 8vh; }
+.announcement-modal .modal-body,
+.version-modal .modal-body {
+  padding: 0;
+}
+
+.announcement-modal .modal-content,
 .version-modal .modal-content {
   border: 1px solid rgba(0, 200, 255, 0.3);
   background: linear-gradient(180deg, #FFFFFF 0%, #F0F7FF 100%);
+  border-radius: 16px;
+  overflow: hidden;
+  box-shadow: 0 20px 60px rgba(15, 76, 129, 0.15),
+              0 0 40px rgba(0, 200, 255, 0.1);
 }
+
+[data-bs-theme="dark"] .announcement-modal .modal-content,
 [data-bs-theme="dark"] .version-modal .modal-content {
   background: linear-gradient(180deg, #0A1929 0%, #0D2137 100%);
   border-color: rgba(0, 200, 255, 0.4);
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5),
+              0 0 60px rgba(0, 200, 255, 0.15);
 }
-.version-modal .modal-footer { border-top: none; justify-content: center; }
-.version-modal-header { text-align: center; margin-bottom: 1rem; }
-.version-modal-header .bi { font-size: 2rem; color: #F7941D; }
-.version-modal-header h3 { font-size: 1.25rem; font-weight: 600; margin-top: 0.5rem; }
-.version-changelog-items { display: flex; flex-direction: column; gap: 0.75rem; }
-.version-changelog-item { display: flex; align-items: flex-start; gap: 0.5rem; font-size: 0.95rem; }
-.version-changelog-item .bi { flex-shrink: 0; margin-top: 2px; }
+
+.announcement-modal .modal-footer,
+.version-modal .modal-footer {
+  border-top: none;
+  justify-content: center;
+  padding: 0 1.75rem 1.5rem;
+}
+
+/* --- Announcement Modal --- */
+.announcement-modal-content,
+.version-modal-content {
+  padding: 1.75rem 1.75rem 0.5rem;
+}
+
+.announcement-modal-icon {
+  font-size: 2.5rem;
+  color: #F7941D;
+  text-align: center;
+  margin-bottom: 0.5rem;
+  filter: drop-shadow(0 2px 8px rgba(247, 148, 29, 0.3));
+}
+
+.announcement-modal-title {
+  text-align: center;
+  font-size: 1.35rem;
+  font-weight: 700;
+  color: #0F4C81;
+  margin-bottom: 1rem;
+  letter-spacing: -0.02em;
+}
+[data-bs-theme="dark"] .announcement-modal-title {
+  color: #FFFFFF;
+  text-shadow: 0 0 20px rgba(0, 200, 255, 0.2);
+}
+
+.announcement-modal-body {
+  font-size: 0.9rem;
+  line-height: 1.65;
+  color: #4A5568;
+  text-align: center;
+}
+[data-bs-theme="dark"] .announcement-modal-body {
+  color: rgba(255, 255, 255, 0.65);
+}
+.announcement-modal-body p { margin-bottom: 0.75rem; }
+.announcement-modal-body p:last-child { margin-bottom: 0; }
+
+/* --- Version Modal --- */
+.version-modal-header {
+  text-align: center;
+  margin-bottom: 1.25rem;
+}
+.version-modal-header .bi {
+  font-size: 2.5rem;
+  color: #F7941D;
+  filter: drop-shadow(0 2px 8px rgba(247, 148, 29, 0.3));
+}
+.version-modal-header h3 {
+  font-size: 1.35rem;
+  font-weight: 700;
+  color: #0F4C81;
+  margin-top: 0.5rem;
+  letter-spacing: -0.02em;
+}
+[data-bs-theme="dark"] .version-modal-header h3 {
+  color: #FFFFFF;
+  text-shadow: 0 0 20px rgba(0, 200, 255, 0.2);
+}
+
+.version-changelog-items {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  text-align: left;
+}
+
+.version-changelog-item {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.5rem 0.75rem;
+  border-radius: 8px;
+  background: rgba(15, 76, 129, 0.03);
+  border: 1px solid rgba(0, 200, 255, 0.06);
+  font-size: 0.88rem;
+  color: #4A5568;
+}
+[data-bs-theme="dark"] .version-changelog-item {
+  background: rgba(0, 200, 255, 0.03);
+  border-color: rgba(0, 200, 255, 0.06);
+  color: rgba(255, 255, 255, 0.65);
+}
+.version-changelog-item .bi {
+  flex-shrink: 0;
+  font-size: 1.1rem;
+}
+
+.version-modal-content .text-muted a {
+  color: rgba(0, 200, 255, 0.7);
+  text-decoration: underline;
+  text-decoration-style: dotted;
+  text-underline-offset: 2px;
+}
+.version-modal-content .text-muted a:hover {
+  color: #F7941D;
+}
 
 /* =============================================================================
    PLACEMENT COLORS (Gold, Silver, Bronze)
