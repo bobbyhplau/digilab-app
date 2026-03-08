@@ -173,7 +173,8 @@ output$admin_notification_bar <- renderUI({
   }
 
   counts <- get_pending_request_counts(db_pool, scene_id, rv$is_superadmin)
-  total <- sum(unlist(counts))
+  # Exclude bug_report from total — bugs are Discord-only, not shown in-app
+  total <- sum(unlist(counts)) - (counts$bug_report %||% 0)
 
   if (total == 0) return(NULL)
 
@@ -199,14 +200,6 @@ output$admin_notification_bar <- renderUI({
     items <- c(items, list(
       actionLink("notif_data_errors", paste0(counts$data_error, " data ",
         if (counts$data_error == 1) "error" else "errors"),
-        class = "notif-link")
-    ))
-  }
-
-  if (counts$bug_report > 0 && rv$is_superadmin) {
-    items <- c(items, list(
-      actionLink("notif_bugs", paste0(counts$bug_report, " bug ",
-        if (counts$bug_report == 1) "report" else "reports"),
         class = "notif-link")
     ))
   }
@@ -304,26 +297,6 @@ output$pending_data_errors <- renderUI({
   )
 })
 
-output$pending_bug_reports <- renderUI({
-  req(rv$is_superadmin)
-  rv$requests_refresh
-
-  reqs <- get_pending_requests(db_pool, "bug_report")
-  if (nrow(reqs) == 0) return(NULL)
-
-  div(class = "pending-requests-panel",
-    h4(class = "pending-requests-title",
-      bsicons::bs_icon("inbox-fill", class = "me-2"),
-      paste0("Pending Bug Reports (", nrow(reqs), ")")
-    ),
-    div(class = "pending-requests-hint",
-      "Community-reported bugs. Investigate the issue, then mark as done or reject if not reproducible."
-    ),
-    lapply(seq_len(nrow(reqs)), function(i) render_request_card(reqs[i, ])),
-    tags$hr()
-  )
-})
-
 # ---------------------------------------------------------------------------
 # Resolution handler: approve/reject requests
 # ---------------------------------------------------------------------------
@@ -371,11 +344,6 @@ observeEvent(input$notif_scenes, {
 observeEvent(input$notif_data_errors, {
   nav_select("main_content", "admin_tournaments")
   session$sendCustomMessage("updateSidebarNav", "nav_admin_tournaments")
-})
-
-observeEvent(input$notif_bugs, {
-  nav_select("main_content", "admin_results")
-  session$sendCustomMessage("updateSidebarNav", "nav_admin_results")
 })
 
 observeEvent(input$notif_decks, {

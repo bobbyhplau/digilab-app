@@ -43,8 +43,8 @@ planned:
     targetVersion: "v1.4.0"
 
   - id: pending-requests-on-tabs
-    title: "Data Error & Bug Report Cards on Admin Tabs"
-    description: "Show pending data error request cards on the Tournaments tab and pending bug report cards on the Results tab — matching the existing pattern for store/scene/deck requests. Scene admins see errors for their scene, super admins see all."
+    title: "Data Error Cards on Tournaments Tab"
+    description: "Show pending data error request cards on the Tournaments tab, matching the existing pattern for store/scene/deck requests. Scene admins see errors for their scene, super admins see all. Bug reports stay Discord-only."
     tags: [admin, ux]
     targetVersion: "v1.4.0"
 
@@ -143,6 +143,19 @@ planned:
     description: "Show which scenes a player has competed in within their player modal, with home scene inference."
     tags: [feature, community]
     targetVersion: "v2.0.0"
+
+  # Infrastructure / Hardening (no target version)
+  - id: login-rate-limiting
+    title: "Login Rate Limiting & Brute Force Protection"
+    description: "Add per-username failed attempt tracking with exponential backoff and temporary lockout after 5 failures. Current admin login has no rate limiting — low risk given small user base and unlisted login page, but good hardening for scale."
+    tags: [security, admin]
+    targetVersion: "Future"
+
+  - id: postmessage-origin-fix
+    title: "postMessage Origin Validation Tightening"
+    description: "scene-selector.js sends postMessage with wildcard '*' origin. Tighten to 'https://app.digilab.cards'. The receiver side already validates origin, so risk is minimal — this is defense-in-depth."
+    tags: [security, fix]
+    targetVersion: "Future"
 
   # Future
   - id: meta-insights-app
