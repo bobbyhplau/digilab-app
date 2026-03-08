@@ -104,7 +104,7 @@ output$player_list <- renderReactable({
       Results = colDef(width = 80),
       Wins = colDef(width = 60),
       scenes = colDef(name = "Scene(s)", minWidth = 120,
-        cell = function(value) if (is.na(value) || value == "") "\u2014" else value
+        cell = function(value) if (is.null(value) || is.na(value) || !nzchar(value)) "\u2014" else value
       ),
       `Last Event` = colDef(width = 100)
     )

@@ -17,7 +17,19 @@ admin_users_ui <- tagList(
 
       # Admin list table
       card(
-        card_header("Admin Accounts"),
+        card_header(
+          class = "d-flex justify-content-between align-items-center",
+          "Admin Accounts",
+          div(
+            class = "d-flex align-items-center gap-2",
+            selectInput("admin_users_scene_filter", NULL,
+              choices = c("All Scenes" = "all"),
+              selected = "all",
+              selectize = FALSE,
+              width = "160px"
+            )
+          )
+        ),
         card_body(
           uiOutput("admin_users_grouped")
         )

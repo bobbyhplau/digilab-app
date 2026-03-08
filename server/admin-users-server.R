@@ -38,6 +38,23 @@ observe({
   }
 })
 
+# --- Populate scene filter dropdown ---
+observe({
+  req(rv$current_nav == "admin_users", db_pool, rv$is_superadmin)
+  scenes <- safe_query(db_pool,
+    "SELECT scene_id, display_name FROM scenes WHERE is_active = TRUE ORDER BY display_name",
+    default = data.frame())
+  if (nrow(scenes) > 0) {
+    choices <- c("All Scenes" = "all",
+                 "Super Admins" = "super",
+                 "No Admin" = "uncovered",
+                 setNames(as.character(scenes$scene_id), scenes$display_name))
+    current <- isolate(input$admin_users_scene_filter)
+    updateSelectInput(session, "admin_users_scene_filter",
+                      choices = choices, selected = current %||% "all")
+  }
+})
+
 # --- Admin Users Table ---
 admin_users_data <- reactive({
   rv$data_refresh  # Trigger refresh
@@ -54,6 +71,8 @@ admin_users_data <- reactive({
 output$admin_users_grouped <- renderUI({
   df <- admin_users_data()
   req(nrow(df) > 0)
+
+  scene_filter <- input$admin_users_scene_filter %||% "all"
 
   # Get all active scenes to find uncovered ones
   all_scenes <- safe_query(db_pool,
@@ -81,10 +100,20 @@ output$admin_users_grouped <- renderUI({
     )
   }
 
+  # Apply scene filter
+  show_supers <- scene_filter %in% c("all", "super")
+  show_scene_admins <- scene_filter %in% c("all") || (!scene_filter %in% c("super", "uncovered"))
+  show_uncovered <- scene_filter %in% c("all", "uncovered")
+
+  # Filter scene admins to specific scene if a scene_id is selected
+  if (!scene_filter %in% c("all", "super", "uncovered") && nrow(scene_admins) > 0) {
+    scene_admins <- scene_admins[scene_admins$scene_id == as.integer(scene_filter), , drop = FALSE]
+  }
+
   sections <- tagList()
 
   # Super admins section
-  if (nrow(supers) > 0) {
+  if (show_supers && nrow(supers) > 0) {
     super_rows <- lapply(seq_len(nrow(supers)), function(i) make_user_row(supers[i, ]))
     sections <- tagAppendChildren(sections,
       div(class = "admin-users-group",
@@ -98,7 +127,7 @@ output$admin_users_grouped <- renderUI({
   }
 
   # Scene admins grouped by scene
-  if (nrow(scene_admins) > 0) {
+  if (show_scene_admins && nrow(scene_admins) > 0) {
     scene_names <- unique(scene_admins$scene_name)
     scene_names <- sort(scene_names)
     for (sname in scene_names) {
@@ -117,7 +146,7 @@ output$admin_users_grouped <- renderUI({
   }
 
   # Uncovered scenes section
-  if (nrow(uncovered) > 0) {
+  if (show_uncovered && nrow(uncovered) > 0) {
     badges <- lapply(uncovered$display_name, function(name) {
       span(class = "uncovered-scene-badge", name)
     })
@@ -130,6 +159,10 @@ output$admin_users_grouped <- renderUI({
         div(class = "uncovered-scenes-list", tagList(badges))
       )
     )
+  }
+
+  if (length(sections) == 0) {
+    return(div(class = "text-muted text-center py-3", "No admins match this filter"))
   }
 
   sections

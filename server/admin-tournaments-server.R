@@ -107,6 +107,7 @@ output$admin_tournament_list <- renderReactable({
   query <- sprintf("
     SELECT t.tournament_id,
            s.name as store_name,
+           sc.display_name as scene_name,
            t.event_date,
            t.event_type,
            t.format,
@@ -115,6 +116,7 @@ output$admin_tournament_list <- renderReactable({
            COUNT(r.result_id) as results_entered
     FROM tournaments t
     LEFT JOIN stores s ON t.store_id = s.store_id
+    LEFT JOIN scenes sc ON s.scene_id = sc.scene_id
     LEFT JOIN results r ON t.tournament_id = r.tournament_id
     WHERE 1=1 %s
   ", scene_filter)
@@ -125,7 +127,7 @@ output$admin_tournament_list <- renderReactable({
     query_params <- c(query_params, list(paste0("%", search, "%")))
   }
 
-  query <- paste0(query, " GROUP BY t.tournament_id, s.name, t.event_date, t.event_type, t.format, t.player_count, t.rounds
+  query <- paste0(query, " GROUP BY t.tournament_id, s.name, sc.display_name, t.event_date, t.event_type, t.format, t.player_count, t.rounds
                           ORDER BY t.event_date DESC")
 
   data <- dbGetQuery(db_pool, query, params = if (length(query_params) > 0) query_params else NULL)
@@ -137,6 +139,7 @@ output$admin_tournament_list <- renderReactable({
   # Prepare display data
   display_data <- data.frame(
     ID = data$tournament_id,
+    Scene = ifelse(is.na(data$scene_name), "Unknown", data$scene_name),
     Store = data$store_name,
     Date = as.character(data$event_date),
     Type = sapply(data$event_type, format_event_type),
@@ -147,11 +150,15 @@ output$admin_tournament_list <- renderReactable({
     stringsAsFactors = FALSE
   )
 
+  # Group by scene when showing all scenes
+  use_grouping <- show_all || is.null(scene) || scene == "" || scene == "all"
+
   # Store tournament_id in a way we can retrieve on click
   reactable(
     display_data,
     selection = "single",
     searchable = TRUE,
+    groupBy = if (use_grouping) "Scene" else NULL,
     onClick = JS("function(rowInfo, column) {
       if (rowInfo) {
         Shiny.setInputValue('admin_tournament_list_clicked', {
@@ -171,6 +178,7 @@ output$admin_tournament_list <- renderReactable({
     defaultPageSize = 12,
     columns = list(
       ID = colDef(show = FALSE),
+      Scene = colDef(minWidth = 120),
       Store = colDef(minWidth = 150),
       Date = colDef(width = 100),
       Type = colDef(width = 90),

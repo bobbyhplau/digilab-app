@@ -303,7 +303,6 @@ output$archetype_list <- renderReactable({
         }, {priority: 'event'});
       }
     }"),
-    sortable = FALSE,
     rowStyle = function(index) {
       # Highlight rows without Card ID
       if (is.na(data$`Card ID`[index]) || data$`Card ID`[index] == "") {

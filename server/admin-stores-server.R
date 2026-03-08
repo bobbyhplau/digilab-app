@@ -419,7 +419,6 @@ output$admin_store_list <- renderReactable({
   rv$admin_store_list_data <- data
 
   reactable(data, compact = TRUE, striped = FALSE,
-    sortable = FALSE,
     selection = "single",
     onClick = "select",
     searchable = TRUE,
