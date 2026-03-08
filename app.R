@@ -990,7 +990,7 @@ server <- function(input, output, session) {
     # === CORE ===
     is_admin = FALSE,
     is_superadmin = FALSE,
-    admin_user = NULL,          # List: user_id, username, display_name, role, scene_id
+    admin_user = NULL,          # List: user_id, username, discord_user_id, role, scene_id
     needs_bootstrap = FALSE,    # TRUE when admin_users table is empty
 
     # === NAVIGATION ===
