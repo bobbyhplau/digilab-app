@@ -784,6 +784,7 @@ Items for future consideration, not scheduled:
 | INF1 | DEVEX | Sentry MCP integration | Claude Code workflow for proactive error monitoring |
 | INF2 | DEVEX | Sentry error collection workflow | Process for identifying and addressing production errors |
 | PD1 | IMPROVEMENT | Cross-scene player disambiguation | Stronger safeguards against name collisions — e.g., admin confirmation when matching a player who has never played in the current scene, member number required for ambiguous names, or merge review UI |
+| PD2 | FEATURE | Multi-scene admin role | Junction table for admin→scene assignment, new "regional admin" role between scene_admin and super_admin. Enables one account to manage multiple scenes (e.g., BBoyHung for Aachen + Heerlen). Workaround: create a second account per scene. |
 
 ---
 
