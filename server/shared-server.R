@@ -730,7 +730,7 @@ observeEvent(input$admin_login_link, {
   if (rv$is_admin) {
     # Already logged in - show account info, change password, nav (mobile)
     role_label <- if (rv$is_superadmin) "Super Admin" else "Scene Admin"
-    admin_name <- rv$admin_user$display_name
+    admin_name <- rv$admin_user$username
 
     # Get scene name for display
     scene_display <- "All Scenes"
@@ -847,7 +847,6 @@ observeEvent(input$admin_login_link, {
         autocomplete = "on",
         onsubmit = "event.preventDefault(); $('#bootstrap_btn').click();",
         tagAppendAttributes(textInput("bootstrap_username", "Username", placeholder = "e.g., michael"), autocomplete = "username"),
-        textInput("bootstrap_display_name", "Display Name", placeholder = "e.g., Michael"),
         tags$div(
           tagAppendAttributes(passwordInput("bootstrap_password", "Password"), autocomplete = "new-password"),
           style = "margin-bottom: 0.5rem;"
@@ -891,7 +890,7 @@ observeEvent(input$login_btn, {
 
   # Look up user
   user <- safe_query(db_pool,
-    "SELECT user_id, username, password_hash, display_name, role, scene_id
+    "SELECT user_id, username, password_hash, discord_user_id, role, scene_id
      FROM admin_users WHERE username = $1 AND is_active = TRUE",
     params = list(username),
     default = data.frame())
@@ -913,13 +912,13 @@ observeEvent(input$login_btn, {
   rv$admin_user <- list(
     user_id = user$user_id[1],
     username = user$username[1],
-    display_name = user$display_name[1],
+    discord_user_id = user$discord_user_id[1],
     role = user$role[1],
     scene_id = if (is.na(user$scene_id[1])) NULL else user$scene_id[1]
   )
 
   removeModal()
-  notify(paste0("Welcome, ", user$display_name[1], "!"), type = "message")
+  notify(paste0("Welcome, ", user$username[1], "!"), type = "message")
 
   # Force scene for scene admins
   if (rv$admin_user$role == "scene_admin" && !is.null(rv$admin_user$scene_id)) {
@@ -940,17 +939,12 @@ observeEvent(input$login_btn, {
 # Handle bootstrap (first super admin creation)
 observeEvent(input$bootstrap_btn, {
   username <- trimws(input$bootstrap_username)
-  display_name <- trimws(input$bootstrap_display_name)
   password <- input$bootstrap_password
   confirm <- input$bootstrap_confirm
 
   # Validation
   if (nchar(username) < 3) {
     notify("Username must be at least 3 characters", type = "warning")
-    return()
-  }
-  if (nchar(display_name) == 0) {
-    notify("Display name is required", type = "warning")
     return()
   }
   if (nchar(password) < 8) {
@@ -977,9 +971,9 @@ observeEvent(input$bootstrap_btn, {
   hash <- bcrypt::hashpw(password)
 
   result <- safe_query(db_pool,
-    "INSERT INTO admin_users (username, password_hash, display_name, role, scene_id)
-     VALUES ($1, $2, $3, 'super_admin', NULL) RETURNING user_id",
-    params = list(username, hash, display_name),
+    "INSERT INTO admin_users (username, password_hash, role, scene_id)
+     VALUES ($1, $2, 'super_admin', NULL) RETURNING user_id",
+    params = list(username, hash),
     default = data.frame())
 
   if (nrow(result) > 0) {
@@ -990,12 +984,12 @@ observeEvent(input$bootstrap_btn, {
     rv$admin_user <- list(
       user_id = new_id,
       username = username,
-      display_name = display_name,
+      discord_user_id = NA_character_,
       role = "super_admin",
       scene_id = NULL
     )
     removeModal()
-    notify(paste0("Super admin account created. Welcome, ", display_name, "!"), type = "message")
+    notify(paste0("Super admin account created. Welcome, ", username, "!"), type = "message")
 
     # Update dropdowns with data
     updateSelectInput(session, "tournament_store",
