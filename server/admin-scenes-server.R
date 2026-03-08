@@ -615,15 +615,17 @@ observeEvent(input$confirm_post_scene_welcome, {
   removeModal()
   notify("Posting to Discord...", type = "message", duration = 2)
 
-  # Look up scene country for continent tag
-  scene_country <- tryCatch({
-    row <- safe_query(db_pool, "SELECT country FROM scenes WHERE scene_id = $1",
-                      params = list(sid), default = data.frame())
-    if (nrow(row) > 0) row$country[1] else NULL
-  }, error = function(e) NULL)
+  # Look up scene coordinates for continent tag
+  scene_coords <- tryCatch({
+    safe_query(db_pool, "SELECT latitude, longitude FROM scenes WHERE scene_id = $1",
+               params = list(sid), default = data.frame())
+  }, error = function(e) data.frame())
 
-  # Create the forum thread (with continent tag)
-  thread_id <- discord_create_scene_thread(thread_name, message_content, country = scene_country)
+  scene_lat <- if (nrow(scene_coords) > 0) scene_coords$latitude[1] else NULL
+  scene_lng <- if (nrow(scene_coords) > 0) scene_coords$longitude[1] else NULL
+
+  # Create the forum thread (with auto-detected continent tag)
+  thread_id <- discord_create_scene_thread(thread_name, message_content, lat = scene_lat, lng = scene_lng)
 
   if (!is.null(thread_id) && nchar(thread_id) > 0) {
     # Save thread ID to scene record

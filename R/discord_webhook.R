@@ -194,41 +194,42 @@ discord_post_bug_report <- function(title, description, context = "",
   discord_send(webhook_url, body)
 }
 
-# Map country to continent Discord tag env var
-# Handles full names, ISO codes, and common variants
-get_continent_tag <- function(country) {
-  if (is.null(country) || is.na(country) || nchar(country) == 0) return("")
+# Determine continent from lat/lng coordinates and return the Discord tag ID.
+# Uses geographic bounding boxes — works for any country without maintaining a list.
+# Falls back gracefully: returns "" if coords are missing or no tag is configured.
+get_continent_tag <- function(lat, lng) {
+  if (is.null(lat) || is.null(lng) || is.na(lat) || is.na(lng)) return("")
 
-  c_lower <- tolower(country)
-
-  north_america <- c("united states", "usa", "us", "canada", "can", "mexico", "mex",
-                     "costa rica", "cri", "panama", "pan")
-  south_america <- c("brazil", "brasil", "bra", "argentina", "arg", "chile", "chl",
-                     "colombia", "col", "peru", "per", "uruguay", "ury", "venezuela", "ven",
-                     "ecuador", "ecu", "bolivia", "bol", "paraguay", "pry")
-  europe <- c("united kingdom", "uk", "gbr", "germany", "deu", "ger", "france", "fra",
-              "spain", "esp", "italy", "ita", "portugal", "prt", "netherlands", "nld",
-              "denmark", "dnk", "sweden", "swe", "norway", "nor", "finland", "fin",
-              "belgium", "bel", "austria", "aut", "switzerland", "che", "poland", "pol",
-              "ireland", "irl", "czech republic", "cze", "hungary", "hun",
-              "greece", "grc", "romania", "rou", "croatia", "hrv")
-  asia <- c("japan", "jpn", "south korea", "kor", "china", "chn", "taiwan", "twn",
-            "singapore", "sgp", "malaysia", "mys", "thailand", "tha", "india", "ind",
-            "philippines", "phl", "indonesia", "idn", "vietnam", "vnm")
-  oceania <- c("australia", "aus", "new zealand", "nzl")
-  africa <- c("south africa", "zaf", "nigeria", "nga", "kenya", "ken", "egypt", "egy")
-
-  tag_env <- if (c_lower %in% north_america) {
-    "DISCORD_TAG_NORTH_AMERICA"
-  } else if (c_lower %in% south_america) {
+  # Determine continent from coordinates
+  # Order matters: more specific checks first to handle boundary regions
+  tag_env <- if (lat < -10 && lng > -90 && lng < -30) {
+    # South America (below ~10°N, between 90°W and 30°W)
     "DISCORD_TAG_SOUTH_AMERICA"
-  } else if (c_lower %in% europe) {
-    "DISCORD_TAG_EUROPE"
-  } else if (c_lower %in% asia) {
+  } else if (lat > 5 && lat < 85 && lng > -170 && lng < -30) {
+    # North America (above 5°N, west of 30°W) — includes Central America, Caribbean
+    "DISCORD_TAG_NORTH_AMERICA"
+  } else if (lat >= -10 && lat <= 5 && lng > -90 && lng < -30) {
+    # Northern South America / Central America overlap zone
+    # Countries near equator in Americas: Colombia, Ecuador, Venezuela, Panama
+    if (lng > -80) "DISCORD_TAG_SOUTH_AMERICA" else "DISCORD_TAG_NORTH_AMERICA"
+  } else if (lat > -50 && lat < 75 && lng > -30 && lng < 50) {
+    # Europe + Africa share this longitude band
+    if (lat > 35) {
+      "DISCORD_TAG_EUROPE"
+    } else {
+      "DISCORD_TAG_AFRICA"
+    }
+  } else if (lat > 35 && lng >= 50 && lng < 180) {
+    # Asia (northern, east of 50°E)
     "DISCORD_TAG_ASIA"
-  } else if (c_lower %in% oceania) {
+  } else if (lat <= 35 && lat > -10 && lng >= 50 && lng < 150) {
+    # South/Southeast Asia
+    "DISCORD_TAG_ASIA"
+  } else if (lat <= -10 && lng > 100 && lng < 180) {
+    # Oceania (Australia, NZ, Pacific Islands)
     "DISCORD_TAG_OCEANIA"
-  } else if (c_lower %in% africa) {
+  } else if (lat > -50 && lat <= 35 && lng >= -30 && lng < 50) {
+    # Africa (already partially covered above, catch remaining)
     "DISCORD_TAG_AFRICA"
   } else {
     NULL
@@ -240,8 +241,8 @@ get_continent_tag <- function(country) {
 
 # Post a welcome message to #scene-coordination Forum, creating a new thread
 # Returns the channel_id (thread ID) from Discord's response, or NULL on failure
-# country: used to auto-apply the continent tag (e.g., "Brazil" -> DISCORD_TAG_SOUTH_AMERICA)
-discord_create_scene_thread <- function(scene_name, message_content, country = NULL) {
+# lat/lng: scene coordinates used to auto-detect continent for Discord forum tag
+discord_create_scene_thread <- function(scene_name, message_content, lat = NULL, lng = NULL) {
   webhook_url <- Sys.getenv("DISCORD_WEBHOOK_SCENE_COORDINATION")
 
   if (is.null(webhook_url) || nchar(webhook_url) == 0) {
@@ -258,7 +259,7 @@ discord_create_scene_thread <- function(scene_name, message_content, country = N
   )
 
   # Apply continent tag if available
-  tag_id <- get_continent_tag(country)
+  tag_id <- get_continent_tag(lat, lng)
   if (nchar(tag_id) > 0) {
     body$applied_tags <- list(tag_id)
   }
