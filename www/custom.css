@@ -6940,19 +6940,33 @@ div.player-match-indicator.new {
 }
 
 .admin-users-group {
-  margin-bottom: 1rem;
+  margin-bottom: 0;
+}
+
+.admin-users-group + .admin-users-group {
+  border-top: 1px solid rgba(0, 0, 0, 0.1);
+  padding-top: 8px;
+}
+
+[data-bs-theme="dark"] .admin-users-group + .admin-users-group {
+  border-top-color: rgba(255, 255, 255, 0.1);
 }
 
 .admin-users-group-header {
   display: flex;
   align-items: center;
   gap: 8px;
-  padding: 6px 10px;
-  background: rgba(255, 255, 255, 0.05);
-  border-radius: 6px;
-  margin-bottom: 4px;
+  padding: 8px 10px;
+  margin-bottom: 2px;
   font-weight: 600;
-  font-size: 0.9rem;
+  font-size: 0.85rem;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: rgba(0, 0, 0, 0.5);
+}
+
+[data-bs-theme="dark"] .admin-users-group-header {
+  color: rgba(255, 255, 255, 0.45);
 }
 
 .admin-users-group-header .badge {
