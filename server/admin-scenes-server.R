@@ -557,7 +557,7 @@ observeEvent(input$post_scene_welcome_btn, {
     "Scene Admin(s): ", admin_mentions, "\n\n",
     "Welcome to DigiLab! Your scene ", scene_name, " is now live and your admin account has been set up.\n\n",
     "**Getting Started:**\n",
-    "- Log in at https://app.digilab.cards/ using the credentials sent to you\n",
+    "- Log in at <https://app.digilab.cards/> using the credentials sent to you\n",
     "- Head to Admin -> Enter Results to start adding tournament data\n",
     "- First you'll need to verify your local store(s) are set up via Admin -> Stores\n\n",
     "**Stores added:**\n",
