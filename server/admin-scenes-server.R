@@ -469,3 +469,161 @@ observeEvent(input$delete_scene_btn, {
   updateReactable("admin_scenes_table", selected = NA)
   shinyjs::html("scene_form_title", "Add Scene")
 })
+
+# =============================================================================
+# Announcements Admin (super admin only)
+# =============================================================================
+
+# --- Announcements Table ---
+announcements_data <- reactive({
+  rv$data_refresh
+  req(db_pool, rv$is_superadmin)
+  safe_query(db_pool,
+    "SELECT id, title, announcement_type, active,
+            TO_CHAR(created_at, 'Mon DD, YYYY') as created_at,
+            TO_CHAR(expires_at, 'YYYY-MM-DD') as expires_at
+     FROM announcements
+     ORDER BY created_at DESC",
+    default = data.frame())
+})
+
+output$admin_announcements_table <- renderReactable({
+  df <- announcements_data()
+  if (nrow(df) == 0) return(NULL)
+
+  reactable(
+    df,
+    columns = list(
+      id = colDef(show = FALSE),
+      title = colDef(name = "Title", minWidth = 150),
+      announcement_type = colDef(name = "Type", maxWidth = 90, cell = function(value) {
+        switch(value,
+          info = "Info",
+          donation = "Donation",
+          update = "Update",
+          event = "Event",
+          value
+        )
+      }),
+      active = colDef(name = "Active", maxWidth = 70, cell = function(value) {
+        if (value) "\u2705" else "\u274c"
+      }),
+      created_at = colDef(name = "Created", maxWidth = 110),
+      expires_at = colDef(name = "Expires", maxWidth = 100, cell = function(value) {
+        if (is.null(value) || is.na(value)) "\u2014" else value
+      })
+    ),
+    selection = "single",
+    onClick = "select",
+    highlight = TRUE,
+    compact = TRUE,
+    defaultPageSize = 5,
+    theme = reactableTheme(
+      rowSelectedStyle = list(backgroundColor = "rgba(0, 123, 255, 0.1)")
+    )
+  )
+})
+
+# --- Create Announcement ---
+observeEvent(input$create_announcement_btn, {
+  req(rv$is_superadmin)
+
+  title <- trimws(input$announcement_title)
+  body <- trimws(input$announcement_body)
+  ann_type <- input$announcement_type
+  no_expiry <- isTRUE(input$announcement_no_expiry)
+
+  if (nchar(title) == 0) {
+    notify("Title is required", type = "warning")
+    return()
+  }
+  if (nchar(body) == 0) {
+    notify("Body is required", type = "warning")
+    return()
+  }
+
+  expires_at <- if (no_expiry) NA else input$announcement_expires_at
+
+  # Deactivate all existing announcements (only one active at a time)
+  safe_execute(db_pool,
+    "UPDATE announcements SET active = FALSE WHERE active = TRUE")
+
+  # Insert new announcement
+  result <- safe_query(db_pool,
+    "INSERT INTO announcements (title, body, announcement_type, active, expires_at)
+     VALUES ($1, $2, $3, TRUE, $4)
+     RETURNING id",
+    params = list(title, body, ann_type,
+                  if (is.na(expires_at)) NA else as.character(expires_at)),
+    default = data.frame())
+
+  if (nrow(result) > 0) {
+    notify(paste0("Announcement '", title, "' created"), type = "message")
+    rv$data_refresh <- rv$data_refresh + 1
+
+    # Clear form
+    updateTextInput(session, "announcement_title", value = "")
+    updateTextAreaInput(session, "announcement_body", value = "")
+    updateSelectInput(session, "announcement_type", selected = "info")
+    updateCheckboxInput(session, "announcement_no_expiry", value = TRUE)
+  } else {
+    notify("Failed to create announcement", type = "error")
+  }
+})
+
+# --- Toggle Active Status (via table selection) ---
+observeEvent(getReactableState("admin_announcements_table", "selected"), {
+  selected <- getReactableState("admin_announcements_table", "selected")
+  if (is.null(selected) || length(selected) == 0) return()
+
+  df <- announcements_data()
+  row <- df[selected, ]
+
+  # Show confirm dialog to toggle active status
+  action_label <- if (row$active) "Deactivate" else "Activate"
+  showModal(modalDialog(
+    title = paste(action_label, "Announcement"),
+    tags$p(
+      paste0("Do you want to ", tolower(action_label), " \"", row$title, "\"?")
+    ),
+    if (!row$active) tags$p(class = "text-muted small",
+      "Activating this will deactivate all other announcements."),
+    footer = tagList(
+      modalButton("Cancel"),
+      actionButton("confirm_toggle_announcement", action_label,
+                   class = if (row$active) "btn-outline-danger" else "btn-primary")
+    ),
+    easyClose = TRUE
+  ))
+})
+
+observeEvent(input$confirm_toggle_announcement, {
+  req(rv$is_superadmin)
+  removeModal()
+
+  selected <- getReactableState("admin_announcements_table", "selected")
+  if (is.null(selected) || length(selected) == 0) return()
+
+  df <- announcements_data()
+  row <- df[selected, ]
+  ann_id <- row$id
+
+  if (row$active) {
+    # Deactivate
+    safe_execute(db_pool,
+      "UPDATE announcements SET active = FALSE WHERE id = $1",
+      params = list(ann_id))
+    notify(paste0("'", row$title, "' deactivated"), type = "message")
+  } else {
+    # Activate (deactivate others first)
+    safe_execute(db_pool,
+      "UPDATE announcements SET active = FALSE WHERE active = TRUE")
+    safe_execute(db_pool,
+      "UPDATE announcements SET active = TRUE WHERE id = $1",
+      params = list(ann_id))
+    notify(paste0("'", row$title, "' activated"), type = "message")
+  }
+
+  rv$data_refresh <- rv$data_refresh + 1
+  updateReactable("admin_announcements_table", selected = NA)
+})

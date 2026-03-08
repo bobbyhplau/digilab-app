@@ -3160,6 +3160,44 @@ a:hover, .nav-link:hover {
 }
 
 /* =============================================================================
+   ANNOUNCEMENT & VERSION MODALS
+   ============================================================================= */
+
+/* --- Announcement Modal --- */
+.announcement-modal .modal-dialog { max-width: 480px; margin-top: 8vh; }
+.announcement-modal .modal-content {
+  border: 1px solid rgba(0, 200, 255, 0.3);
+  background: linear-gradient(180deg, #FFFFFF 0%, #F0F7FF 100%);
+}
+[data-bs-theme="dark"] .announcement-modal .modal-content {
+  background: linear-gradient(180deg, #0A1929 0%, #0D2137 100%);
+  border-color: rgba(0, 200, 255, 0.4);
+}
+.announcement-modal-icon { font-size: 2rem; color: #F7941D; text-align: center; margin-bottom: 0.5rem; }
+.announcement-modal-title { text-align: center; font-size: 1.25rem; font-weight: 600; margin-bottom: 1rem; }
+.announcement-modal-body { font-size: 0.95rem; line-height: 1.6; }
+.announcement-modal-body p { margin-bottom: 0.75rem; }
+.announcement-modal .modal-footer { border-top: none; justify-content: center; }
+
+/* --- Version Modal --- */
+.version-modal .modal-dialog { max-width: 480px; margin-top: 8vh; }
+.version-modal .modal-content {
+  border: 1px solid rgba(0, 200, 255, 0.3);
+  background: linear-gradient(180deg, #FFFFFF 0%, #F0F7FF 100%);
+}
+[data-bs-theme="dark"] .version-modal .modal-content {
+  background: linear-gradient(180deg, #0A1929 0%, #0D2137 100%);
+  border-color: rgba(0, 200, 255, 0.4);
+}
+.version-modal .modal-footer { border-top: none; justify-content: center; }
+.version-modal-header { text-align: center; margin-bottom: 1rem; }
+.version-modal-header .bi { font-size: 2rem; color: #F7941D; }
+.version-modal-header h3 { font-size: 1.25rem; font-weight: 600; margin-top: 0.5rem; }
+.version-changelog-items { display: flex; flex-direction: column; gap: 0.75rem; }
+.version-changelog-item { display: flex; align-items: flex-start; gap: 0.5rem; font-size: 0.95rem; }
+.version-changelog-item .bi { flex-shrink: 0; margin-top: 2px; }
+
+/* =============================================================================
    PLACEMENT COLORS (Gold, Silver, Bronze)
    ============================================================================= */
 

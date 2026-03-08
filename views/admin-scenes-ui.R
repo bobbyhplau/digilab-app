@@ -94,5 +94,47 @@ admin_scenes_ui <- tagList(
         )
       )
     )
+  ),
+  # --- Announcements Section ---
+  tags$hr(class = "my-4"),
+  h2("Announcements"),
+  div(class = "page-help-text",
+    div(class = "info-hint-box",
+      bsicons::bs_icon("info-circle", class = "info-hint-icon"),
+      "Create app-wide announcements shown to all users. Only the latest active, unexpired announcement is shown."
+    )
+  ),
+  div(
+    class = "admin-panel",
+    layout_columns(
+      col_widths = breakpoints(sm = c(12, 12), md = c(4, 8)),
+      fill = FALSE,
+
+      # Create form
+      card(
+        card_header("New Announcement"),
+        card_body(
+          textInput("announcement_title", "Title", placeholder = "e.g., New scenes added!"),
+          textAreaInput("announcement_body", "Body", rows = 4,
+                        placeholder = "Announcement details..."),
+          selectInput("announcement_type", "Type",
+                      choices = c("Info" = "info", "Donation" = "donation",
+                                  "Update" = "update", "Event" = "event"),
+                      selectize = FALSE),
+          dateInput("announcement_expires_at", "Expires (optional)",
+                    value = NA),
+          checkboxInput("announcement_no_expiry", "No expiry", value = TRUE),
+          actionButton("create_announcement_btn", "Create", class = "btn-primary")
+        )
+      ),
+
+      # Announcements table
+      card(
+        card_header("Announcements"),
+        card_body(
+          reactableOutput("admin_announcements_table")
+        )
+      )
+    )
   )
 )

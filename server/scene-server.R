@@ -77,11 +77,34 @@ observeEvent(input$scene_from_storage, {
   stored <- input$scene_from_storage
   if (is.null(stored)) return()
 
-  # If user needs onboarding (first visit), show the modal
+  # Modal priority: Welcome > Announcement > Version (one per page load)
   if (isTRUE(stored$needsOnboarding)) {
-    # Show onboarding modal after a brief delay
     shinyjs::delay(500, {
       show_onboarding_modal()
+    })
+  } else {
+    # Check for unseen announcement or version update
+    last_seen_ann_id <- stored$lastSeenAnnouncementId  # integer or NULL from JS
+    last_seen_version <- stored$lastSeenVersion         # string or NULL from JS
+
+    shinyjs::delay(500, {
+      # Query latest active, unexpired announcement
+      latest_ann <- safe_query(db_pool,
+        "SELECT id, title, body, announcement_type
+         FROM announcements
+         WHERE active = TRUE
+           AND (expires_at IS NULL OR expires_at > NOW())
+         ORDER BY created_at DESC
+         LIMIT 1",
+        default = data.frame())
+
+      if (nrow(latest_ann) > 0 && (is.null(last_seen_ann_id) || latest_ann$id[1] != last_seen_ann_id)) {
+        # Show announcement modal
+        show_announcement_modal(latest_ann[1, ])
+      } else if (is.null(last_seen_version) || last_seen_version != APP_VERSION) {
+        # Show version changelog modal
+        show_version_modal()
+      }
     })
   }
 
@@ -434,4 +457,102 @@ observeEvent(input$geolocation_result, {
 # -----------------------------------------------------------------------------
 # Scene Filter Helper
 # -----------------------------------------------------------------------------
+
+
+# -----------------------------------------------------------------------------
+# Announcement Modal
+# -----------------------------------------------------------------------------
+
+show_announcement_modal <- function(ann) {
+  type_icons <- list(
+    info = "info-circle-fill",
+    donation = "cup-hot-fill",
+    update = "arrow-up-circle-fill",
+    event = "calendar-event-fill"
+  )
+  icon_name <- type_icons[[ann$announcement_type]] %||% "info-circle-fill"
+
+  showModal(modalDialog(
+    title = NULL,
+    div(class = "announcement-modal-content",
+      div(class = "announcement-modal-icon",
+        bsicons::bs_icon(icon_name)
+      ),
+      h3(class = "announcement-modal-title", ann$title),
+      div(class = "announcement-modal-body",
+        lapply(strsplit(ann$body, "\n\n")[[1]], function(p) tags$p(trimws(p)))
+      )
+    ),
+    footer = actionButton("dismiss_announcement", "Got it", class = "btn-primary"),
+    size = "m",
+    easyClose = TRUE,
+    class = "announcement-modal"
+  ))
+
+  # Save seen state
+  session$sendCustomMessage("saveSeenAnnouncement", list(id = ann$id))
+}
+
+observeEvent(input$dismiss_announcement, {
+  removeModal()
+})
+
+# -----------------------------------------------------------------------------
+# Version Changelog Modal
+# -----------------------------------------------------------------------------
+
+show_version_modal <- function() {
+  showModal(modalDialog(
+    title = NULL,
+    div(class = "version-modal-content",
+      div(class = "version-modal-header",
+        bsicons::bs_icon("rocket-takeoff-fill"),
+        h3(paste0("What's New in v", APP_VERSION))
+      ),
+      version_changelog_content(),
+      tags$hr(class = "my-3"),
+      tags$p(class = "text-muted small text-center",
+        tags$a(href = LINKS$discord, target = "_blank", "Join Discord for updates")
+      )
+    ),
+    footer = actionButton("dismiss_version", "Continue", class = "btn-primary"),
+    size = "m",
+    easyClose = TRUE,
+    class = "version-modal"
+  ))
+
+  session$sendCustomMessage("saveSeenVersion", list(version = APP_VERSION))
+}
+
+observeEvent(input$dismiss_version, {
+  removeModal()
+})
+
+# Hardcoded changelog content — update each release
+version_changelog_content <- function() {
+  tagList(
+    div(class = "version-changelog-items",
+      div(class = "version-changelog-item",
+        bsicons::bs_icon("bell-fill", class = "text-warning"),
+        span("Admin notification bar for pending requests")
+      ),
+      div(class = "version-changelog-item",
+        bsicons::bs_icon("search", class = "text-info"),
+        span("Search bars and filters on all admin tables")
+      ),
+      div(class = "version-changelog-item",
+        bsicons::bs_icon("megaphone-fill", class = "text-primary"),
+        span("Announcement system for community updates")
+      ),
+      div(class = "version-changelog-item",
+        bsicons::bs_icon("calendar-check", class = "text-success"),
+        span("Store schedule qualifiers (monthly, biweekly)")
+      ),
+      div(class = "version-changelog-item",
+        bsicons::bs_icon("palette-fill", class = "text-danger"),
+        span("Deck color filter chips")
+      )
+    )
+  )
+}
 

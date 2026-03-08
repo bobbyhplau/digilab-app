@@ -8,6 +8,8 @@
 
   var STORAGE_KEY = 'digilab_scene_preference';
   var ONBOARDING_KEY = 'digilab_onboarding_complete';
+  var LAST_SEEN_ANNOUNCEMENT_KEY = 'digilab_last_seen_announcement_id';
+  var LAST_SEEN_VERSION_KEY = 'digilab_last_seen_version';
 
   // ==========================================================================
   // PostMessage Storage Bridge
@@ -236,17 +238,25 @@
   $(document).on('shiny:connected', function() {
 
     // Send initial scene preference to Shiny (async storage read)
-    Promise.all([getSavedScene(), isOnboardingComplete()])
-      .then(function(results) {
-        var savedScene = results[0];
-        var onboardingDone = results[1];
+    Promise.all([
+      getSavedScene(),
+      isOnboardingComplete(),
+      DigilabStorage.getItem(LAST_SEEN_ANNOUNCEMENT_KEY),
+      DigilabStorage.getItem(LAST_SEEN_VERSION_KEY)
+    ]).then(function(results) {
+      var savedScene = results[0];
+      var onboardingDone = results[1];
+      var lastSeenAnnouncementId = results[2] ? parseInt(results[2], 10) : null;
+      var lastSeenVersion = results[3];
 
-        Shiny.setInputValue('scene_from_storage', {
-          scene: savedScene,
-          needsOnboarding: !onboardingDone,
-          timestamp: Date.now()
-        }, {priority: 'event'});
-      });
+      Shiny.setInputValue('scene_from_storage', {
+        scene: savedScene,
+        needsOnboarding: !onboardingDone,
+        lastSeenAnnouncementId: lastSeenAnnouncementId,
+        lastSeenVersion: lastSeenVersion,
+        timestamp: Date.now()
+      }, {priority: 'event'});
+    });
 
     // Handler for saving scene to storage
     Shiny.addCustomMessageHandler('saveScenePreference', function(message) {
@@ -310,6 +320,16 @@
       DigilabStorage.removeItem(STORAGE_KEY).then(function() {
         DigilabStorage.removeItem(ONBOARDING_KEY);
       });
+    });
+
+    // Handler for saving seen announcement ID to storage
+    Shiny.addCustomMessageHandler('saveSeenAnnouncement', function(message) {
+      DigilabStorage.setItem(LAST_SEEN_ANNOUNCEMENT_KEY, String(message.id));
+    });
+
+    // Handler for saving seen version to storage
+    Shiny.addCustomMessageHandler('saveSeenVersion', function(message) {
+      DigilabStorage.setItem(LAST_SEEN_VERSION_KEY, message.version);
     });
 
   });
