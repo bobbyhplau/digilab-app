@@ -829,7 +829,8 @@ observeEvent(input$edit_grid_save, {
     return()
   }
 
-  # Separate filled vs empty rows
+  # Separate filled vs empty rows (preserve original row index for input lookups)
+  grid$row_idx <- seq_len(nrow(grid))
   filled_rows <- grid[nchar(trimws(grid$player_name)) > 0, ]
 
   if (nrow(filled_rows) == 0) {
@@ -929,7 +930,7 @@ observeEvent(input$edit_grid_save, {
       if (is_release) {
         archetype_id <- unknown_id
       } else {
-        deck_input <- input[[paste0("edit_deck_", row$placement)]]
+        deck_input <- input[[paste0("edit_deck_", row$row_idx)]]
         if (is.null(deck_input) || nchar(deck_input) == 0 || deck_input == "__REQUEST_NEW__") {
           archetype_id <- unknown_id
         } else if (grepl("^pending_", deck_input)) {

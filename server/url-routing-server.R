@@ -333,8 +333,13 @@ resolve_entity_slug <- function(entity_type, slug) {
       if (nrow(store) == 1) store$store_id else NULL
     },
     "tournament" = {
-      # Tournaments use ID only (names aren't unique)
-      NULL
+      # Tournaments use ID only (names aren't unique) — resolve numeric ID
+      tid <- suppressWarnings(as.integer(slug))
+      if (!is.na(tid)) {
+        tournament <- safe_query(db_pool, "SELECT tournament_id FROM tournaments WHERE tournament_id = $1",
+                                 params = list(tid), default = data.frame())
+        if (nrow(tournament) == 1) tournament$tournament_id else NULL
+      } else NULL
     }
   )
 
