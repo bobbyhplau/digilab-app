@@ -7,6 +7,31 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- **Materialized views (PERF2)**: 5 pre-computed views (`mv_player_store_stats`, `mv_archetype_store_stats`, `mv_tournament_list`, `mv_store_summary`, `mv_dashboard_counts`) replace multi-table JOINs across all public tabs. Per-store grain design enables future country/state/single-store filtering without schema changes.
+- **`build_mv_filters()` helper**: New filter builder for flat materialized view queries — no table aliases or JOINs needed.
+- **`refresh_materialized_views()` helper**: Refreshes all 5 MVs after admin data mutations via `rv$data_refresh` observer.
+- **Limitless sync MV refresh**: `sync_limitless.py` refreshes all MVs after syncing online tournaments.
+- **`mv_views_exist()` guard**: Checks MV availability at startup to fail gracefully if migration hasn't run.
+- **`record_format` column**: Tournaments table now stores original entry format (`'points'` or `'wlt'`).
+- **`points` column**: Results table now stores original points value alongside W-L-T.
+
+### Changed
+- **Dashboard metrics**: Core metrics (tournaments, players) now use `mv_tournament_list` with proper `COUNT(DISTINCT)` instead of pre-aggregated `mv_dashboard_counts` to avoid double-counting.
+- **Players tab**: Replaced 2 separate 4-table JOIN queries + 3 R merges with single CTE query on `mv_player_store_stats`.
+- **Meta tab**: Replaced 4-table JOIN with simple aggregation on `mv_archetype_store_stats`.
+- **Tournaments tab**: Replaced LATERAL JOIN query with flat SELECT on `mv_tournament_list`.
+- **Stores tab**: Replaced stores+tournaments JOIN with `mv_store_summary`.
+- **Dashboard deck analytics**: Replaced 4-table JOIN + window function with `mv_archetype_store_stats`.
+
+### Fixed
+- **Deck assignment mismatch (BUG 3)**: Submit handlers read deck input using `row$placement` instead of the grid row index. When rows were empty/skipped, the wrong deck was assigned (e.g., Chronicle showing as Pulsemon). Fixed in both Enter Results and Edit Results flows.
+- **Tournament deep links broken (BUG 4)**: URLs like `?tournament=411` always showed "Tournament Not Found" because `resolve_entity_slug()` returned NULL for tournaments. Now correctly resolves numeric IDs.
+- **Points→W-L-D format switch (BUG 1)**: Edit tournament view inferred format from stored data, which was always wrong for zero-tie records. Now reads stored `record_format` from database instead of inferring.
+- **Modal stacking on deck request (BUG 2)**: `observeEvent` inside `observe` + `lapply` created duplicate handlers on every grid change. One click could open multiple stacked modals. Replaced with fixed handler set created once at init.
+- **`get_format_choices` NULL crash**: Guard against missing columns when format query fails.
+- **Player CTE duplicate params**: PostgreSQL reuses `$1` across CTEs — removed duplicate filter params.
+
 ## [1.4.1] - 2026-03-08 - Audit Trail & Scene Guard
 
 ### Fixed
