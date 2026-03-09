@@ -21,6 +21,7 @@ rv$submit_ocr_row_indices <- NULL
 
 # Populate store dropdown
 observe({
+  req("submit" %in% visited_tabs())  # Lazy load: skip until tab visited
 
   stores <- safe_query(db_pool, "
     SELECT store_id, name FROM stores
@@ -34,6 +35,7 @@ observe({
 
 # Populate format dropdown - sorted by release_date DESC (most recent first)
 observe({
+  req("submit" %in% visited_tabs())  # Lazy load: skip until tab visited
 
   formats <- safe_query(db_pool, "
     SELECT format_id, display_name FROM formats

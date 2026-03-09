@@ -30,6 +30,7 @@ tournaments_search_debounced <- reactive(input$tournaments_search) |> debounce(3
 # Shared data reactive — used by both desktop reactable and mobile cards
 # ---------------------------------------------------------------------------
 tournaments_data <- reactive({
+  req("tournaments" %in% visited_tabs())  # Lazy load: skip until tab visited
   rv$data_refresh  # Trigger refresh on admin changes
 
   # Build parameterized filters to prevent SQL injection

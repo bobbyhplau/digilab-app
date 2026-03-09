@@ -216,6 +216,19 @@ is_mobile <- reactive({
 # Navigation
 # ---------------------------------------------------------------------------
 
+# Track which tabs have been visited for lazy data loading.
+# Dashboard is pre-visited since it's the default landing tab.
+visited_tabs <- reactiveVal("dashboard")
+
+# Mark current tab as visited whenever navigation changes
+observeEvent(rv$current_nav, {
+  current <- rv$current_nav
+  visited <- visited_tabs()
+  if (!current %in% visited) {
+    visited_tabs(c(visited, current))
+  }
+})
+
 observeEvent(input$nav_dashboard, {
   nav_select("main_content", "dashboard")
   rv$current_nav <- "dashboard"
@@ -1149,6 +1162,9 @@ safe_query <- function(pool, query, params = NULL, default = data.frame()) {
     grepl("invalid input syntax", msg, ignore.case = TRUE)
   }
 
+  # Time the query for performance monitoring
+  start_time <- proc.time()[["elapsed"]]
+
   # First attempt
   result <- tryCatch({
     if (!is.null(params) && length(params) > 0) {
@@ -1169,6 +1185,14 @@ safe_query <- function(pool, query, params = NULL, default = data.frame()) {
         DBI::dbGetQuery(pool, query)
       }
     }, error = function(e) e)
+  }
+
+  # Log slow queries (>200ms)
+  elapsed_ms <- (proc.time()[["elapsed"]] - start_time) * 1000
+  if (elapsed_ms > 200) {
+    query_preview <- substr(gsub("\\s+", " ", trimws(query)), 1, 120)
+    rows <- if (is.data.frame(result)) nrow(result) else "?"
+    message(sprintf("[SLOW QUERY %.0fms, %s rows] %s", elapsed_ms, rows, query_preview))
   }
 
   # Handle final result
@@ -1217,6 +1241,9 @@ safe_execute <- function(pool, query, params = NULL) {
     grepl("invalid input syntax", msg, ignore.case = TRUE)
   }
 
+  # Time the query for performance monitoring
+  start_time <- proc.time()[["elapsed"]]
+
   # First attempt
   result <- tryCatch({
     if (!is.null(params) && length(params) > 0) {
@@ -1237,6 +1264,13 @@ safe_execute <- function(pool, query, params = NULL) {
         DBI::dbExecute(pool, query)
       }
     }, error = function(e) e)
+  }
+
+  # Log slow writes (>200ms)
+  elapsed_ms <- (proc.time()[["elapsed"]] - start_time) * 1000
+  if (elapsed_ms > 200) {
+    query_preview <- substr(gsub("\\s+", " ", trimws(query)), 1, 120)
+    message(sprintf("[SLOW EXECUTE %.0fms] %s", elapsed_ms, query_preview))
   }
 
   # Handle final result

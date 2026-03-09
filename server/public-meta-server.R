@@ -31,6 +31,7 @@ meta_search_debounced <- reactive(input$meta_search) |> debounce(300)
 # Shared data reactive for archetype stats (used by desktop + mobile)
 # ---------------------------------------------------------------------------
 meta_archetype_data <- reactive({
+  req("meta" %in% visited_tabs())  # Lazy load: skip until tab visited
   rv$data_refresh  # Trigger refresh on admin changes
 
   # Build parameterized filters to prevent SQL injection

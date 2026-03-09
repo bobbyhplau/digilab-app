@@ -55,7 +55,7 @@ output$stores_view_hint <- renderUI({
 
 # Schedule view content
 output$stores_schedule_content <- renderUI({
-
+  req("stores" %in% visited_tabs())  # Lazy load: skip until tab visited
 
   rv$data_refresh  # Trigger refresh on admin changes
 
@@ -325,6 +325,7 @@ output$store_list <- renderReactable({
 
 # Store cards view (replaces table for both physical and online)
 output$stores_cards_content <- renderUI({
+  req("stores" %in% visited_tabs())  # Lazy load: skip until tab visited
   rv$data_refresh
   scene <- rv$current_scene
 
@@ -856,7 +857,7 @@ output$store_modal_map <- renderMapboxgl({
 
 # Online Tournament Organizers section
 output$online_stores_section <- renderUI({
-
+  req("stores" %in% visited_tabs())  # Lazy load: skip until tab visited
 
   # Only show online stores section when scene is "all"
   # For regional scenes, we don't show online organizers
@@ -920,6 +921,7 @@ output$online_stores_section <- renderUI({
 
 # Reactive: All stores data with activity metrics (for filtering and map)
 stores_data <- reactive({
+  req("stores" %in% visited_tabs())  # Lazy load: skip until tab visited
   rv$data_refresh  # Trigger refresh on admin changes
 
   # Build scene filter for stores table

@@ -103,6 +103,7 @@ output$historical_rating_badge <- renderUI({
 })
 
 output$player_standings <- renderReactable({
+  req("players" %in% visited_tabs())  # Lazy load: skip until tab visited
   rv$data_refresh  # Trigger refresh on admin changes
 
 
@@ -345,6 +346,7 @@ observeEvent(input$mobile_players_load_more, {
 
 output$mobile_players_cards <- renderUI({
   req(is_mobile())
+  req("players" %in% visited_tabs())  # Lazy load: skip until tab visited
   rv$data_refresh
 
   # -- Reuse exact same query logic as desktop renderReactable ----------------
