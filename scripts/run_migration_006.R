@@ -41,11 +41,11 @@ run("Backfill points for existing results",
 
 # Verify
 message("\nVerification:")
-fmt_count <- dbGetQuery(con, "SELECT COUNT(*) as n FROM tournaments WHERE record_format IS NOT NULL")
+fmt_count <- dbGetQuery(con, "SELECT COUNT(*)::int as n FROM tournaments WHERE record_format IS NOT NULL")
 message(sprintf("  Tournaments with record_format: %d", fmt_count$n))
-pts_count <- dbGetQuery(con, "SELECT COUNT(*) as n FROM results WHERE points IS NOT NULL")
+pts_count <- dbGetQuery(con, "SELECT COUNT(*)::int as n FROM results WHERE points IS NOT NULL")
 message(sprintf("  Results with points: %d", pts_count$n))
-null_count <- dbGetQuery(con, "SELECT COUNT(*) as n FROM results WHERE points IS NULL")
+null_count <- dbGetQuery(con, "SELECT COUNT(*)::int as n FROM results WHERE points IS NULL")
 message(sprintf("  Results still missing points: %d", null_count$n))
 
 dbDisconnect(con)
