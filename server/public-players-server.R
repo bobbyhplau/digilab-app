@@ -125,7 +125,7 @@ output$player_standings <- renderReactable({
   # Single query: player stats + main deck from MV, ratings from cache
   result <- safe_query(db_pool, sprintf("
     WITH player_agg AS (
-      SELECT player_id, display_name,
+      SELECT player_id, display_name as \"Player\",
              SUM(events)::int as \"Events\",
              SUM(wins)::int as \"W\", SUM(losses)::int as \"L\", SUM(ties)::int as \"T\",
              ROUND(SUM(wins) * 100.0 / NULLIF(SUM(wins) + SUM(losses), 0), 1) as \"Win %%\",
@@ -343,12 +343,12 @@ output$mobile_players_cards <- renderUI({
   # Single query: player stats + main deck from MV
   result <- safe_query(db_pool, sprintf("
     WITH player_agg AS (
-      SELECT player_id, display_name,
+      SELECT player_id, display_name as \"Player\",
              SUM(events)::int as \"Events\",
              SUM(wins)::int as \"W\", SUM(losses)::int as \"L\", SUM(ties)::int as \"T\",
-             ROUND(SUM(wins) * 100.0 / NULLIF(SUM(wins) + SUM(losses), 0), 1) as \"Win_Pct\",
-             SUM(firsts)::int as \"Firsts\",
-             SUM(top3s)::int as \"Top3s\"
+             ROUND(SUM(wins) * 100.0 / NULLIF(SUM(wins) + SUM(losses), 0), 1) as \"Win %%\",
+             SUM(firsts)::int as \"1sts\",
+             SUM(top3s)::int as \"Top 3s\"
       FROM mv_player_store_stats
       WHERE 1=1 %s
       GROUP BY player_id, display_name

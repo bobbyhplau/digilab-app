@@ -1677,7 +1677,7 @@ refresh_materialized_views <- function(pool) {
   con <- pool::localCheckout(pool)
   for (v in views) {
     tryCatch(
-      DBI::dbExecute(con, sprintf("REFRESH MATERIALIZED VIEW CONCURRENTLY %s", v)),
+      DBI::dbExecute(con, sprintf("REFRESH MATERIALIZED VIEW %s", v)),
       error = function(e) message(sprintf("[MV REFRESH ERROR] %s: %s", v, e$message))
     )
   }
