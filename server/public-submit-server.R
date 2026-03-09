@@ -1382,39 +1382,31 @@ observeEvent(input$submit_tournament, {
     rv$data_refresh <- (rv$data_refresh %||% 0) + 1
     rv$results_refresh <- (rv$results_refresh %||% 0) + 1
 
-    # Reset form
-    rv$submit_ocr_results <- NULL
-    rv$submit_uploaded_files <- NULL
-    rv$submit_parsed_count <- 0
-    rv$submit_total_players <- 0
-    rv$submit_grid_data <- NULL
-    rv$submit_player_matches <- list()
-    rv$submit_ocr_row_indices <- NULL
-
-    # Switch back to step 1
-    shinyjs::hide("submit_wizard_step2")
-    shinyjs::show("submit_wizard_step1")
-    shinyjs::removeClass("submit_step2_indicator", "active")
-    shinyjs::addClass("submit_step1_indicator", "active")
-
-    # Clear inputs
-    updateSelectInput(session, "submit_store", selected = "")
-    updateDateInput(session, "submit_date", value = NA)
-    updateSelectInput(session, "submit_event_type", selected = "")
-    updateSelectInput(session, "submit_format", selected = "")
-    updateNumericInput(session, "submit_players", value = 8)
-    updateCheckboxInput(session, "submit_confirm", value = FALSE)
-    shinyjs::reset("submit_screenshots")
-
     notify(
       paste("Tournament submitted successfully!", nrow(results), "results recorded."),
       type = "message"
     )
 
-    # Navigate to tournaments page
-    nav_select("main_content", "tournaments")
-    rv$current_nav <- "tournaments"
-    session$sendCustomMessage("updateSidebarNav", "nav_tournaments")
+    # Load submitted results for decklist entry (Step 3)
+    rv$submit_decklist_results <- safe_query(db_pool, "
+      SELECT r.result_id, r.placement, p.display_name as player_name,
+             COALESCE(da.archetype_name, 'UNKNOWN') as deck_name,
+             CONCAT(r.wins, '-', r.losses, '-', r.ties) as record,
+             r.decklist_url
+      FROM results r
+      JOIN players p ON r.player_id = p.player_id
+      LEFT JOIN deck_archetypes da ON r.archetype_id = da.archetype_id
+      WHERE r.tournament_id = $1
+      ORDER BY r.placement ASC
+    ", params = list(tournament_id), default = data.frame())
+    rv$submit_decklist_tournament_id <- tournament_id
+
+    # Switch to Step 3 (decklists)
+    shinyjs::hide("submit_wizard_step2")
+    shinyjs::show("submit_wizard_step3")
+    shinyjs::removeClass("submit_step2_indicator", "active")
+    shinyjs::addClass("submit_step2_indicator", "completed")
+    shinyjs::addClass("submit_step3_indicator", "active")
 
   }, error = function(e) {
     tryCatch(DBI::dbExecute(conn, "ROLLBACK"), error = function(re) NULL)
@@ -1432,6 +1424,87 @@ observeEvent(input$submit_tournament, {
 # Request new store - reuse the shared modal function
 observeEvent(input$submit_request_store, {
   show_store_request_modal()
+})
+
+# =============================================================================
+# =============================================================================
+# Upload Results: Step 3 — Decklist Links
+# =============================================================================
+
+rv$submit_decklist_results <- NULL
+rv$submit_decklist_tournament_id <- NULL
+
+# Summary bar for Step 3
+output$submit_decklist_summary_bar <- renderUI({
+  req(rv$submit_decklist_tournament_id)
+  tournament <- safe_query(db_pool, "
+    SELECT t.tournament_id, s.name as store_name, t.event_date, t.event_type, t.format
+    FROM tournaments t JOIN stores s ON t.store_id = s.store_id
+    WHERE t.tournament_id = $1
+  ", params = list(rv$submit_decklist_tournament_id), default = data.frame())
+  if (nrow(tournament) == 0) return(NULL)
+  t <- tournament[1, ]
+  div(class = "alert alert-success d-flex align-items-center gap-2 mb-3",
+      bsicons::bs_icon("check-circle-fill"),
+      sprintf("Results submitted for %s — %s (%s)", t$store_name, t$event_date, t$format))
+})
+
+# Render decklist entry table
+output$submit_decklist_table <- renderUI({
+  req(rv$submit_decklist_results)
+  render_decklist_entry(rv$submit_decklist_results, "submit_decklist_")
+})
+
+# Save decklist links
+save_submit_decklists <- function() {
+  req(rv$submit_decklist_results)
+  save_decklist_urls(rv$submit_decklist_results, input, "submit_decklist_", db_pool)
+}
+
+# Reset upload form to Step 1
+reset_submit_wizard <- function() {
+  rv$submit_ocr_results <- NULL
+  rv$submit_uploaded_files <- NULL
+  rv$submit_parsed_count <- 0
+  rv$submit_total_players <- 0
+  rv$submit_grid_data <- NULL
+  rv$submit_player_matches <- list()
+  rv$submit_ocr_row_indices <- NULL
+  rv$submit_decklist_results <- NULL
+  rv$submit_decklist_tournament_id <- NULL
+
+  shinyjs::hide("submit_wizard_step3")
+  shinyjs::hide("submit_wizard_step2")
+  shinyjs::show("submit_wizard_step1")
+  shinyjs::removeClass("submit_step2_indicator", "active completed")
+  shinyjs::removeClass("submit_step3_indicator", "active completed")
+  shinyjs::addClass("submit_step1_indicator", "active")
+
+  updateSelectInput(session, "submit_store", selected = "")
+  updateDateInput(session, "submit_date", value = NA)
+  updateSelectInput(session, "submit_event_type", selected = "")
+  updateSelectInput(session, "submit_format", selected = "")
+  updateNumericInput(session, "submit_players", value = 8)
+  updateCheckboxInput(session, "submit_confirm", value = FALSE)
+  shinyjs::reset("submit_screenshots")
+}
+
+observeEvent(input$submit_save_decklists, {
+  saved <- save_submit_decklists()
+  if (saved > 0) {
+    notify(sprintf("Saved %d decklist link%s.", saved, if (saved == 1) "" else "s"), type = "message")
+  } else {
+    notify("No decklist links to save.", type = "warning")
+  }
+})
+
+observeEvent(input$submit_done_decklists, {
+  save_submit_decklists()
+  reset_submit_wizard()
+})
+
+observeEvent(input$submit_skip_decklists, {
+  reset_submit_wizard()
 })
 
 # =============================================================================

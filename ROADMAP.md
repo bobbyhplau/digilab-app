@@ -2,17 +2,22 @@
 currentVersion: "1.4.0"
 lastUpdated: "2026-03-08"
 
-inProgress: []
+inProgress:
+  - id: query-optimization
+    title: "Materialized Views & Query Optimization"
+    description: "5 materialized views replace multi-table JOINs across all public tabs. Per-store grain enables future country/state/store-level filtering. Auto-refresh on admin mutations and Limitless sync."
+    tags: [scaling]
+    targetVersion: "v1.5.0"
+
+  - id: safe-query-migration
+    title: "Migrate Raw DB Calls to safe_query/safe_execute"
+    description: "Convert ~136 remaining raw dbGetQuery/dbExecute calls to safe_query/safe_execute wrappers with prepared statement retry logic. Prevents intermittent 'bind message supplies N parameters' errors from pool connection reuse."
+    tags: [reliability, tech-debt]
+    targetVersion: "v1.5.0"
 
 planned:
 
   # v1.5.0 — Performance & Caching
-  - id: query-optimization
-    title: "Query Optimization"
-    description: "Audit slow queries with EXPLAIN ANALYZE, add missing indexes, and implement materialized views for dashboard aggregations."
-    tags: [scaling]
-    targetVersion: "v1.5.0"
-
   - id: caching-expansion
     title: "Caching Expansion"
     description: "Expand bindCache() coverage across all outputs, batch startup queries, and tune Neon connection pool settings."
@@ -39,9 +44,9 @@ planned:
     targetVersion: "v1.6.0"
 
   # v1.7.0 — Tournament Data & Ingestion
-  - id: decklist-entry
-    title: "Decklist Entry & Backfill"
-    description: "Add decklists during tournament result entry or backfill them later from the Edit Tournaments tab."
+  - id: decklist-entry-expansion
+    title: "Decklist Entry Expansion"
+    description: "Tier 2: Deck builder integration, text paste import, and richer decklist display beyond URL links."
     tags: [feature, data]
     targetVersion: "v1.7.0"
 
@@ -148,6 +153,28 @@ planned:
     targetVersion: "Future"
 
 completed:
+  # v1.5.0 — Performance & Caching
+  - id: decklist-entry
+    title: "Decklist Entry (Tier 1 — URL Links)"
+    description: "Post-submission Step 3 across Enter Results, Upload Results, and Edit Tournaments for adding decklist URLs. Domain-allowlisted validation (7 approved deckbuilder sites), shared save component, sanitized display."
+    tags: [feature, data, security]
+    date: "2026-03"
+    version: "v1.5.0"
+
+  - id: materialized-views
+    title: "Materialized Views (PERF2)"
+    description: "5 pre-computed views replace multi-table JOINs across all public tabs. Per-store grain design with auto-refresh on admin mutations and Limitless sync."
+    tags: [scaling]
+    date: "2026-03"
+    version: "v1.5.0"
+
+  - id: bug-fixes-v1.5
+    title: "Bug Fixes (BUG 1-4, BUG 6)"
+    description: "Deck assignment mismatch, broken tournament deep links, points/WLT format persistence, modal stacking from accumulated handlers, decklist URL field restored."
+    tags: [fix]
+    date: "2026-03"
+    version: "v1.5.0"
+
   # v1.4.0 — Admin Improvements & Request Queue
   - id: admin-request-queue
     title: "Admin Request Queue & Notification Widget"
@@ -465,7 +492,9 @@ completed:
 
 ## In Progress
 
-*No features currently in active development.*
+| Feature | Description |
+|---------|-------------|
+| **Materialized Views & Query Optimization** | 5 MVs replace multi-table JOINs across all public tabs. Per-store grain for future filtering. Auto-refresh on mutations. |
 
 ---
 
@@ -474,9 +503,8 @@ completed:
 ### v1.5.0 — Performance & Caching
 | Feature | Description |
 |---------|-------------|
-| **Query Optimization** | EXPLAIN ANALYZE audit, missing indexes, materialized views |
 | **Caching Expansion** | Broader bindCache() coverage, batched startup queries, pool tuning |
-| **Lazy Tab Loading** | Defer data fetch until tab is visited |
+| **Lazy Tab Loading** | Defer data fetch until tab is actually visited |
 
 ### v1.6.0 — Results Redesign & Data Entry
 | Feature | Description |
@@ -660,14 +688,14 @@ Design doc: `docs/plans/2026-03-06-v1.4-admin-improvements-design.md`
 
 ## v1.5.0 — Performance & Caching
 
-| ID | Type | Description |
-|----|------|-------------|
-| PERF1 | PERFORMANCE | Query audit — identify slowest queries with `EXPLAIN ANALYZE`, add missing indexes |
-| PERF2 | PERFORMANCE | Materialized views for dashboard aggregations (pre-computed stats refreshed periodically) |
-| PERF3 | PERFORMANCE | Expand `bindCache()` coverage — audit which outputs aren't cached yet |
-| PERF4 | PERFORMANCE | Lazy tab loading — defer data fetch until tab is actually visited |
-| PERF5 | PERFORMANCE | Neon connection pool tuning — review pool size limits and timeouts |
-| PERF6 | PERFORMANCE | Batch initial queries — combine startup queries into fewer DB round trips |
+| ID | Type | Status | Description |
+|----|------|--------|-------------|
+| PERF1 | PERFORMANCE | TODO | Query audit — identify slowest queries with `EXPLAIN ANALYZE`, add missing indexes |
+| PERF2 | PERFORMANCE | **DONE** | Materialized views — 5 MVs replace all public tab JOINs, per-store grain, auto-refresh on mutations + Limitless sync |
+| PERF3 | PERFORMANCE | TODO | Expand `bindCache()` coverage — audit which outputs aren't cached yet |
+| PERF4 | PERFORMANCE | TODO | Lazy tab loading — defer data fetch until tab is actually visited |
+| PERF5 | PERFORMANCE | TODO | Neon connection pool tuning — review pool size limits and timeouts |
+| PERF6 | PERFORMANCE | TODO | Batch initial queries — combine startup queries into fewer DB round trips |
 
 ---
 

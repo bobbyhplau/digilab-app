@@ -15,6 +15,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **`mv_views_exist()` guard**: Checks MV availability at startup to fail gracefully if migration hasn't run.
 - **`record_format` column**: Tournaments table now stores original entry format (`'points'` or `'wlt'`).
 - **`points` column**: Results table now stores original points value alongside W-L-T.
+- **Decklist entry (BUG 6 restore)**: Post-submission Step 3 across all three result entry flows (Enter Results, Upload Results, Edit Tournaments) for adding decklist URLs. Shared `render_decklist_entry()` component with Skip/Save/Done controls.
+- **Decklist URL validation**: Domain allowlist restricts URLs to 7 approved deckbuilder sites (digimoncard.io, digimoncard.dev, digimoncard.app, digimonmeta.com, digitalgateopen.com, limitlesstcg.com, tcgstacked.com). Validates on save and sanitizes on display. `rel="noopener noreferrer"` on all decklist links.
+- **Shared `save_decklist_urls()` helper**: Single function in `R/admin_grid.R` handles validation, save, and skip-warning across all three entry flows.
 
 ### Changed
 - **Dashboard metrics**: Core metrics (tournaments, players) now use `mv_tournament_list` with proper `COUNT(DISTINCT)` instead of pre-aggregated `mv_dashboard_counts` to avoid double-counting.
@@ -31,6 +34,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Modal stacking on deck request (BUG 2)**: `observeEvent` inside `observe` + `lapply` created duplicate handlers on every grid change. One click could open multiple stacked modals. Replaced with fixed handler set created once at init.
 - **`get_format_choices` NULL crash**: Guard against missing columns when format query fails.
 - **Player CTE duplicate params**: PostgreSQL reuses `$1` across CTEs — removed duplicate filter params.
+- **Prepared statement collisions in edit grid**: Converted raw `dbGetQuery`/`dbExecute` calls in edit grid save loop and delete handler to `safe_query`/`safe_execute` with retry logic for stale prepared statement errors.
 
 ## [1.4.1] - 2026-03-08 - Audit Trail & Scene Guard
 

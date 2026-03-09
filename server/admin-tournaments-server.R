@@ -338,13 +338,13 @@ observeEvent(input$delete_tournament, {
   tournament_id <- as.integer(input$editing_tournament_id)
 
   # Get tournament info and results count
-  tournament <- dbGetQuery(db_pool, "
+  tournament <- safe_query(db_pool, "
     SELECT t.*, s.name as store_name,
-           (SELECT COUNT(*) FROM results WHERE tournament_id = t.tournament_id) as results_count
+           (SELECT COUNT(*)::int FROM results WHERE tournament_id = t.tournament_id) as results_count
     FROM tournaments t
     LEFT JOIN stores s ON t.store_id = s.store_id
     WHERE t.tournament_id = $1
-  ", params = list(tournament_id))
+  ", params = list(tournament_id), default = data.frame())
 
   showModal(modalDialog(
     title = "Confirm Delete",
@@ -808,9 +808,9 @@ observeEvent(input$edit_grid_save, {
   tournament_id <- rv$edit_grid_tournament_id
 
   # Get tournament info
-  tournament <- dbGetQuery(db_pool, "
+  tournament <- safe_query(db_pool, "
     SELECT tournament_id, event_type, rounds FROM tournaments WHERE tournament_id = $1
-  ", params = list(tournament_id))
+  ", params = list(tournament_id), default = data.frame())
 
   if (nrow(tournament) == 0) {
     notify("Tournament not found", type = "error")
@@ -821,7 +821,7 @@ observeEvent(input$edit_grid_save, {
   is_release <- tournament$event_type == "release_event"
 
   # Get UNKNOWN archetype ID
-  unknown_row <- dbGetQuery(db_pool, "SELECT archetype_id FROM deck_archetypes WHERE archetype_name = 'UNKNOWN' LIMIT 1")
+  unknown_row <- safe_query(db_pool, "SELECT archetype_id FROM deck_archetypes WHERE archetype_name = 'UNKNOWN' LIMIT 1", default = data.frame())
   unknown_id <- if (nrow(unknown_row) > 0) unknown_row$archetype_id[1] else NA_integer_
 
   if (is_release && is.na(unknown_id)) {
@@ -844,11 +844,11 @@ observeEvent(input$edit_grid_save, {
     delete_count <- 0L
 
     # Get scene_id for scene-scoped player matching
-    tournament_store <- dbGetQuery(db_pool, "
+    tournament_store <- safe_query(db_pool, "
       SELECT s.scene_id FROM tournaments t
       JOIN stores s ON t.store_id = s.store_id
       WHERE t.tournament_id = $1
-    ", params = list(tournament_id))
+    ", params = list(tournament_id), default = data.frame())
     scene_id <- if (nrow(tournament_store) > 0) tournament_store$scene_id[1] else NULL
 
     # 1. DELETE: rows that were deleted via X button
@@ -875,13 +875,13 @@ observeEvent(input$edit_grid_save, {
 
       # If this is an existing result, get the original player and update their name
       if (!is.na(row$result_id)) {
-        original <- dbGetQuery(db_pool, "
+        original <- safe_query(db_pool, "
           SELECT player_id FROM results WHERE result_id = $1
-        ", params = list(row$result_id))
+        ", params = list(row$result_id), default = data.frame())
         if (nrow(original) > 0) {
           player_id <- original$player_id[1]
           # Update the player's display_name if it changed
-          dbExecute(db_pool, "
+          safe_execute(db_pool, "
             UPDATE players SET display_name = $1, updated_at = CURRENT_TIMESTAMP, updated_by = $2 WHERE player_id = $3
           ", params = list(name, current_admin_username(rv), player_id))
         }
@@ -898,8 +898,8 @@ observeEvent(input$edit_grid_save, {
           if (match_info$status == "matched") {
             player_id <- match_info$player_id
           } else {
-            new_player <- dbGetQuery(db_pool, "INSERT INTO players (display_name) VALUES ($1) RETURNING player_id",
-                         params = list(name))
+            new_player <- safe_query(db_pool, "INSERT INTO players (display_name) VALUES ($1) RETURNING player_id",
+                         params = list(name), default = data.frame())
             player_id <- new_player$player_id[1]
           }
         }
@@ -907,7 +907,7 @@ observeEvent(input$edit_grid_save, {
 
       # Update member_number if provided and player doesn't have one yet
       if (nchar(member_num) > 0) {
-        dbExecute(db_pool, "
+        safe_execute(db_pool, "
           UPDATE players SET member_number = $1, updated_at = CURRENT_TIMESTAMP, updated_by = $2
           WHERE player_id = $3 AND (member_number IS NULL OR member_number = '')
         ", params = list(member_num, current_admin_username(rv), player_id))
@@ -989,9 +989,23 @@ observeEvent(input$edit_grid_save, {
 
     notify(msg, type = "message", duration = 5)
 
-    # Collapse grid and show main panel
+    # Transition to decklist section
+    rv$edit_decklist_results <- safe_query(db_pool, "
+      SELECT r.result_id, r.placement, p.display_name as player_name,
+             COALESCE(da.archetype_name, 'UNKNOWN') as deck_name,
+             CONCAT(r.wins, '-', r.losses, '-', r.ties) as record,
+             r.decklist_url
+      FROM results r
+      JOIN players p ON r.player_id = p.player_id
+      LEFT JOIN deck_archetypes da ON r.archetype_id = da.archetype_id
+      WHERE r.tournament_id = $1
+      ORDER BY r.placement ASC
+    ", params = list(tournament_id), default = data.frame())
+    rv$edit_decklist_tournament_id <- tournament_id
+
     shinyjs::hide("edit_results_grid_section")
-    shinyjs::show("edit_tournaments_main")
+    shinyjs::show("edit_decklist_section")
+
     rv$edit_grid_data <- NULL
     rv$edit_player_matches <- list()
     rv$edit_deleted_result_ids <- c()
@@ -1003,6 +1017,62 @@ observeEvent(input$edit_grid_save, {
   }, error = function(e) {
     notify(paste("Error saving results:", e$message), type = "error")
   })
+})
+
+# =============================================================================
+# Edit Decklist Links (after saving results)
+# =============================================================================
+
+rv$edit_decklist_results <- NULL
+rv$edit_decklist_tournament_id <- NULL
+
+output$edit_decklist_summary_bar <- renderUI({
+  req(rv$edit_decklist_tournament_id)
+  tournament <- safe_query(db_pool, "
+    SELECT t.tournament_id, s.name as store_name, t.event_date, t.event_type, t.format
+    FROM tournaments t JOIN stores s ON t.store_id = s.store_id
+    WHERE t.tournament_id = $1
+  ", params = list(rv$edit_decklist_tournament_id), default = data.frame())
+  if (nrow(tournament) == 0) return(NULL)
+  t <- tournament[1, ]
+  div(class = "alert alert-success d-flex align-items-center gap-2 mb-3",
+      bsicons::bs_icon("check-circle-fill"),
+      sprintf("Results saved for %s — %s (%s)", t$store_name, t$event_date, t$format))
+})
+
+output$edit_decklist_table <- renderUI({
+  req(rv$edit_decklist_results)
+  render_decklist_entry(rv$edit_decklist_results, "edit_decklist_")
+})
+
+save_edit_decklists <- function() {
+  req(rv$edit_decklist_results)
+  save_decklist_urls(rv$edit_decklist_results, input, "edit_decklist_", db_pool)
+}
+
+close_edit_decklist <- function() {
+  shinyjs::hide("edit_decklist_section")
+  shinyjs::show("edit_tournaments_main")
+  rv$edit_decklist_results <- NULL
+  rv$edit_decklist_tournament_id <- NULL
+}
+
+observeEvent(input$edit_decklist_save, {
+  saved <- save_edit_decklists()
+  if (saved > 0) {
+    notify(sprintf("Saved %d decklist link%s.", saved, if (saved == 1) "" else "s"), type = "message")
+  } else {
+    notify("No decklist links to save.", type = "warning")
+  }
+})
+
+observeEvent(input$edit_decklist_done, {
+  save_edit_decklists()
+  close_edit_decklist()
+})
+
+observeEvent(input$edit_decklist_skip, {
+  close_edit_decklist()
 })
 
 # Scene indicator for admin tournaments page

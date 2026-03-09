@@ -2,7 +2,7 @@
 
 Technical reference for the DigiLab codebase. Consult this document before adding new server modules, reactive values, or modifying core patterns.
 
-**Last Updated:** March 2026 (v1.3.0)
+**Last Updated:** March 2026 (v1.5.0-dev)
 
 > **Note:** Always keep this document in sync with code changes. Update when adding new reactive values, server modules, or patterns.
 
@@ -226,6 +226,8 @@ Declared at top of respective server files. All three grids use shared functions
 | `admin_record_format` | string | "points" or "wlt" |
 | `admin_player_matches` | list | Player match status per row |
 | `admin_deck_request_row` | integer | Row requesting a new deck |
+| `admin_decklist_results` | data.frame | Results for post-submit decklist entry (Step 3) |
+| `admin_decklist_tournament_id` | integer | Tournament ID for decklist entry |
 
 **Upload Results** (prefix: `submit_`, declared in `public-submit-server.R`):
 
@@ -240,16 +242,20 @@ Declared at top of respective server files. All three grids use shared functions
 | `ocr_pending_total_players` | integer | Pending player count for quality check |
 | `ocr_pending_total_rounds` | integer | Pending round count for quality check |
 | `ocr_pending_parsed_count` | integer | Parsed player count for quality check |
+| `submit_decklist_results` | data.frame | Results for post-submit decklist entry (Step 3) |
+| `submit_decklist_tournament_id` | integer | Tournament ID for decklist entry |
 
 **Edit Tournaments** (prefix: `edit_`, declared in `admin-tournaments-server.R`):
 
 | Name | Type | Description |
 |------|------|-------------|
 | `edit_grid_data` | data.frame | Grid rows for editing existing results |
-| `edit_record_format` | string | "points" or "wlt" (inferred from data) |
+| `edit_record_format` | string | "points" or "wlt" (read from DB) |
 | `edit_player_matches` | list | Player match status per row |
 | `edit_deleted_result_ids` | integer[] | Result IDs marked for DB deletion |
 | `edit_grid_tournament_id` | integer | Tournament being edited in grid |
+| `edit_decklist_results` | data.frame | Results for post-save decklist entry |
+| `edit_decklist_tournament_id` | integer | Tournament ID for decklist entry |
 
 ### Refresh Triggers
 
@@ -534,6 +540,55 @@ observe({
   req(rv$db_con, rv$is_admin)
   updateSelectInput(session, "my_dropdown", choices = ...)
 })
+```
+
+### Materialized Views (v1.5.0+)
+
+All 5 public tabs read from materialized views instead of multi-table JOINs. Views are stored at per-store grain with scene/country/state/online columns for flexible filtering.
+
+| View | Source Tabs | Grain |
+|------|------------|-------|
+| `mv_player_store_stats` | Players | player + store + format + archetype |
+| `mv_archetype_store_stats` | Meta, Dashboard | archetype + store + format + week |
+| `mv_tournament_list` | Tournaments, Dashboard | tournament (1 row per tournament) |
+| `mv_store_summary` | Stores | store (1 row per active store) |
+| `mv_dashboard_counts` | (mostly unused) | scene + format + event_type |
+
+**Refresh:** `refresh_materialized_views(pool)` in `shared-server.R` runs non-concurrent `REFRESH MATERIALIZED VIEW` on all 5 views. Triggered by:
+- `rv$data_refresh` observer (fires after any admin mutation)
+- `sync_limitless.py` (after online tournament sync)
+
+**Startup guard:** `mv_views_exist(pool)` checks if MVs are available. If not, the app can fall back to direct table queries.
+
+**Query pattern:**
+```r
+filters <- build_mv_filters(format = input$format, scene = rv$current_scene)
+result <- safe_query(db_pool, sprintf("
+  SELECT archetype_name, SUM(entries) as total
+  FROM mv_archetype_store_stats
+  WHERE 1=1 %s
+  GROUP BY archetype_name
+", filters$sql), params = filters$params)
+```
+
+**Important:** Never `SUM()` pre-aggregated `COUNT(DISTINCT)` columns across groups — entities spanning multiple groups get double-counted. Use `COUNT(DISTINCT)` at query time instead, or query from a view with the right grain (e.g., `mv_tournament_list` for tournament/player counts).
+
+### build_mv_filters() Helper (v1.5.0+)
+
+Generates WHERE clauses for flat materialized view queries. Unlike `build_filters_param()`, no table aliases or JOINs are needed because MVs are flat tables with all filter columns inline.
+
+```r
+filters <- build_mv_filters(
+  format = input$format,           # Format filter value
+  event_type = input$event_type,   # Event type filter
+  scene = rv$current_scene,        # Scene slug
+  community_store = rv$community_store,  # Single-store filter (future)
+  search = input$search,           # Text search
+  search_column = "display_name",  # Column to search
+  start_idx = 1,                   # Starting param index ($1, $2, ...)
+  alias = NULL                     # Optional table alias (for CTEs)
+)
+# Returns: list(sql = "AND format = $1 AND scene_id = ...", params = list(...), next_idx = 3)
 ```
 
 ### build_filters_param() Helper (v0.21.1+)

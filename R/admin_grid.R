@@ -283,6 +283,129 @@ render_grid_ui <- function(grid_data, record_format, is_release, deck_choices,
 }
 
 # -----------------------------------------------------------------------------
+# validate_decklist_url: Sanitize and validate decklist URLs
+# Only allows https:// URLs from approved deckbuilder domains.
+# Returns trimmed URL or NULL if invalid.
+# -----------------------------------------------------------------------------
+ALLOWED_DECKLIST_DOMAINS <- c(
+  "digimoncard.dev",
+  "digimoncard.io",
+  "digimoncard.app",
+  "digimonmeta.com",
+  "digitalgateopen.com",
+  "limitlesstcg.com",
+  "play.limitlesstcg.com",
+  "my.limitlesstcg.com",
+  "tcgstacked.com"
+)
+
+validate_decklist_url <- function(url) {
+  if (is.null(url) || is.na(url)) return(NULL)
+  url <- trimws(url)
+  if (nchar(url) == 0) return(NULL)
+  if (!grepl("^https://", url, ignore.case = TRUE)) return(NULL)
+  if (grepl("[<>\\s\"]", url, perl = TRUE)) return(NULL)
+  # Extract domain and check against allowlist
+  domain <- sub("^https://([^/]+).*$", "\\1", url, ignore.case = TRUE)
+  domain <- tolower(sub("^www\\.", "", domain))
+  if (!domain %in% ALLOWED_DECKLIST_DOMAINS) return(NULL)
+  url
+}
+
+# -----------------------------------------------------------------------------
+# save_decklist_urls: Shared save logic for decklist URL inputs
+# Used by all three entry flows (admin, submit, edit).
+# Parameters:
+#   results_df - Data frame with result_id column
+#   input      - Shiny input object
+#   prefix     - Input ID prefix (e.g., "admin_decklist_")
+#   db_pool    - Database connection pool
+# Returns: number of URLs saved
+# -----------------------------------------------------------------------------
+save_decklist_urls <- function(results_df, input, prefix, db_pool) {
+  saved <- 0L
+  skipped <- 0L
+  for (i in seq_len(nrow(results_df))) {
+    url_raw <- input[[paste0(prefix, i)]]
+    if (!is.null(url_raw) && nchar(trimws(url_raw)) > 0) {
+      url_val <- validate_decklist_url(url_raw)
+      if (!is.null(url_val)) {
+        safe_execute(db_pool, "UPDATE results SET decklist_url = $1, updated_at = CURRENT_TIMESTAMP WHERE result_id = $2",
+                     params = list(url_val, results_df$result_id[i]))
+        saved <- saved + 1L
+      } else {
+        skipped <- skipped + 1L
+      }
+    }
+  }
+  if (skipped > 0) {
+    notify(sprintf("%d invalid URL%s skipped — only links from approved deckbuilders are accepted.",
+                   skipped, if (skipped == 1) "" else "s"), type = "warning")
+  }
+  saved
+}
+
+# -----------------------------------------------------------------------------
+# render_decklist_entry: Post-submission confirmation screen with decklist URL inputs
+# Shows submitted results (placement, player, deck, record) with a URL field per row.
+# Parameters:
+#   results_df  - Data frame with result_id, placement, player_name, deck_name, record
+#   prefix      - Input ID prefix (e.g., "admin_decklist_", "submit_decklist_", "edit_decklist_")
+# Returns: tagList with header, result rows (read-only + URL input), and action buttons
+# -----------------------------------------------------------------------------
+render_decklist_entry <- function(results_df, prefix) {
+  if (is.null(results_df) || nrow(results_df) == 0) {
+    return(div(class = "text-muted text-center py-4", "No results to show."))
+  }
+
+  tips <- div(
+    class = "alert alert-info d-flex mb-3 py-2",
+    bsicons::bs_icon("link-45deg", class = "me-2 flex-shrink-0", size = "1.2em"),
+    div(
+      div(
+        "Paste decklist URLs from supported sites: ",
+        tags$strong("digimoncard.io"), ", ",
+        tags$strong("digimoncard.dev"), ", ",
+        tags$strong("digimoncard.app"), ", ",
+        tags$strong("digimonmeta.com"), ", ",
+        tags$strong("digitalgateopen.com"), ", ",
+        tags$strong("limitlesstcg.com"), ", or ",
+        tags$strong("tcgstacked.com"), "."
+      ),
+      tags$small(
+        class = "text-muted",
+        "Want to use a different deckbuilder? Let us know in the Discord."
+      )
+    )
+  )
+
+  header <- layout_columns(
+    col_widths = c(1, 3, 2, 2, 4),
+    class = "results-header-row",
+    div("#"), div("Player"), div("Deck"), div("Record"), div("Decklist URL")
+  )
+
+  rows <- lapply(seq_len(nrow(results_df)), function(i) {
+    row <- results_df[i, ]
+    place_class <- if (row$placement == 1) "place-1st" else if (row$placement == 2) "place-2nd" else if (row$placement == 3) "place-3rd" else ""
+
+    layout_columns(
+      col_widths = c(1, 3, 2, 2, 4),
+      class = "upload-result-row decklist-entry-row",
+      div(span(class = paste("placement-badge", place_class), grid_ordinal(row$placement))),
+      div(class = "fw-medium", row$player_name),
+      div(class = "text-muted small", if (!is.na(row$deck_name) && row$deck_name != "UNKNOWN") row$deck_name else "-"),
+      div(class = "text-muted small", row$record),
+      div(textInput(paste0(prefix, i), NULL,
+                    value = if (!is.na(row$decklist_url)) row$decklist_url else "",
+                    placeholder = "https://..."))
+    )
+  })
+
+  tagList(tips, header, rows)
+}
+
+# -----------------------------------------------------------------------------
 # parse_paste_data: Parse pasted spreadsheet text into structured row data
 # Splits by newlines, then by tabs (fallback: 2+ spaces).
 # Supported formats:

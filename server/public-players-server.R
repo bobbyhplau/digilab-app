@@ -731,17 +731,19 @@ output$player_detail_modal <- renderUI({
                   ordinal(row$Place)
                 ),
                 tags$td(sprintf("%d-%d", row$W, row$L)),
-                tags$td(
-                  if (!is.na(row$decklist_url) && nchar(row$decklist_url) > 0) {
+                tags$td({
+                  dl_url <- validate_decklist_url(row$decklist_url)
+                  if (!is.null(dl_url)) {
                     tags$a(
-                      href = row$decklist_url,
+                      href = dl_url,
                       target = "_blank",
+                      rel = "noopener noreferrer",
                       title = "View decklist",
                       class = "text-primary",
                       bsicons::bs_icon("list-ul")
                     )
                   }
-                )
+                })
               )
             })
           )
