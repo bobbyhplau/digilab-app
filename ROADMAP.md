@@ -83,49 +83,38 @@ planned:
     tags: [feature, community]
     targetVersion: "v1.10.0"
 
-  # Infrastructure / Hardening (no target version)
-  - id: login-rate-limiting
-    title: "Login Rate Limiting & Brute Force Protection"
-    description: "Add per-username failed attempt tracking with exponential backoff and temporary lockout after 5 failures. Current admin login has no rate limiting — low risk given small user base and unlisted login page, but good hardening for scale."
-    tags: [security, admin]
-    targetVersion: "Future"
-
+  # v1.6.0 additions
   - id: postmessage-origin-fix
     title: "postMessage Origin Validation Tightening"
     description: "scene-selector.js sends postMessage with wildcard '*' origin. Tighten to 'https://app.digilab.cards'. The receiver side already validates origin, so risk is minimal — this is defense-in-depth."
     tags: [security, fix]
-    targetVersion: "Future"
+    targetVersion: "v1.6.0"
 
-  # Future
-  - id: meta-insights-app
-    title: "Meta Insights App"
-    description: "Standalone analytics app for deep deck meta analysis, matchup data, and tournament trend insights."
-    tags: [new-app, analytics]
-    targetVersion: "Future"
-
-  - id: dev-insights-app
-    title: "Dev Insights App"
-    description: "Internal analytics dashboard for development metrics, app usage patterns, and operational monitoring."
-    tags: [new-app, analytics]
-    targetVersion: "Future"
-
-
-  - id: mascot-branding
-    title: "Mascot & Branding"
-    description: "Commission custom Digimon SVG set, Digivice footer watermark, and expanded Agumon poses for achievements and celebrations."
-    tags: [ux, content]
-    targetVersion: "Future"
-
+  # v1.8.0 additions
   - id: accessibility-pass
     title: "Accessibility Pass"
     description: "WCAG compliance audit covering color contrast, screen reader labels, keyboard navigation, and ARIA attributes."
     tags: [ux]
-    targetVersion: "Future"
+    targetVersion: "v1.8.0"
+
+  # v1.10.0 additions
+  - id: login-rate-limiting
+    title: "Login Rate Limiting & Brute Force Protection"
+    description: "Add per-username failed attempt tracking with exponential backoff and temporary lockout after 5 failures. Current admin login has no rate limiting — low risk given small user base and unlisted login page, but good hardening for scale."
+    tags: [security, admin]
+    targetVersion: "v1.10.0"
 
   - id: automated-testing
     title: "Automated Testing & CI"
     description: "Integration test suite for app loading, key queries, OCR parser accuracy, and regression prevention in CI."
     tags: [scaling]
+    targetVersion: "v1.10.0"
+
+  # Future
+  - id: mascot-branding
+    title: "Mascot & Branding"
+    description: "Commission custom Digimon SVG set, Digivice footer watermark, and expanded Agumon poses for achievements and celebrations."
+    tags: [ux, content]
     targetVersion: "Future"
 
 completed:
@@ -493,6 +482,7 @@ No features currently in progress.
 |---------|-------------|
 | **Results & Upload Tab Redesign** | Paired redesign of Enter Results and Upload Results with mobile optimization and data quality checks |
 | **Mobile Admin Tabs** | Mobile layouts for all scene admin and super admin tabs |
+| **postMessage Origin Fix** | Tighten wildcard origin to app.digilab.cards (defense-in-depth) |
 
 ### v1.7.0 — Tournament Data & Ingestion
 | Feature | Description |
@@ -506,6 +496,7 @@ No features currently in progress.
 |---------|-------------|
 | **Modal Improvements** | Rating sparklines, global vs local rank, deck history in player/store/deck modals |
 | **Scene Selector Redesign** | Scalable scene selection beyond a single dropdown |
+| **Accessibility Pass** | WCAG audit — color contrast, screen readers, keyboard navigation |
 
 ### v1.9.0 — Achievement Badges & Gamification
 | Feature | Description |
@@ -519,15 +510,13 @@ No features currently in progress.
 | **Admin Audit Log** | Track all admin changes with before/after snapshots and undo |
 | **Tournament Tiers** | Local, regional, national, international classification |
 | **Cross-Scene Badges** | Show scenes competed in with home scene inference |
+| **Login Rate Limiting** | Per-username failed attempt tracking with exponential backoff and lockout |
+| **Automated Testing & CI** | Integration tests for app loading, queries, OCR, regressions |
 
 ### Future
 | Feature | Description |
 |---------|-------------|
-| **Meta Insights App** | Standalone deep meta analysis, matchup data, tournament trends |
-| **Dev Insights App** | Internal analytics for development metrics and operational monitoring |
 | **Mascot & Branding** | Custom Digimon SVG commission, expanded Agumon poses |
-| **Accessibility Pass** | WCAG audit — color contrast, screen readers, keyboard navigation |
-| **Automated Testing & CI** | Integration tests for app loading, queries, OCR, regressions |
 
 ---
 
