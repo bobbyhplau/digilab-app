@@ -175,22 +175,32 @@ show_scene_request_modal <- function(prefill = NULL) {
 # ---------------------------------------------------------------------------
 
 observe({
-  tryCatch({
-    cache_count <- dbGetQuery(db_pool,
-      "SELECT COUNT(*) as n FROM player_ratings_cache")$n
-    if (is.na(cache_count) || cache_count == 0) {
-      message("[startup] Ratings cache empty, populating...")
+  # Batch startup checks into a single query
+  startup <- tryCatch(
+    dbGetQuery(db_pool, "
+      SELECT
+        (SELECT COUNT(*) FROM player_ratings_cache) as ratings_count,
+        (SELECT COUNT(*) FROM admin_users) as admin_count
+    "),
+    error = function(e) {
+      message("[startup] Database check failed: ", e$message)
+      data.frame(ratings_count = NA, admin_count = 0)
+    }
+  )
+
+  ratings_count <- startup$ratings_count %||% 0
+  if (is.na(ratings_count) || ratings_count == 0) {
+    message("[startup] Ratings cache empty, populating...")
+    tryCatch({
       recalculate_ratings_cache(db_pool)
       message("[startup] Ratings cache populated")
-    }
-  }, error = function(e) {
-    message("[startup] Could not check/populate ratings cache: ", e$message)
-  })
+    }, error = function(e) {
+      message("[startup] Could not populate ratings cache: ", e$message)
+    })
+  }
 
-  admin_count <- tryCatch(
-    dbGetQuery(db_pool, "SELECT COUNT(*) as n FROM admin_users"),
-    error = function(e) data.frame(n = 0))
-  if (nrow(admin_count) > 0 && admin_count$n[1] == 0) {
+  admin_count <- startup$admin_count %||% 0
+  if (is.na(admin_count) || admin_count == 0) {
     rv$needs_bootstrap <- TRUE
   }
 
@@ -215,6 +225,19 @@ is_mobile <- reactive({
 # ---------------------------------------------------------------------------
 # Navigation
 # ---------------------------------------------------------------------------
+
+# Track which tabs have been visited for lazy data loading.
+# Dashboard is pre-visited since it's the default landing tab.
+visited_tabs <- reactiveVal("dashboard")
+
+# Mark current tab as visited whenever navigation changes
+observeEvent(rv$current_nav, {
+  current <- rv$current_nav
+  visited <- visited_tabs()
+  if (!current %in% visited) {
+    visited_tabs(c(visited, current))
+  }
+})
 
 observeEvent(input$nav_dashboard, {
   nav_select("main_content", "dashboard")
@@ -1149,6 +1172,9 @@ safe_query <- function(pool, query, params = NULL, default = data.frame()) {
     grepl("invalid input syntax", msg, ignore.case = TRUE)
   }
 
+  # Time the query for performance monitoring
+  start_time <- proc.time()[["elapsed"]]
+
   # First attempt
   result <- tryCatch({
     if (!is.null(params) && length(params) > 0) {
@@ -1169,6 +1195,14 @@ safe_query <- function(pool, query, params = NULL, default = data.frame()) {
         DBI::dbGetQuery(pool, query)
       }
     }, error = function(e) e)
+  }
+
+  # Log slow queries (>200ms)
+  elapsed_ms <- (proc.time()[["elapsed"]] - start_time) * 1000
+  if (elapsed_ms > 200) {
+    query_preview <- substr(gsub("\\s+", " ", trimws(query)), 1, 120)
+    rows <- if (is.data.frame(result)) nrow(result) else "?"
+    message(sprintf("[SLOW QUERY %.0fms, %s rows] %s", elapsed_ms, rows, query_preview))
   }
 
   # Handle final result
@@ -1217,6 +1251,9 @@ safe_execute <- function(pool, query, params = NULL) {
     grepl("invalid input syntax", msg, ignore.case = TRUE)
   }
 
+  # Time the query for performance monitoring
+  start_time <- proc.time()[["elapsed"]]
+
   # First attempt
   result <- tryCatch({
     if (!is.null(params) && length(params) > 0) {
@@ -1237,6 +1274,13 @@ safe_execute <- function(pool, query, params = NULL) {
         DBI::dbExecute(pool, query)
       }
     }, error = function(e) e)
+  }
+
+  # Log slow writes (>200ms)
+  elapsed_ms <- (proc.time()[["elapsed"]] - start_time) * 1000
+  if (elapsed_ms > 200) {
+    query_preview <- substr(gsub("\\s+", " ", trimws(query)), 1, 120)
+    message(sprintf("[SLOW EXECUTE %.0fms] %s", elapsed_ms, query_preview))
   }
 
   # Handle final result
@@ -1280,7 +1324,7 @@ get_format_choices <- function(pool) {
     WHERE is_active = TRUE
     ORDER BY release_date DESC NULLS LAST
   ", default = data.frame())
-  if (nrow(formats) == 0) {
+  if (nrow(formats) == 0 || !"format_id" %in% names(formats)) {
     return(c("No formats configured" = ""))
   }
   choices <- setNames(formats$format_id, formats$display_name)
@@ -1558,3 +1602,103 @@ build_filters_param <- function(table_alias = "t",
     next_idx = idx
   )
 }
+
+# ---------------------------------------------------------------------------
+# Materialized View Helpers
+# ---------------------------------------------------------------------------
+
+# Build WHERE clause filters for materialized view queries.
+# MV columns use flat names (no table aliases needed for JOINs).
+# Set alias if using a table alias in the query (e.g., "mv").
+build_mv_filters <- function(format = NULL,
+                             event_type = NULL,
+                             scene = NULL,
+                             community_store = NULL,
+                             search = NULL,
+                             search_column = NULL,
+                             start_idx = 1,
+                             alias = NULL) {
+  prefix <- if (!is.null(alias)) paste0(alias, ".") else ""
+  sql_parts <- character(0)
+  params <- list()
+  idx <- start_idx
+
+  # Format filter
+  if (!is.null(format) && format != "") {
+    sql_parts <- c(sql_parts, sprintf("AND %sformat = $%d", prefix, idx))
+    params <- c(params, list(format))
+    idx <- idx + 1
+  }
+
+  # Event type filter
+  if (!is.null(event_type) && event_type != "") {
+    sql_parts <- c(sql_parts, sprintf("AND %sevent_type = $%d", prefix, idx))
+    params <- c(params, list(event_type))
+    idx <- idx + 1
+  }
+
+  # Search filter (LIKE match, case-insensitive)
+  if (!is.null(search) && trimws(search) != "" && !is.null(search_column)) {
+    col_ref <- if (!is.null(alias)) sprintf("%s.%s", alias, search_column) else search_column
+    sql_parts <- c(sql_parts, sprintf("AND LOWER(%s) LIKE LOWER($%d)", col_ref, idx))
+    params <- c(params, list(paste0("%", trimws(search), "%")))
+    idx <- idx + 1
+  }
+
+  # Community store filter (takes precedence over scene)
+  if (!is.null(community_store) && community_store != "") {
+    sql_parts <- c(sql_parts, sprintf("AND %sslug = $%d", prefix, idx))
+    params <- c(params, list(community_store))
+    idx <- idx + 1
+  } else if (!is.null(scene) && scene != "" && scene != "all") {
+    if (scene == "online") {
+      sql_parts <- c(sql_parts, sprintf("AND %sis_online = TRUE", prefix))
+    } else {
+      sql_parts <- c(sql_parts, sprintf(
+        "AND %sscene_id = (SELECT scene_id FROM scenes WHERE slug = $%d)", prefix, idx
+      ))
+      params <- c(params, list(scene))
+      idx <- idx + 1
+    }
+  }
+
+  list(
+    sql = paste(sql_parts, collapse = " "),
+    params = params,
+    next_idx = idx
+  )
+}
+
+# Refresh all materialized views concurrently.
+# Called after data mutations (result submission, tournament edit, sync).
+refresh_materialized_views <- function(pool) {
+  views <- c("mv_player_store_stats", "mv_archetype_store_stats",
+             "mv_tournament_list", "mv_store_summary", "mv_dashboard_counts")
+  con <- pool::localCheckout(pool)
+  for (v in views) {
+    tryCatch(
+      DBI::dbExecute(con, sprintf("REFRESH MATERIALIZED VIEW %s", v)),
+      error = function(e) message(sprintf("[MV REFRESH ERROR] %s: %s", v, e$message))
+    )
+  }
+}
+
+# Check if materialized views exist (used for graceful fallback)
+mv_views_exist <- function(pool) {
+  result <- tryCatch(
+    dbGetQuery(pool, "
+      SELECT COUNT(*) as n FROM pg_matviews
+      WHERE matviewname IN ('mv_player_store_stats', 'mv_archetype_store_stats',
+                            'mv_tournament_list', 'mv_store_summary', 'mv_dashboard_counts')
+    "),
+    error = function(e) data.frame(n = 0)
+  )
+  result$n[1] == 5
+}
+
+# Auto-refresh materialized views when data changes
+observe({
+  rv$data_refresh
+  req(rv$data_refresh > 0)  # Skip initial value
+  refresh_materialized_views(db_pool)
+})

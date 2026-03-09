@@ -13,11 +13,13 @@ observe({
   if (rv$wizard_step == 1) {
     shinyjs::show("wizard_step1")
     shinyjs::hide("wizard_step2")
-    shinyjs::runjs("$('#step1_indicator').addClass('active').removeClass('completed'); $('#step2_indicator').removeClass('active');")
-  } else {
+    shinyjs::hide("wizard_step3")
+    shinyjs::runjs("$('#step1_indicator').addClass('active').removeClass('completed'); $('#step2_indicator').removeClass('active completed'); $('#step3_indicator').removeClass('active completed');")
+  } else if (rv$wizard_step == 2) {
     shinyjs::hide("wizard_step1")
     shinyjs::show("wizard_step2")
-    shinyjs::runjs("$('#step2_indicator').addClass('active'); $('#step1_indicator').removeClass('active').addClass('completed');")
+    shinyjs::hide("wizard_step3")
+    shinyjs::runjs("$('#step2_indicator').addClass('active').removeClass('completed'); $('#step1_indicator').removeClass('active').addClass('completed'); $('#step3_indicator').removeClass('active completed');")
 
     # Hide deck selector for release events (sealed packs, no archetype)
     is_release <- !is.null(input$tournament_type) && input$tournament_type == "release_event"
@@ -28,6 +30,11 @@ observe({
       shinyjs::show("deck_selection_section")
       shinyjs::hide("release_event_deck_notice")
     }
+  } else if (rv$wizard_step == 3) {
+    shinyjs::hide("wizard_step1")
+    shinyjs::hide("wizard_step2")
+    shinyjs::show("wizard_step3")
+    shinyjs::runjs("$('#step3_indicator').addClass('active'); $('#step1_indicator').removeClass('active').addClass('completed'); $('#step2_indicator').removeClass('active').addClass('completed');")
   }
 })
 
@@ -153,11 +160,12 @@ observeEvent(input$create_tournament, {
   }
 
   tryCatch({
+    record_fmt <- input$admin_record_format %||% "points"
     result <- dbGetQuery(db_pool, "
-      INSERT INTO tournaments (store_id, event_date, event_type, format, player_count, rounds)
-      VALUES ($1, $2, $3, $4, $5, $6)
+      INSERT INTO tournaments (store_id, event_date, event_type, format, player_count, rounds, record_format)
+      VALUES ($1, $2, $3, $4, $5, $6, $7)
       RETURNING tournament_id
-    ", params = list(store_id, event_date, event_type, format, player_count, rounds))
+    ", params = list(store_id, event_date, event_type, format, player_count, rounds, record_fmt))
     new_id <- result$tournament_id[1]
 
     rv$active_tournament_id <- new_id
@@ -165,7 +173,7 @@ observeEvent(input$create_tournament, {
 
     notify("Tournament created!", type = "message")
     rv$wizard_step <- 2
-    rv$admin_record_format <- input$admin_record_format %||% "points"
+    rv$admin_record_format <- record_fmt
     rv$admin_grid_data <- init_grid_data(player_count)
     rv$admin_player_matches <- list()
 
@@ -346,11 +354,12 @@ observeEvent(input$create_anyway, {
   rounds <- input$tournament_rounds
 
   tryCatch({
+    record_fmt <- input$admin_record_format %||% "points"
     result <- dbGetQuery(db_pool, "
-      INSERT INTO tournaments (store_id, event_date, event_type, format, player_count, rounds)
-      VALUES ($1, $2, $3, $4, $5, $6)
+      INSERT INTO tournaments (store_id, event_date, event_type, format, player_count, rounds, record_format)
+      VALUES ($1, $2, $3, $4, $5, $6, $7)
       RETURNING tournament_id
-    ", params = list(store_id, event_date, event_type, format, player_count, rounds))
+    ", params = list(store_id, event_date, event_type, format, player_count, rounds, record_fmt))
     new_id <- result$tournament_id[1]
 
     rv$active_tournament_id <- new_id
@@ -359,7 +368,7 @@ observeEvent(input$create_anyway, {
 
     notify("Tournament created!", type = "message")
     rv$wizard_step <- 2
-    rv$admin_record_format <- input$admin_record_format %||% "points"
+    rv$admin_record_format <- record_fmt
     rv$admin_grid_data <- init_grid_data(player_count)
     rv$admin_player_matches <- list()
 
@@ -638,36 +647,33 @@ observeEvent(input$paste_apply, {
 # Admin Grid: Deck Request
 # =============================================================================
 
-observe({
-  req(rv$admin_grid_data)
-  grid <- rv$admin_grid_data
-
-  lapply(seq_len(nrow(grid)), function(i) {
-    observeEvent(input[[paste0("admin_deck_", i)]], {
-      if (!is.null(input[[paste0("admin_deck_", i)]]) &&
-          input[[paste0("admin_deck_", i)]] == "__REQUEST_NEW__") {
-        rv$admin_deck_request_row <- i
-        showModal(modalDialog(
-          title = tagList(bsicons::bs_icon("collection-fill"), " Request New Deck"),
-          textInput("admin_deck_request_name", "Deck Name", placeholder = "e.g., Blue Flare"),
-          uiOutput("admin_deck_request_suggestions"),
-          layout_columns(
-            col_widths = c(6, 6),
-            selectInput("admin_deck_request_color", "Primary Color",
-                        choices = c("Red", "Blue", "Yellow", "Green", "Purple", "Black", "White")),
-            selectInput("admin_deck_request_color2", "Secondary Color (optional)",
-                        choices = c("None" = "", "Red", "Blue", "Yellow", "Green", "Purple", "Black", "White"))
-          ),
-          textInput("admin_deck_request_card_id", "Card ID (optional)",
-                    placeholder = "e.g., BT1-001"),
-          footer = tagList(
-            modalButton("Cancel"),
-            actionButton("admin_deck_request_submit", "Submit Request", class = "btn-primary")
-          )
-        ))
-      }
-    }, ignoreInit = TRUE)
-  })
+# Create deck request handlers ONCE at init (not inside observe, which would accumulate handlers)
+lapply(1:128, function(i) {
+  observeEvent(input[[paste0("admin_deck_", i)]], {
+    if (isTRUE(input[[paste0("admin_deck_", i)]] == "__REQUEST_NEW__")) {
+      rv$admin_deck_request_row <- i
+      showModal(modalDialog(
+        title = tagList(bsicons::bs_icon("collection-fill"), " Request New Deck"),
+        textInput("admin_deck_request_name", "Deck Name", placeholder = "e.g., Blue Flare"),
+        uiOutput("admin_deck_request_suggestions"),
+        layout_columns(
+          col_widths = c(6, 6),
+          selectInput("admin_deck_request_color", "Primary Color",
+                      choices = c("Red", "Blue", "Yellow", "Green", "Purple", "Black", "White"),
+                      selectize = FALSE),
+          selectInput("admin_deck_request_color2", "Secondary Color (optional)",
+                      choices = c("None" = "", "Red", "Blue", "Yellow", "Green", "Purple", "Black", "White"),
+                      selectize = FALSE)
+        ),
+        textInput("admin_deck_request_card_id", "Card ID (optional)",
+                  placeholder = "e.g., BT1-001"),
+        footer = tagList(
+          modalButton("Cancel"),
+          actionButton("admin_deck_request_submit", "Submit Request", class = "btn-primary")
+        )
+      ))
+    }
+  }, ignoreInit = TRUE)
 })
 
 # Debounced deck name input for suggestions (300ms delay)
@@ -822,7 +828,8 @@ observeEvent(input$admin_submit_results, {
   rounds <- tournament$rounds
   is_release <- tournament$event_type == "release_event"
 
-  # Filter to rows with player names
+  # Filter to rows with player names (preserve original row index for input lookups)
+  grid$row_idx <- seq_len(nrow(grid))
   filled_rows <- grid[nchar(trimws(grid$player_name)) > 0, ]
 
   if (nrow(filled_rows) == 0) {
@@ -878,7 +885,7 @@ observeEvent(input$admin_submit_results, {
         ", params = list(member_num, current_admin_username(rv), player_id))
       }
 
-      # 2. Convert record
+      # 2. Convert record and store points
       if (record_format == "points") {
         pts <- row$points
         wins <- pts %/% 3L
@@ -888,6 +895,7 @@ observeEvent(input$admin_submit_results, {
         wins <- row$wins
         losses <- row$losses
         ties <- row$ties
+        pts <- as.integer((wins * 3L) + ties)
       }
 
       # 3. Resolve deck
@@ -895,7 +903,7 @@ observeEvent(input$admin_submit_results, {
       if (is_release) {
         archetype_id <- unknown_id
       } else {
-        deck_input <- input[[paste0("admin_deck_", row$placement)]]
+        deck_input <- input[[paste0("admin_deck_", row$row_idx)]]
 
         if (is.null(deck_input) || nchar(deck_input) == 0 || deck_input == "__REQUEST_NEW__") {
           archetype_id <- unknown_id
@@ -910,10 +918,10 @@ observeEvent(input$admin_submit_results, {
       # 4. Insert result
       dbExecute(db_pool, "
         INSERT INTO results (tournament_id, player_id, archetype_id, pending_deck_request_id,
-                             placement, wins, losses, ties)
-        VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+                             placement, wins, losses, ties, points)
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
       ", params = list(rv$active_tournament_id, player_id, archetype_id,
-                       pending_deck_request_id, row$placement, wins, losses, ties))
+                       pending_deck_request_id, row$placement, wins, losses, ties, pts))
 
       result_count <- result_count + 1L
     }
@@ -930,23 +938,95 @@ observeEvent(input$admin_submit_results, {
     notify(sprintf("Tournament submitted! %d results recorded.", as.integer(result_count)),
                      type = "message", duration = 5)
 
-    # Reset to Step 1
-    rv$active_tournament_id <- NULL
-    rv$wizard_step <- 1
-    rv$current_results <- data.frame()
-    rv$admin_grid_data <- NULL
-    rv$admin_player_matches <- list()
+    # Load submitted results for decklist entry (Step 3)
+    rv$admin_decklist_results <- safe_query(db_pool, "
+      SELECT r.result_id, r.placement, p.display_name as player_name,
+             COALESCE(da.archetype_name, 'UNKNOWN') as deck_name,
+             CONCAT(r.wins, '-', r.losses, '-', r.ties) as record,
+             r.decklist_url
+      FROM results r
+      JOIN players p ON r.player_id = p.player_id
+      LEFT JOIN deck_archetypes da ON r.archetype_id = da.archetype_id
+      WHERE r.tournament_id = $1
+      ORDER BY r.placement ASC
+    ", params = list(rv$active_tournament_id), default = data.frame())
+    rv$admin_decklist_tournament_id <- rv$active_tournament_id
 
-    # Clear Step 1 form fields
-    updateSelectInput(session, "tournament_store", selected = "")
-    updateDateInput(session, "tournament_date", value = NA)
-    updateSelectInput(session, "tournament_type", selected = "")
-    updateSelectInput(session, "tournament_format", selected = "")
-    updateNumericInput(session, "tournament_players", value = 8)
-    updateNumericInput(session, "tournament_rounds", value = 3)
-    updateRadioButtons(session, "admin_record_format", selected = "points")
+    # Move to Step 3 (decklists)
+    rv$wizard_step <- 3
 
   }, error = function(e) {
     notify(paste("Error submitting results:", e$message), type = "error")
   })
+})
+
+# =============================================================================
+# Step 3: Decklist Links
+# =============================================================================
+
+rv$admin_decklist_results <- NULL
+rv$admin_decklist_tournament_id <- NULL
+
+# Summary bar for Step 3
+output$admin_decklist_summary_bar <- renderUI({
+  req(rv$admin_decklist_tournament_id)
+  tournament <- safe_query(db_pool, "
+    SELECT t.tournament_id, s.name as store_name, t.event_date, t.event_type, t.format
+    FROM tournaments t JOIN stores s ON t.store_id = s.store_id
+    WHERE t.tournament_id = $1
+  ", params = list(rv$admin_decklist_tournament_id), default = data.frame())
+  if (nrow(tournament) == 0) return(NULL)
+  t <- tournament[1, ]
+  div(class = "alert alert-success d-flex align-items-center gap-2 mb-3",
+      bsicons::bs_icon("check-circle-fill"),
+      sprintf("Results submitted for %s — %s (%s)", t$store_name, t$event_date, t$format))
+})
+
+# Render decklist entry table
+output$admin_decklist_table <- renderUI({
+  req(rv$admin_decklist_results)
+  render_decklist_entry(rv$admin_decklist_results, "admin_decklist_")
+})
+
+# Save decklist links
+save_admin_decklists <- function() {
+  req(rv$admin_decklist_results)
+  save_decklist_urls(rv$admin_decklist_results, input, "admin_decklist_", db_pool)
+}
+
+# Reset wizard to Step 1
+reset_admin_wizard <- function() {
+  rv$active_tournament_id <- NULL
+  rv$wizard_step <- 1
+  rv$current_results <- data.frame()
+  rv$admin_grid_data <- NULL
+  rv$admin_player_matches <- list()
+  rv$admin_decklist_results <- NULL
+  rv$admin_decklist_tournament_id <- NULL
+
+  updateSelectInput(session, "tournament_store", selected = "")
+  updateDateInput(session, "tournament_date", value = NA)
+  updateSelectInput(session, "tournament_type", selected = "")
+  updateSelectInput(session, "tournament_format", selected = "")
+  updateNumericInput(session, "tournament_players", value = 8)
+  updateNumericInput(session, "tournament_rounds", value = 3)
+  updateRadioButtons(session, "admin_record_format", selected = "points")
+}
+
+observeEvent(input$admin_save_decklists, {
+  saved <- save_admin_decklists()
+  if (saved > 0) {
+    notify(sprintf("Saved %d decklist link%s.", saved, if (saved == 1) "" else "s"), type = "message")
+  } else {
+    notify("No decklist links to save.", type = "warning")
+  }
+})
+
+observeEvent(input$admin_done_decklists, {
+  save_admin_decklists()
+  reset_admin_wizard()
+})
+
+observeEvent(input$admin_skip_decklists, {
+  reset_admin_wizard()
 })
