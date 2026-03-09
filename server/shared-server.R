@@ -188,7 +188,8 @@ observe({
     }
   )
 
-  if (is.na(startup$ratings_count) || startup$ratings_count == 0) {
+  ratings_count <- startup$ratings_count %||% 0
+  if (is.na(ratings_count) || ratings_count == 0) {
     message("[startup] Ratings cache empty, populating...")
     tryCatch({
       recalculate_ratings_cache(db_pool)
@@ -198,7 +199,8 @@ observe({
     })
   }
 
-  if (startup$admin_count == 0) {
+  admin_count <- startup$admin_count %||% 0
+  if (is.na(admin_count) || admin_count == 0) {
     rv$needs_bootstrap <- TRUE
   }
 
