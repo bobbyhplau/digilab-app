@@ -123,6 +123,8 @@ output$player_standings <- renderReactable({
   having_idx <- filters$next_idx
 
   # Single query: player stats + main deck from MV, ratings from cache
+  # Both CTEs share the same filter params ($1..N for filters, $N+1 for HAVING)
+  # The deck_ranked CTE reuses the same $1..N placeholders (same filter values)
   result <- safe_query(db_pool, sprintf("
     WITH player_agg AS (
       SELECT player_id, display_name as \"Player\",
@@ -150,7 +152,7 @@ output$player_standings <- renderReactable({
     FROM player_agg pa
     LEFT JOIN deck_ranked dr ON pa.player_id = dr.player_id AND dr.rn = 1
   ", filters$sql, having_idx, filters$sql),
-  params = c(filters$params, list(as.integer(min_events)), filters$params),
+  params = c(filters$params, list(as.integer(min_events))),
   default = data.frame())
 
   if (nrow(result) == 0) {
@@ -368,7 +370,7 @@ output$mobile_players_cards <- renderUI({
     FROM player_agg pa
     LEFT JOIN deck_ranked dr ON pa.player_id = dr.player_id AND dr.rn = 1
   ", filters$sql, having_idx, filters$sql),
-  params = c(filters$params, list(as.integer(min_events)), filters$params),
+  params = c(filters$params, list(as.integer(min_events))),
   default = data.frame())
 
   if (nrow(result) == 0) {
