@@ -206,8 +206,10 @@ render_grid_ui <- function(grid_data, record_format, is_release, deck_choices,
       } else if (match_info$status == "ambiguous") {
         n_candidates <- if (!is.null(match_info$candidates)) nrow(match_info$candidates) else 0
         div(class = "player-match-indicator ambiguous",
+            style = "cursor: pointer;",
+            onclick = sprintf("Shiny.setInputValue('%sdisambiguate_row', %d, {priority: 'event'})", prefix, i),
             bsicons::bs_icon("exclamation-triangle-fill"),
-            span(class = "match-label", paste0(n_candidates, " matches — needs Bandai ID")))
+            span(class = "match-label", paste0(n_candidates, " matches — pick one")))
       } else if (match_info$status == "new") {
         div(class = "player-match-indicator new",
             bsicons::bs_icon("person-plus-fill"),
