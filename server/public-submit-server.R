@@ -19,17 +19,63 @@ rv$submit_grid_data <- NULL
 rv$submit_player_matches <- list()
 rv$submit_ocr_row_indices <- NULL
 
-# Populate store dropdown
+# Populate scene dropdown (default to current scene)
 observe({
-  req("submit" %in% visited_tabs())  # Lazy load: skip until tab visited
+  req("submit" %in% visited_tabs())
 
-  stores <- safe_query(db_pool, "
-    SELECT store_id, name FROM stores
-    WHERE is_active = TRUE
-    ORDER BY name
-  ")
-  if (nrow(stores) == 0) { invalidateLater(500); return() }
-  choices <- setNames(stores$store_id, stores$name)
+  scenes <- safe_query(db_pool, "
+    SELECT scene_id, display_name FROM scenes
+    WHERE scene_type = 'metro' AND is_active = TRUE
+    ORDER BY display_name
+  ", default = data.frame())
+  if (nrow(scenes) == 0) { invalidateLater(500); return() }
+
+  # Add Online option
+  choices <- c(setNames(scenes$scene_id, scenes$display_name),
+               "Online / Webcam" = "online")
+
+  # Default to current scene if it matches
+  current <- rv$current_scene
+  selected <- ""
+  if (!is.null(current) && current != "all") {
+    scene_row <- safe_query(db_pool, "SELECT scene_id FROM scenes WHERE slug = $1",
+                            params = list(current), default = data.frame())
+    if (nrow(scene_row) > 0 && as.character(scene_row$scene_id[1]) %in% choices) {
+      selected <- as.character(scene_row$scene_id[1])
+    } else if (current == "online") {
+      selected <- "online"
+    }
+  }
+
+  updateSelectInput(session, "submit_scene",
+                    choices = c("Select scene..." = "", choices),
+                    selected = selected)
+})
+
+# Populate store dropdown filtered by selected scene
+observeEvent(input$submit_scene, {
+  scene_val <- input$submit_scene
+  if (is.null(scene_val) || scene_val == "") {
+    updateSelectInput(session, "submit_store",
+                      choices = c("Select scene first..." = ""))
+    return()
+  }
+
+  if (scene_val == "online") {
+    stores <- safe_query(db_pool, "
+      SELECT store_id, name FROM stores
+      WHERE is_active = TRUE AND is_online = TRUE
+      ORDER BY name
+    ", default = data.frame())
+  } else {
+    stores <- safe_query(db_pool, "
+      SELECT store_id, name FROM stores
+      WHERE is_active = TRUE AND scene_id = $1
+      ORDER BY name
+    ", params = list(as.integer(scene_val)), default = data.frame())
+  }
+
+  choices <- if (nrow(stores) > 0) setNames(stores$store_id, stores$name) else character()
   updateSelectInput(session, "submit_store",
                     choices = c("Select store..." = "", choices))
 })
