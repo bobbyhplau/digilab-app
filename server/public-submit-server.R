@@ -908,6 +908,16 @@ observeEvent(input$submit_player_blur, {
   if (match_info$status == "matched") {
     rv$submit_grid_data$matched_player_id[row_num] <- match_info$player_id
     rv$submit_grid_data$matched_member_number[row_num] <- match_info$member_number
+  } else if (match_info$status == "ambiguous") {
+    # Auto-select first candidate in public flow (no disambiguation modal)
+    rv$submit_grid_data$match_status[row_num] <- "matched"
+    rv$submit_grid_data$matched_player_id[row_num] <- match_info$candidates$player_id[1]
+    rv$submit_grid_data$matched_member_number[row_num] <- match_info$candidates$member_number[1]
+    rv$submit_player_matches[[as.character(row_num)]] <- list(
+      status = "matched",
+      player_id = match_info$candidates$player_id[1],
+      member_number = match_info$candidates$member_number[1]
+    )
   } else {
     rv$submit_grid_data$matched_player_id[row_num] <- NA_integer_
     rv$submit_grid_data$matched_member_number[row_num] <- NA_character_
@@ -1345,6 +1355,9 @@ observeEvent(input$submit_tournament, {
     results <- rv$submit_ocr_results
   }
 
+  # Get scene_id for identity-aware player creation
+  scene_id <- get_store_scene_id(as.integer(input$submit_store), db_pool)
+
   # Filter out blank rows before submission
   results <- results[!is.na(results$username) & trimws(results$username) != "", ]
 
@@ -1433,7 +1446,7 @@ observeEvent(input$submit_tournament, {
                      !grepl("^GUEST", member_number, ignore.case = TRUE)
       clean_member <- if (has_real_id) member_number else NULL
 
-      if (!is.na(row$matched_player_id) && row$match_status %in% c("matched", "possible")) {
+      if (!is.na(row$matched_player_id) && row$match_status == "matched") {
         player_id <- row$matched_player_id
         # Promote to verified if gaining a real Bandai ID
         if (has_real_id) {
