@@ -146,25 +146,30 @@ observe({
      WHERE is_active = TRUE
      ORDER BY scene_type, display_name",
     default = data.frame(scene_id = integer(), display_name = character()))
-  if (nrow(scenes) > 0) {
-    choices <- setNames(as.character(scenes$scene_id), scenes$display_name)
-    # Preserve current selection when repopulating choices
-    # Use editing_store_id to detect if admin is mid-edit; if so, keep their selection stable
-    current_selection <- isolate(input$store_scene)
-    editing_id <- isolate(input$editing_store_id)
-    if (!is.null(editing_id) && nchar(editing_id) > 0 && (is.null(current_selection) || current_selection == "")) {
-      # Mid-edit but selection is empty — look up the store's actual scene_id to prevent NULL
-      stored_scene <- safe_query(db_pool, "SELECT scene_id FROM stores WHERE store_id = $1",
-                   params = list(as.integer(editing_id)),
-                   default = data.frame(scene_id = integer()))
-      if (nrow(stored_scene) > 0 && !is.na(stored_scene$scene_id)) {
-        current_selection <- as.character(stored_scene$scene_id)
-      }
-    }
-    updateSelectInput(session, "store_scene",
-                      choices = c("Select scene..." = "", choices),
-                      selected = current_selection)
+
+  # If scenes came back empty (likely prepared stmt collision), retry
+  if (nrow(scenes) == 0) {
+    invalidateLater(500)
+    return()
   }
+
+  choices <- setNames(as.character(scenes$scene_id), scenes$display_name)
+  # Preserve current selection when repopulating choices
+  # Use editing_store_id to detect if admin is mid-edit; if so, keep their selection stable
+  current_selection <- isolate(input$store_scene)
+  editing_id <- isolate(input$editing_store_id)
+  if (!is.null(editing_id) && nchar(editing_id) > 0 && (is.null(current_selection) || current_selection == "")) {
+    # Mid-edit but selection is empty — look up the store's actual scene_id to prevent NULL
+    stored_scene <- safe_query(db_pool, "SELECT scene_id FROM stores WHERE store_id = $1",
+                 params = list(as.integer(editing_id)),
+                 default = data.frame(scene_id = integer()))
+    if (nrow(stored_scene) > 0 && !is.na(stored_scene$scene_id)) {
+      current_selection <- as.character(stored_scene$scene_id)
+    }
+  }
+  updateSelectInput(session, "store_scene",
+                    choices = c("Select scene..." = "", choices),
+                    selected = current_selection)
 })
 
 # --- Populate stores scene filter dropdown (superadmin only) ---
@@ -178,13 +183,12 @@ observe({
   scenes <- safe_query(db_pool,
     "SELECT slug, display_name FROM scenes WHERE is_active = TRUE ORDER BY display_name",
     default = data.frame())
-  if (nrow(scenes) > 0) {
-    choices <- c("Current Scene" = "current", "All Scenes" = "all",
-                 setNames(scenes$slug, scenes$display_name))
-    current <- isolate(input$admin_stores_scene_filter)
-    updateSelectInput(session, "admin_stores_scene_filter",
-                      choices = choices, selected = current %||% "current")
-  }
+  if (nrow(scenes) == 0) { invalidateLater(500); return() }
+  choices <- c("Current Scene" = "current", "All Scenes" = "all",
+               setNames(scenes$slug, scenes$display_name))
+  current <- isolate(input$admin_stores_scene_filter)
+  updateSelectInput(session, "admin_stores_scene_filter",
+                    choices = choices, selected = current %||% "current")
 })
 
 # --- Refresh tournament_store dropdown on data changes ---
@@ -193,8 +197,13 @@ observe({
 observe({
   rv$data_refresh
   req(db_pool, rv$is_admin)
+  store_choices <- get_store_choices(db_pool, include_none = TRUE)
+  # If store choices came back empty (likely prepared stmt collision), retry
+  if (length(store_choices) <= 1) {
+    invalidateLater(500)
+  }
   updateSelectInput(session, "tournament_store",
-                    choices = get_store_choices(db_pool, include_none = TRUE))
+                    choices = store_choices)
 })
 
 # Add store

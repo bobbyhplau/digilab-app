@@ -1040,6 +1040,12 @@ observe({
   # Preserve current selection when repopulating choices
   current_selection <- isolate(input$tournament_store)
   store_choices <- get_store_choices(db_pool, include_none = TRUE)
+
+  # If store choices came back empty (likely prepared stmt collision), retry
+  if (length(store_choices) <= 1) {
+    invalidateLater(500)
+  }
+
   updateSelectInput(session, "tournament_store",
                     choices = store_choices,
                     selected = current_selection)
@@ -1224,6 +1230,12 @@ observe({
   }
 
   format_choices <- get_format_choices(db_pool)
+
+  # If format choices came back as fallback (likely prepared stmt collision), retry
+  if (length(format_choices) == 1 && names(format_choices)[1] == "No formats configured") {
+    invalidateLater(500)
+  }
+
   current_tournament <- isolate(input$tournament_format)
   updateSelectInput(session, "tournament_format", choices = format_choices,
                     selected = current_tournament)

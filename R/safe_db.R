@@ -17,7 +17,32 @@ is_prepared_stmt_error <- function(msg) {
   grepl("needs to be bound", msg, ignore.case = TRUE) ||
   grepl("multiple queries.*same column", msg, ignore.case = TRUE) ||
   grepl("Query requires \\d+ params", msg, ignore.case = TRUE) ||
-  grepl("invalid input syntax", msg, ignore.case = TRUE)
+  grepl("invalid input syntax", msg, ignore.case = TRUE) ||
+  grepl("statement.*does not exist", msg, ignore.case = TRUE)
+}
+
+#' Run a query on a dedicated connection checked out from the pool.
+#' Bypasses prepared statement collisions by using a fresh connection.
+#' @param pool Database connection pool
+#' @param query SQL query string
+#' @param params List or NULL
+#' @param mode "query" for SELECT (dbGetQuery), "execute" for DML (dbExecute)
+#' @return Query result or rows affected
+run_on_dedicated_conn <- function(pool, query, params = NULL, mode = "query") {
+  # If already a raw DBI connection (not a pool), use it directly
+  if (!inherits(pool, "Pool")) {
+    fn <- if (mode == "query") DBI::dbGetQuery else DBI::dbExecute
+    if (!is.null(params) && length(params) > 0) return(fn(pool, query, params = params))
+    return(fn(pool, query))
+  }
+  conn <- pool::poolCheckout(pool)
+  on.exit(pool::poolReturn(conn), add = TRUE)
+  fn <- if (mode == "query") DBI::dbGetQuery else DBI::dbExecute
+  if (!is.null(params) && length(params) > 0) {
+    fn(conn, query, params = params)
+  } else {
+    fn(conn, query)
+  }
 }
 
 #' Safe Database Query (Implementation)
@@ -37,26 +62,36 @@ safe_query_impl <- function(pool, query, params = NULL, default = data.frame(), 
   # Time the query for performance monitoring
   start_time <- proc.time()[["elapsed"]]
 
-  # First attempt
-  result <- tryCatch({
-    if (!is.null(params) && length(params) > 0) {
-      DBI::dbGetQuery(pool, query, params = params)
-    } else {
-      DBI::dbGetQuery(pool, query)
-    }
-  }, error = function(e) e)
+  # Retry up to 3 times with exponential backoff for prepared statement collisions.
+  # Final retry uses a dedicated connection checkout to bypass pool contention.
+  max_retries <- 3
+  result <- NULL
 
-  # If prepared statement error, retry once (connection pool may have stale state)
-  if (inherits(result, "error") && is_prepared_stmt_error(conditionMessage(result))) {
-    message("[safe_query] Prepared statement error, retrying: ", conditionMessage(result))
-    Sys.sleep(0.1)  # Brief pause before retry
+  for (attempt in seq_len(max_retries + 1)) {
     result <- tryCatch({
-      if (!is.null(params) && length(params) > 0) {
-        DBI::dbGetQuery(pool, query, params = params)
+      if (attempt <= max_retries) {
+        # Normal pool-managed attempt
+        if (!is.null(params) && length(params) > 0) {
+          DBI::dbGetQuery(pool, query, params = params)
+        } else {
+          DBI::dbGetQuery(pool, query)
+        }
       } else {
-        DBI::dbGetQuery(pool, query)
+        # Final attempt: dedicated connection bypasses pool contention
+        run_on_dedicated_conn(pool, query, params, mode = "query")
       }
     }, error = function(e) e)
+
+    # Success — break out of retry loop
+    if (!inherits(result, "error")) break
+
+    # Not a retryable error — give up immediately
+    if (!is_prepared_stmt_error(conditionMessage(result))) break
+
+    # Log and backoff before next retry
+    message(sprintf("[safe_query] Attempt %d/%d failed (prepared stmt collision): %s",
+                    attempt, max_retries + 1, conditionMessage(result)))
+    if (attempt <= max_retries) Sys.sleep(0.05 * (2 ^ (attempt - 1)))
   }
 
   # Log slow queries (>200ms)
@@ -102,26 +137,30 @@ safe_execute_impl <- function(pool, query, params = NULL, sentry_tags = list()) 
   # Time the query for performance monitoring
   start_time <- proc.time()[["elapsed"]]
 
-  # First attempt
-  result <- tryCatch({
-    if (!is.null(params) && length(params) > 0) {
-      DBI::dbExecute(pool, query, params = params)
-    } else {
-      DBI::dbExecute(pool, query)
-    }
-  }, error = function(e) e)
+  # Retry up to 3 times with exponential backoff for prepared statement collisions.
+  # Final retry uses a dedicated connection checkout to bypass pool contention.
+  max_retries <- 3
+  result <- NULL
 
-  # If prepared statement error, retry once (connection pool may have stale state)
-  if (inherits(result, "error") && is_prepared_stmt_error(conditionMessage(result))) {
-    message("[safe_execute] Prepared statement error, retrying: ", conditionMessage(result))
-    Sys.sleep(0.1)  # Brief pause before retry
+  for (attempt in seq_len(max_retries + 1)) {
     result <- tryCatch({
-      if (!is.null(params) && length(params) > 0) {
-        DBI::dbExecute(pool, query, params = params)
+      if (attempt <= max_retries) {
+        if (!is.null(params) && length(params) > 0) {
+          DBI::dbExecute(pool, query, params = params)
+        } else {
+          DBI::dbExecute(pool, query)
+        }
       } else {
-        DBI::dbExecute(pool, query)
+        run_on_dedicated_conn(pool, query, params, mode = "execute")
       }
     }, error = function(e) e)
+
+    if (!inherits(result, "error")) break
+    if (!is_prepared_stmt_error(conditionMessage(result))) break
+
+    message(sprintf("[safe_execute] Attempt %d/%d failed (prepared stmt collision): %s",
+                    attempt, max_retries + 1, conditionMessage(result)))
+    if (attempt <= max_retries) Sys.sleep(0.05 * (2 ^ (attempt - 1)))
   }
 
   # Log slow writes (>200ms)

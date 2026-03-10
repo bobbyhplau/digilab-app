@@ -28,14 +28,13 @@ observe({
      WHERE scene_type IN ('metro', 'online') AND is_active = TRUE
      ORDER BY display_name",
     default = data.frame())
-  if (nrow(scenes) > 0) {
-    choices <- setNames(as.character(scenes$scene_id), scenes$display_name)
-    # Preserve current selection when repopulating choices
-    current_selection <- isolate(input$admin_scene)
-    updateSelectInput(session, "admin_scene",
-                      choices = c("Select scene..." = "", choices),
-                      selected = current_selection)
-  }
+  if (nrow(scenes) == 0) { invalidateLater(500); return() }
+  choices <- setNames(as.character(scenes$scene_id), scenes$display_name)
+  # Preserve current selection when repopulating choices
+  current_selection <- isolate(input$admin_scene)
+  updateSelectInput(session, "admin_scene",
+                    choices = c("Select scene..." = "", choices),
+                    selected = current_selection)
 })
 
 # --- Populate scene filter dropdown ---
@@ -49,15 +48,14 @@ observe({
   scenes <- safe_query(db_pool,
     "SELECT scene_id, display_name FROM scenes WHERE is_active = TRUE ORDER BY display_name",
     default = data.frame())
-  if (nrow(scenes) > 0) {
-    choices <- c("All Scenes" = "all",
-                 "Super Admins" = "super",
-                 "No Admin" = "uncovered",
-                 setNames(as.character(scenes$scene_id), scenes$display_name))
-    current <- isolate(input$admin_users_scene_filter)
-    updateSelectInput(session, "admin_users_scene_filter",
-                      choices = choices, selected = current %||% "all")
-  }
+  if (nrow(scenes) == 0) { invalidateLater(500); return() }
+  choices <- c("All Scenes" = "all",
+               "Super Admins" = "super",
+               "No Admin" = "uncovered",
+               setNames(as.character(scenes$scene_id), scenes$display_name))
+  current <- isolate(input$admin_users_scene_filter)
+  updateSelectInput(session, "admin_users_scene_filter",
+                    choices = choices, selected = current %||% "all")
 })
 
 # --- Admin Users Table ---
