@@ -634,7 +634,15 @@ observeEvent(input$admin_store_list__reactable__selected, {
   updateTextInput(session, "store_state", value = if (is.na(store$state)) "" else store$state)
   updateTextInput(session, "store_zip", value = if (is.na(store$zip_code)) "" else store$zip_code)
   updateTextInput(session, "store_website", value = if (is.na(store$website)) "" else store$website)
-  updateSelectInput(session, "store_scene", selected = if (is.na(store$scene_id)) "" else as.character(store$scene_id))
+  # Set scene choices + selection together to avoid race condition where
+  # choices haven't loaded yet and selected value gets silently dropped
+  scene_rows <- safe_query(db_pool,
+    "SELECT scene_id, display_name FROM scenes WHERE is_active = TRUE ORDER BY scene_type, display_name",
+    default = data.frame(scene_id = integer(), display_name = character()))
+  scene_choices <- if (nrow(scene_rows) > 0) setNames(as.character(scene_rows$scene_id), scene_rows$display_name) else character()
+  updateSelectInput(session, "store_scene",
+                    choices = c("Select scene..." = "", scene_choices),
+                    selected = if (is.na(store$scene_id)) "" else as.character(store$scene_id))
 
   # Clear pending schedules when entering edit mode (we use database schedules instead)
   rv$pending_schedules <- list()
