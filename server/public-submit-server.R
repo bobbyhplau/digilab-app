@@ -28,6 +28,7 @@ observe({
     WHERE is_active = TRUE
     ORDER BY name
   ")
+  if (nrow(stores) == 0) { invalidateLater(500); return() }
   choices <- setNames(stores$store_id, stores$name)
   updateSelectInput(session, "submit_store",
                     choices = c("Select store..." = "", choices))
@@ -42,6 +43,7 @@ observe({
     WHERE is_active = TRUE
     ORDER BY release_date DESC, sort_order ASC
   ")
+  if (nrow(formats) == 0) { invalidateLater(500); return() }
   choices <- setNames(formats$format_id, formats$display_name)
   updateSelectInput(session, "submit_format",
                     choices = c("Select format..." = "", choices))
@@ -1522,11 +1524,10 @@ observe({
     WHERE is_active = TRUE
     ORDER BY name
   ")
-  if (nrow(stores) > 0 && !is.null(stores$store_id)) {
-    choices <- setNames(stores$store_id, stores$name)
-    updateSelectInput(session, "match_store",
-                      choices = c("All stores" = "", choices))
-  }
+  if (nrow(stores) == 0) { invalidateLater(500); return() }
+  choices <- setNames(stores$store_id, stores$name)
+  updateSelectInput(session, "match_store",
+                    choices = c("All stores" = "", choices))
 })
 
 # Populate tournament dropdown based on store selection

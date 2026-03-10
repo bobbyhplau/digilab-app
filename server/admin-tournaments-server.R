@@ -30,6 +30,11 @@ observe({
   current_format <- isolate(input$edit_tournament_format)
   format_choices <- get_format_choices(db_pool)
 
+  # If store choices came back empty (likely prepared stmt collision), retry
+  if (length(store_choices) <= 1) {
+    invalidateLater(500)
+  }
+
   updateSelectInput(session, "edit_tournament_store",
                     choices = store_choices,
                     selected = current_store)
