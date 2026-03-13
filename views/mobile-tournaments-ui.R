@@ -39,7 +39,7 @@ tagList(
   div(
     id = "mobile_tournaments_filters",
     class = "advanced-filters-row mobile-filters-panel",
-    div(class = "advanced-filter-group",
+    div(class = "advanced-filter-group mobile-filter-full",
       tags$label("Format", class = "advanced-filter-label"),
       selectInput("tournaments_format", NULL,
                   choices = format_choices_with_all,
@@ -47,7 +47,7 @@ tagList(
                   width = "100%",
                   selectize = FALSE)
     ),
-    div(class = "advanced-filter-group",
+    div(class = "advanced-filter-group mobile-filter-full",
       tags$label("Event Type", class = "advanced-filter-label"),
       selectInput("tournaments_event_type", NULL,
                   choices = list(
@@ -58,23 +58,23 @@ tagList(
                   width = "100%",
                   selectize = FALSE)
     ),
-    div(class = "advanced-filter-group",
-      tags$label("Store", class = "advanced-filter-label"),
-      selectInput("tournaments_store_filter", NULL,
-        choices = list("All" = ""),
-        width = "100%")
-    ),
-    div(class = "advanced-filter-group",
+    div(class = "advanced-filter-group mobile-filter-full",
       tags$label("Size", class = "advanced-filter-label"),
       selectInput("tournaments_size_filter", NULL,
         choices = list("Any" = "0", "8+" = "8", "16+" = "16", "32+" = "32", "64+" = "64", "128+" = "128"),
         width = "100%", selectize = FALSE)
     ),
-    div(class = "advanced-filter-group date-range-group",
+    div(class = "advanced-filter-group mobile-filter-full",
+      tags$label("Store", class = "advanced-filter-label"),
+      selectInput("tournaments_store_filter", NULL,
+        choices = list("All" = ""),
+        width = "100%")
+    ),
+    div(class = "advanced-filter-group mobile-filter-full date-range-group",
       tags$label("From", class = "advanced-filter-label"),
-      dateInput("tournaments_date_from", NULL, value = NA, width = "110px"),
+      dateInput("tournaments_date_from", NULL, value = NA, width = "100%"),
       span(class = "advanced-filter-label", "\u2013"),
-      dateInput("tournaments_date_to", NULL, value = NA, width = "110px")
+      dateInput("tournaments_date_to", NULL, value = NA, width = "100%")
     )
   ),
 

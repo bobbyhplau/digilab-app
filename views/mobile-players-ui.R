@@ -39,7 +39,7 @@ tagList(
   div(
     id = "mobile_players_filters",
     class = "advanced-filters-row mobile-filters-panel",
-    div(class = "advanced-filter-group",
+    div(class = "advanced-filter-group mobile-filter-full",
       tags$label("Format", class = "advanced-filter-label"),
       selectInput("players_format", NULL,
                   choices = format_choices_with_all,
@@ -47,7 +47,7 @@ tagList(
                   width = "100%",
                   selectize = FALSE)
     ),
-    div(class = "advanced-filter-group",
+    div(class = "advanced-filter-group mobile-filter-full",
       tags$label("Status", class = "advanced-filter-label"),
       div(
         class = "pill-toggle",
@@ -56,17 +56,17 @@ tagList(
         tags$button("Ranked", class = "pill-option", `data-value` = "10")
       )
     ),
-    div(class = "advanced-filter-group",
-      tags$label("Store", class = "advanced-filter-label"),
-      selectInput("players_store_filter", NULL,
-        choices = list("All" = ""),
-        width = "100%")
-    ),
-    div(class = "advanced-filter-group",
+    div(class = "advanced-filter-group mobile-filter-full",
       tags$label("Win %", class = "advanced-filter-label"),
       selectInput("players_win_pct_filter", NULL,
         choices = list("Any" = "0", "50%+" = "50", "60%+" = "60", "70%+" = "70"),
         width = "100%", selectize = FALSE)
+    ),
+    div(class = "advanced-filter-group mobile-filter-full",
+      tags$label("Store", class = "advanced-filter-label"),
+      selectInput("players_store_filter", NULL,
+        choices = list("All" = ""),
+        width = "100%")
     ),
     div(class = "advanced-filter-group",
       tags$label("Top 3 only", class = "advanced-filter-label"),

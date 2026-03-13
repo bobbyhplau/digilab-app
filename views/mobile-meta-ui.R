@@ -39,7 +39,7 @@ tagList(
   div(
     id = "mobile_meta_filters",
     class = "advanced-filters-row mobile-filters-panel",
-    div(class = "advanced-filter-group",
+    div(class = "advanced-filter-group mobile-filter-full",
       tags$label("Format", class = "advanced-filter-label"),
       selectInput("meta_format", NULL,
                   choices = format_choices_with_all,
@@ -47,7 +47,7 @@ tagList(
                   width = "100%",
                   selectize = FALSE)
     ),
-    div(class = "advanced-filter-group",
+    div(class = "advanced-filter-group mobile-filter-full",
       tags$label("Status", class = "advanced-filter-label"),
       div(
         class = "pill-toggle",
@@ -56,7 +56,13 @@ tagList(
         tags$button("Ranked", class = "pill-option", `data-value` = "10")
       )
     ),
-    div(class = "advanced-filter-group",
+    div(class = "advanced-filter-group mobile-filter-full",
+      tags$label("Conv %", class = "advanced-filter-label"),
+      selectInput("meta_conversion_filter", NULL,
+        choices = list("Any" = "0", "5%+" = "5", "10%+" = "10", "20%+" = "20", "30%+" = "30"),
+        width = "100%", selectize = FALSE)
+    ),
+    div(class = "advanced-filter-group mobile-filter-full",
       tags$label("Color", class = "advanced-filter-label"),
       div(id = "meta_color_pills", class = "color-filter-pills",
         tags$span(class = "color-pill", `data-color` = "Red",
@@ -74,12 +80,6 @@ tagList(
         tags$span(class = "color-pill", `data-color` = "White",
           tags$span(class = "color-dot"), "White")
       )
-    ),
-    div(class = "advanced-filter-group",
-      tags$label("Conv %", class = "advanced-filter-label"),
-      selectInput("meta_conversion_filter", NULL,
-        choices = list("Any" = "0", "5%+" = "5", "10%+" = "10", "20%+" = "20", "30%+" = "30"),
-        width = "100%", selectize = FALSE)
     ),
     div(class = "advanced-filter-group",
       tags$label("Top 3 only", class = "advanced-filter-label"),

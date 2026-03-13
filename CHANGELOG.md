@@ -5,6 +5,27 @@ All notable changes to DigiLab will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.7.0] - 2026-03-13 - Filter Redesign & Scene Restructure
+
+### Added
+- **Cascading scene selector**: Two-level continent + scene dropdowns in navbar. FA earth icons with 3-letter continent codes, country optgroups with "All of Country" entries.
+- **Advanced filters**: Expandable filter accordion on all tab title strips. Players: format, status, win %, store, top 3, has decklist. Tournaments: format, event type, size, store, date range. Meta: format, status, conversion %, color pills, top 3, has decklist.
+- **Ranked/Unranked pill toggle**: Replaced All/5+/10+ min events pill with Ranked (10+) / Unranked (all) on Players and Meta tabs. Always defaults to Unranked.
+- **Admin-scene junction table**: `admin_user_scenes` many-to-many table with `regional_admin` role and auto-inheritance of child scenes.
+- **Mobile filter panels**: Collapsible filter panels on mobile with CSS Grid layout. Search bar, Filters toggle, and Reset always visible in title strip. Full-width selectize store dropdowns, proper grid spanning for all filter types.
+- **Admin notification bar**: Notification widget with merge suggestion count and click-to-navigate.
+- **Continent filtering**: Scene selector filters scenes by continent, with proper fallbacks.
+
+### Changed
+- **Discord UI cleanup**: Removed "Post Welcome to Discord" button and `discord_thread_id` field from scene edit form.
+- **Decklist filter scoping**: Decklist filter now scoped to current scene/format with capped modal queries.
+- **Store/size filter widths**: Consistent filter widths across desktop advanced filter accordion.
+
+### Fixed
+- **Stale cache on filter resets**: Filter reset buttons properly clear cached state.
+- **CSS scope conflicts**: Advanced filter spacing no longer bleeds into other components.
+- **Mobile selectize width**: Store selectize dropdowns now span full width on mobile by overriding `display: contents` on `.shiny-input-container`.
+
 ## [1.6.0] - 2026-03-10 - Player Identity & Disambiguation
 
 ### Added

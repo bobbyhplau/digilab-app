@@ -780,24 +780,24 @@ version_changelog_content <- function() {
   tagList(
     div(class = "version-changelog-items",
       div(class = "version-changelog-item",
-        bsicons::bs_icon("person-check", class = "text-success"),
-        span("Smarter player matching — Bandai ID verified players match globally, others stay scene-scoped")
+        bsicons::bs_icon("globe-americas", class = "text-primary"),
+        span("Cascading scene selector — pick continent then scene, with country groupings")
       ),
       div(class = "version-changelog-item",
-        bsicons::bs_icon("people", class = "text-info"),
-        span("Fuzzy duplicate detection warns you when a new player looks similar to an existing one")
+        bsicons::bs_icon("funnel", class = "text-success"),
+        span("Advanced filters on every tab — store, win %, date range, color, size, and more")
       ),
       div(class = "version-changelog-item",
-        bsicons::bs_icon("question-circle", class = "text-warning"),
-        span("Disambiguation UI lets you pick the right player when multiple matches are found")
+        bsicons::bs_icon("toggle-on", class = "text-info"),
+        span("Ranked/Unranked toggle replaces the old event threshold pills")
       ),
       div(class = "version-changelog-item",
-        bsicons::bs_icon("funnel", class = "text-primary"),
-        span("Scene filter on store dropdowns — less clutter when entering tournament results")
+        bsicons::bs_icon("phone", class = "text-warning"),
+        span("Mobile filter panels — search always visible, filters behind a compact toggle")
       ),
       div(class = "version-changelog-item",
-        bsicons::bs_icon("bell", class = "text-info"),
-        span("Merge suggestions in admin notification bar for Limitless-to-local player matches")
+        bsicons::bs_icon("shield-check", class = "text-info"),
+        span("Admin-scene junction table for multi-scene regional admin access")
       )
     )
   )

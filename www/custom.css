@@ -1352,14 +1352,20 @@ body.bslib-gap-spacing, body > .bslib-gap-spacing {
     min-width: 120px;
   }
 
-  /* Mobile filter panel: 2-column grid layout */
-  .mobile-filters-panel {
-    flex-wrap: wrap;
+  /* Mobile filter panel: 2-column CSS Grid layout (only when open) */
+  .mobile-filters-panel.open {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 0.5rem;
   }
 
   .mobile-filters-panel .advanced-filter-group {
-    flex: 1 1 calc(50% - 0.5rem);
     min-width: 0;
+  }
+
+  /* Full-width items span both columns */
+  .mobile-filters-panel .mobile-filter-full {
+    grid-column: 1 / -1;
   }
 
   /* Color pills wrap naturally */
@@ -1368,13 +1374,14 @@ body.bslib-gap-spacing, body > .bslib-gap-spacing {
     gap: 0.3rem;
   }
 
-  /* Date range spans full width */
-  .mobile-filters-panel .date-range-group {
-    flex: 1 1 100%;
+  /* Selectize (store) filters: undo display:contents so container fills row */
+  .mobile-filters-panel .mobile-filter-full .shiny-input-container {
+    display: block !important;
+    flex: 1 1 auto !important;
+    min-width: 0 !important;
   }
 
-  /* Selectize inputs fill their container on mobile */
-  .mobile-filters-panel .selectize-control {
+  .mobile-filters-panel .mobile-filter-full .selectize-control {
     width: 100% !important;
   }
 }

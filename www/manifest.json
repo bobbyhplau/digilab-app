@@ -1,7 +1,7 @@
 {
   "name": "DigiLab - Digimon TCG Locals Tracker",
   "short_name": "DigiLab",
-  "description": "Track player performance, deck meta, and tournament results for your local Digimon TCG community",
+  "description": "Track player performance, deck meta, and tournament results for the Digimon TCG community",
   "start_url": "/",
   "display": "standalone",
   "background_color": "#1a1a2e",

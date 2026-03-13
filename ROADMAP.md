@@ -1,53 +1,23 @@
 ---
-currentVersion: "1.6.0"
-lastUpdated: "2026-03-12"
+currentVersion: "1.7.0"
+lastUpdated: "2026-03-13"
 
 inProgress: []
 
 planned:
 
-  # v1.7.0 — Filter Redesign & Scene Restructure
-  - id: cascading-scene-selector
-    title: "Cascading Scene Selector"
-    description: "Replace single scene dropdown with two-level continent + scene selector in navbar. FA earth-* icons with 3-letter codes, country optgroups with 'All of Country' entries. Add continent column to scenes table."
-    tags: [ux, scaling]
-    targetVersion: "v1.7.0"
-
-  - id: advanced-filters
-    title: "Advanced Filters"
-    description: "Add expandable 'Advanced Filters' accordion to all tab title strips. Players: store, win %. Tournaments: store, date range, size (min players). Meta: top 3 only, has decklist, color, top 3 conversion %, store."
-    tags: [ux, feature]
-    targetVersion: "v1.7.0"
-
-  - id: ranked-unranked-pill
-    title: "Ranked/Unranked Pill Toggle"
-    description: "Replace All/5+/10+ min events pill with Ranked (10+ events) / Unranked (all) on Players and Meta tabs. Always default to Unranked — remove auto-default logic based on scene size."
-    tags: [ux]
-    targetVersion: "v1.7.0"
-
-  - id: admin-scene-junction
-    title: "Admin-Scene Junction Table & Regional Admin Role"
-    description: "New admin_user_scenes many-to-many table, regional_admin role with auto-inheritance of child scenes. Update admin UI for multi-scene assignment. Deprecate 1:1 scene_id on admin_users."
-    tags: [admin, scaling, schema]
-    targetVersion: "v1.7.0"
-
+  # v1.7.1+ — Deferred from v1.7.0
   - id: scene-slug-standardization
     title: "Scene Slug & Name Standardization"
     description: "Standardize slugs to city names (e.g., dfw → dallas-fort-worth). Update display_name to remove country prefix right before go-live (e.g., 'Brazil (São Paulo)' → 'São Paulo')."
     tags: [data, ux]
-    targetVersion: "v1.7.0"
+    targetVersion: "v1.7.1"
 
   - id: player-anonymization
     title: "Player Anonymization Toggle"
     description: "Add is_anonymized flag to players table with toggle in Edit Players. Anonymized players show as 'Anonymous' in tournament results and are excluded from leaderboards, search, and profiles. Deck archetype data still counts toward meta stats. Reversible by admin."
     tags: [privacy, admin, feature]
-    targetVersion: "v1.7.0"
-
-  - id: discord-ui-cleanup
-    title: "Discord UI Cleanup"
-    description: "Remove 'Post Welcome to Discord' button and discord_thread_id field from scene edit form. NULL out discord_thread_id on all scenes."
-    tags: [admin]
-    targetVersion: "v1.7.0"
+    targetVersion: "v1.7.1"
 
   # v1.8.0 — Discord Restructure & Datamon Bot
   - id: datamon-bot
