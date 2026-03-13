@@ -227,10 +227,24 @@ output$player_standings <- renderReactable({
     result <- result[result$`Top 3s` > 0, ]
   }
 
-  # Advanced filters: has decklist
+  # Advanced filters: has decklist (scoped to current scene/format)
   if (isTRUE(input$players_decklist_toggle) && nrow(result) > 0) {
-    decklist_player_ids <- safe_query(db_pool,
-      "SELECT DISTINCT player_id FROM results WHERE decklist_url IS NOT NULL AND decklist_url != ''",
+    dl_filters <- build_filters_param(
+      table_alias = "t",
+      format = input$players_format,
+      scene = rv$current_scene,
+      continent = rv$current_continent,
+      community_store = rv$community_filter,
+      store_alias = "s",
+      start_idx = 1
+    )
+    decklist_player_ids <- safe_query(db_pool, sprintf(
+      "SELECT DISTINCT r.player_id FROM results r
+       JOIN tournaments t ON r.tournament_id = t.tournament_id
+       JOIN stores s ON t.store_id = s.store_id
+       WHERE r.decklist_url IS NOT NULL AND r.decklist_url != '' %s",
+      dl_filters$sql),
+      params = dl_filters$params,
       default = data.frame(player_id = integer()))
     result <- result[result$player_id %in% decklist_player_ids$player_id, ]
   }
@@ -680,6 +694,7 @@ output$player_detail_modal <- renderUI({
     JOIN deck_archetypes da ON r.archetype_id = da.archetype_id
     WHERE r.player_id = $1
     ORDER BY t.event_date DESC
+    LIMIT 200
   ", params = list(player_id), default = data.frame())
 
   # Apply advanced filters to modal results

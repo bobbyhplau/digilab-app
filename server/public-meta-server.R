@@ -79,10 +79,24 @@ meta_archetype_data <- reactive({
     result <- result[result$`Top 3s` > 0, ]
   }
 
-  # Advanced filters: has decklist
+  # Advanced filters: has decklist (scoped to current scene/format)
   if (isTRUE(input$meta_decklist_toggle) && nrow(result) > 0) {
-    decklist_arch_ids <- safe_query(db_pool,
-      "SELECT DISTINCT archetype_id FROM results WHERE decklist_url IS NOT NULL AND decklist_url != ''",
+    dl_filters <- build_filters_param(
+      table_alias = "t",
+      format = input$meta_format,
+      scene = rv$current_scene,
+      continent = rv$current_continent,
+      community_store = rv$community_filter,
+      store_alias = "s",
+      start_idx = 1
+    )
+    decklist_arch_ids <- safe_query(db_pool, sprintf(
+      "SELECT DISTINCT r.archetype_id FROM results r
+       JOIN tournaments t ON r.tournament_id = t.tournament_id
+       JOIN stores s ON t.store_id = s.store_id
+       WHERE r.decklist_url IS NOT NULL AND r.decklist_url != '' %s",
+      dl_filters$sql),
+      params = dl_filters$params,
       default = data.frame(archetype_id = integer()))
     result <- result[result$archetype_id %in% decklist_arch_ids$archetype_id, ]
   }
@@ -363,6 +377,7 @@ output$deck_detail_modal <- renderUI({
     JOIN players p ON r.player_id = p.player_id
     WHERE r.archetype_id = $1 %s
     ORDER BY t.event_date DESC, r.placement ASC
+    LIMIT 200
   ", scene_filters$sql), params = c(list(archetype_id), scene_filters$params), default = data.frame())
 
   # Apply advanced filters to modal results
