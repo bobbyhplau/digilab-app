@@ -1340,6 +1340,7 @@ build_filters_param <- function(table_alias = "t",
                                  id = NULL,
                                  id_column = "id",
                                  scene = NULL,
+                                 continent = NULL,
                                  store_alias = NULL,
                                  community_store = NULL,
                                  start_idx = 1) {
@@ -1397,15 +1398,41 @@ build_filters_param <- function(table_alias = "t",
     # Scene filter (requires store_alias to be set)
     if (!is.null(scene) && scene != "" && scene != "all" && !is.null(store_alias)) {
       if (scene == "online") {
-        # Online scene filters by is_online flag (no parameter needed)
         sql_parts <- c(sql_parts, sprintf("AND %s.is_online = TRUE", store_alias))
+      } else if (startsWith(scene, "country:")) {
+        country_val <- sub("^country:", "", scene)
+        sql_parts <- c(sql_parts, sprintf(
+          "AND %s.scene_id IN (SELECT scene_id FROM scenes WHERE country = $%d)",
+          store_alias, idx
+        ))
+        params <- c(params, list(country_val))
+        idx <- idx + 1
+      } else if (startsWith(scene, "state:")) {
+        state_val <- sub("^state:", "", scene)
+        sql_parts <- c(sql_parts, sprintf(
+          "AND %s.scene_id IN (SELECT scene_id FROM scenes WHERE country = 'United States' AND state_region = $%d)",
+          store_alias, idx
+        ))
+        params <- c(params, list(state_val))
+        idx <- idx + 1
       } else {
-        # Regular scene filters by scene_id via slug lookup
         sql_parts <- c(sql_parts, sprintf(
           "AND %s.scene_id = (SELECT scene_id FROM scenes WHERE slug = $%d)",
           store_alias, idx
         ))
         params <- c(params, list(scene))
+        idx <- idx + 1
+      }
+    } else if (!is.null(store_alias) && !is.null(continent) && continent != "" && continent != "all") {
+      # Continent filter: scene is "all" but continent is selected
+      if (continent == "online") {
+        sql_parts <- c(sql_parts, sprintf("AND %s.is_online = TRUE", store_alias))
+      } else {
+        sql_parts <- c(sql_parts, sprintf(
+          "AND %s.scene_id IN (SELECT scene_id FROM scenes WHERE continent = $%d)",
+          store_alias, idx
+        ))
+        params <- c(params, list(continent))
         idx <- idx + 1
       }
     }
@@ -1429,6 +1456,7 @@ build_filters_param <- function(table_alias = "t",
 build_mv_filters <- function(format = NULL,
                              event_type = NULL,
                              scene = NULL,
+                             continent = NULL,
                              community_store = NULL,
                              search = NULL,
                              search_column = NULL,
@@ -1469,11 +1497,39 @@ build_mv_filters <- function(format = NULL,
   } else if (!is.null(scene) && scene != "" && scene != "all") {
     if (scene == "online") {
       sql_parts <- c(sql_parts, sprintf("AND %sis_online = TRUE", prefix))
+    } else if (startsWith(scene, "country:")) {
+      # Country-level filter: all scenes in a country
+      country_val <- sub("^country:", "", scene)
+      sql_parts <- c(sql_parts, sprintf(
+        "AND %sscene_id IN (SELECT scene_id FROM scenes WHERE country = $%d)", prefix, idx
+      ))
+      params <- c(params, list(country_val))
+      idx <- idx + 1
+    } else if (startsWith(scene, "state:")) {
+      # US state-level filter: all scenes in a state
+      state_val <- sub("^state:", "", scene)
+      sql_parts <- c(sql_parts, sprintf(
+        "AND %sscene_id IN (SELECT scene_id FROM scenes WHERE country = 'United States' AND state_region = $%d)",
+        prefix, idx
+      ))
+      params <- c(params, list(state_val))
+      idx <- idx + 1
     } else {
       sql_parts <- c(sql_parts, sprintf(
         "AND %sscene_id = (SELECT scene_id FROM scenes WHERE slug = $%d)", prefix, idx
       ))
       params <- c(params, list(scene))
+      idx <- idx + 1
+    }
+  } else if (!is.null(continent) && continent != "" && continent != "all") {
+    # Continent filter: scene is "all" but continent is selected
+    if (continent == "online") {
+      sql_parts <- c(sql_parts, sprintf("AND %sis_online = TRUE", prefix))
+    } else {
+      sql_parts <- c(sql_parts, sprintf(
+        "AND %sscene_id IN (SELECT scene_id FROM scenes WHERE continent = $%d)", prefix, idx
+      ))
+      params <- c(params, list(continent))
       idx <- idx + 1
     }
   }

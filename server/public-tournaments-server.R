@@ -49,6 +49,7 @@ tournaments_data <- reactive({
     format = input$tournaments_format,
     event_type = input$tournaments_event_type,
     scene = rv$current_scene,
+    continent = rv$current_continent,
     community_store = rv$community_filter,
     search = tournaments_search_debounced(),
     search_column = "store_name",
@@ -277,8 +278,11 @@ output$tournament_detail_modal <- renderUI({
 
   # Get all results for this tournament
   results <- safe_query(db_pool, "
-    SELECT r.placement as \"Place\", p.display_name as \"Player\", da.archetype_name as \"Deck\",
-           da.primary_color as color, r.wins as \"W\", r.losses as \"L\", r.ties as \"T\", r.decklist_url
+    SELECT r.placement as \"Place\",
+           CASE WHEN p.is_anonymized THEN 'Anonymous' ELSE p.display_name END as \"Player\",
+           da.archetype_name as \"Deck\",
+           da.primary_color as color, r.wins as \"W\", r.losses as \"L\", r.ties as \"T\", r.decklist_url,
+           p.is_anonymized
     FROM results r
     JOIN players p ON r.player_id = p.player_id
     JOIN deck_archetypes da ON r.archetype_id = da.archetype_id

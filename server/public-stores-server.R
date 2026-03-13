@@ -321,7 +321,7 @@ output$store_list <- renderReactable({
       store_id = colDef(show = FALSE)
     )
   )
-}) |> bindCache(rv$current_scene, rv$community_filter, rv$data_refresh)
+}) |> bindCache(rv$current_scene, rv$current_continent, rv$community_filter, rv$data_refresh)
 
 # Store cards view (replaces table for both physical and online)
 output$stores_cards_content <- renderUI({
@@ -383,7 +383,7 @@ output$stores_cards_content <- renderUI({
   }
 
   render_store_cards(stores, is_online = FALSE)
-}) |> bindCache(rv$current_scene, rv$community_filter, rv$data_refresh)
+}) |> bindCache(rv$current_scene, rv$current_continent, rv$community_filter, rv$data_refresh)
 
 # Helper: Render store cards grid
 render_store_cards <- function(stores, is_online = FALSE) {
@@ -512,7 +512,8 @@ output$store_detail_modal <- renderUI({
   # Get recent tournaments at this store
   recent_tournaments <- safe_query(db_pool, "
       SELECT t.event_date as \"Date\", t.event_type as \"Type\", t.format as \"Format\",
-             t.player_count as \"Players\", p.display_name as \"Winner\",
+             t.player_count as \"Players\",
+             CASE WHEN p.is_anonymized THEN 'Anonymous' ELSE p.display_name END as \"Winner\",
              da.archetype_name as \"Deck\", r.decklist_url
       FROM tournaments t
       LEFT JOIN LATERAL (
@@ -531,14 +532,14 @@ output$store_detail_modal <- renderUI({
 
   # Get top players at this store
   top_players <- safe_query(db_pool, "
-      SELECT p.display_name as \"Player\",
+      SELECT CASE WHEN p.is_anonymized THEN 'Anonymous' ELSE p.display_name END as \"Player\",
              COUNT(DISTINCT r.tournament_id) as \"Events\",
              COUNT(CASE WHEN r.placement = 1 THEN 1 END) as \"Wins\"
       FROM players p
       JOIN results r ON p.player_id = r.player_id
       JOIN tournaments t ON r.tournament_id = t.tournament_id
-      WHERE t.store_id = $1
-      GROUP BY p.player_id, p.display_name
+      WHERE t.store_id = $1 AND p.is_anonymized IS NOT TRUE
+      GROUP BY p.player_id, p.display_name, p.is_anonymized
       ORDER BY COUNT(CASE WHEN r.placement = 1 THEN 1 END) DESC, COUNT(DISTINCT r.tournament_id) DESC
       LIMIT 5
     ", params = list(store_id))
@@ -907,7 +908,7 @@ output$online_stores_section <- renderUI({
       )
     )
   )
-}) |> bindCache(rv$current_scene, rv$data_refresh)
+}) |> bindCache(rv$current_scene, rv$current_continent, rv$data_refresh)
 
 # Reactive: All stores data with activity metrics (for filtering and map)
 stores_data <- reactive({
@@ -926,7 +927,7 @@ stores_data <- reactive({
   }
 
   # Build scene/online filters via materialized view helper
-  mv <- build_mv_filters(scene = scene)
+  mv <- build_mv_filters(scene = scene, continent = rv$current_continent)
 
   query <- sprintf("
     SELECT store_id, name, slug, address, city, state, zip_code,
@@ -1407,7 +1408,7 @@ output$stores_map <- renderMapboxgl({
     mapgl::fit_bounds(bounds_sf, padding = 50, maxZoom = 9)
 
   map
-}) |> bindCache(rv$current_scene, rv$community_filter, input$dark_mode, rv$data_refresh)
+}) |> bindCache(rv$current_scene, rv$current_continent, rv$community_filter, input$dark_mode, rv$data_refresh)
 
 # =============================================================================
 # Mobile Stores Map (compact 200px)
@@ -1501,7 +1502,7 @@ output$mobile_stores_map <- renderMapboxgl({
       popup = "popup"
     ) |>
     mapgl::fit_bounds(bounds_sf, padding = 30, maxZoom = 9)
-}) |> bindCache(rv$current_scene, rv$community_filter, input$dark_mode, rv$data_refresh)
+}) |> bindCache(rv$current_scene, rv$current_continent, rv$community_filter, input$dark_mode, rv$data_refresh)
 
 # =============================================================================
 # Mobile Store Cards

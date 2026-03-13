@@ -211,7 +211,7 @@ output$admin_notification_bar <- renderUI({
   # Exclude bug_report from total — bugs are Discord-only, not shown in-app
   total <- sum(unlist(counts)) - (counts$bug_report %||% 0)
 
-  if (total == 0) return(NULL)
+  if (total == 0) return(div(style = "display:none;"))
 
   items <- list()
 

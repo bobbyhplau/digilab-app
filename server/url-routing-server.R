@@ -85,9 +85,41 @@ observeEvent(input$url_initial, {
 
   # Process in order: scene -> tab -> entity modal
 
-  # 1. Scene filter (future use - for now just store it)
+  # 1. Scene filter
   if (!is.null(params$scene)) {
     rv$current_scene <- params$scene
+
+    # Derive continent from scene value for proper dropdown sync
+    if (startsWith(params$scene, "country:") || startsWith(params$scene, "state:")) {
+      # Country/state scenes: look up continent from DB
+      country_val <- if (startsWith(params$scene, "state:")) {
+        "United States"
+      } else {
+        sub("^country:", "", params$scene)
+      }
+      cont <- safe_query(db_pool,
+        "SELECT DISTINCT continent FROM scenes WHERE country = $1 AND continent IS NOT NULL LIMIT 1",
+        params = list(country_val), default = data.frame(continent = "all"))
+      if (nrow(cont) > 0 && !is.na(cont$continent[1])) {
+        rv$current_continent <- cont$continent[1]
+        updateSelectInput(session, "continent_selector", selected = cont$continent[1])
+        session$sendCustomMessage("updateContinentIcon", get_continent_icon(cont$continent[1]))
+      }
+    } else if (params$scene == "online") {
+      rv$current_continent <- "online"
+      updateSelectInput(session, "continent_selector", selected = "online")
+      session$sendCustomMessage("updateContinentIcon", get_continent_icon("online"))
+    } else if (params$scene != "all") {
+      # Regular metro slug: look up its continent
+      cont <- safe_query(db_pool,
+        "SELECT continent FROM scenes WHERE slug = $1 AND continent IS NOT NULL LIMIT 1",
+        params = list(params$scene), default = data.frame(continent = "all"))
+      if (nrow(cont) > 0 && !is.na(cont$continent[1])) {
+        rv$current_continent <- cont$continent[1]
+        updateSelectInput(session, "continent_selector", selected = cont$continent[1])
+        session$sendCustomMessage("updateContinentIcon", get_continent_icon(cont$continent[1]))
+      }
+    }
   }
 
   # 1b. Community filter (store-specific view)

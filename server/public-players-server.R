@@ -98,24 +98,46 @@ observeEvent(input$players_clear_advanced, {
 
 # Update store filter choices when scene changes
 observeEvent(rv$data_refresh, {
+  # Build scene/continent filter for store dropdown
+  scene <- rv$current_scene
+  continent <- rv$current_continent
+  scene_sql <- ""
+  scene_params <- NULL
+
+  if (!is.null(scene) && scene != "all" && scene != "online" && !startsWith(scene, "country:") && !startsWith(scene, "state:")) {
+    scene_sql <- "AND s.scene_id IN (SELECT scene_id FROM scenes WHERE slug = $1)"
+    scene_params <- list(scene)
+  } else if (!is.null(scene) && startsWith(scene, "country:")) {
+    scene_sql <- "AND s.scene_id IN (SELECT scene_id FROM scenes WHERE country = $1)"
+    scene_params <- list(sub("^country:", "", scene))
+  } else if (!is.null(scene) && startsWith(scene, "state:")) {
+    scene_sql <- "AND s.scene_id IN (SELECT scene_id FROM scenes WHERE country = 'United States' AND state_region = $1)"
+    scene_params <- list(sub("^state:", "", scene))
+  } else if (!is.null(scene) && scene == "online") {
+    scene_sql <- "AND s.is_online = TRUE"
+  } else if (!is.null(continent) && continent != "all" && continent != "") {
+    if (continent == "online") {
+      scene_sql <- "AND s.is_online = TRUE"
+    } else {
+      scene_sql <- "AND s.scene_id IN (SELECT scene_id FROM scenes WHERE continent = $1)"
+      scene_params <- list(continent)
+    }
+  }
+
   stores <- safe_query(db_pool, sprintf(
     "SELECT DISTINCT s.slug, s.name FROM stores s
      JOIN tournaments t ON s.store_id = t.store_id
      WHERE s.is_active = TRUE %s
-     ORDER BY s.name",
-    if (!is.null(rv$current_scene) && rv$current_scene != "all" && rv$current_scene != "online") {
-      "AND s.scene_id IN (SELECT scene_id FROM scenes WHERE slug = $1)"
-    } else ""
-  ),
-  params = if (!is.null(rv$current_scene) && rv$current_scene != "all" && rv$current_scene != "online") {
-    list(rv$current_scene)
-  },
+     ORDER BY s.name", scene_sql),
+  params = scene_params,
   default = data.frame(slug = character(), name = character()))
 
   store_choices <- list("All" = "")
   if (nrow(stores) > 0) {
     for (i in seq_len(nrow(stores))) {
-      store_choices[[stores$name[i]]] <- stores$slug[i]
+      nm <- stores$name[i]
+      if (is.na(nm) || nm == "") next
+      store_choices[[nm]] <- stores$slug[i]
     }
   }
   updateSelectInput(session, "players_store_filter", choices = store_choices, selected = "")
@@ -141,6 +163,7 @@ output$player_standings <- renderReactable({
   filters <- build_mv_filters(
     format = input$players_format,
     scene = rv$current_scene,
+    continent = rv$current_continent,
     community_store = rv$community_filter,
     search = players_search_debounced(),
     search_column = "display_name",
@@ -164,7 +187,7 @@ output$player_standings <- renderReactable({
              SUM(firsts)::int as \"1sts\",
              SUM(top3s)::int as \"Top 3s\"
       FROM mv_player_store_stats
-      WHERE 1=1 %s
+      WHERE NOT is_anonymized %s
       GROUP BY player_id, display_name
       HAVING SUM(events) >= $%d
     ),
@@ -172,7 +195,7 @@ output$player_standings <- renderReactable({
       SELECT player_id, archetype_name as main_deck, primary_color as main_deck_color,
              ROW_NUMBER() OVER (PARTITION BY player_id ORDER BY SUM(times_played) DESC) as rn
       FROM mv_player_store_stats
-      WHERE 1=1 %s
+      WHERE NOT is_anonymized %s
         AND archetype_name IS NOT NULL AND archetype_name != 'UNKNOWN'
       GROUP BY player_id, archetype_name, primary_color
     )
@@ -362,6 +385,7 @@ output$mobile_players_cards <- renderUI({
   filters <- build_mv_filters(
     format = input$players_format,
     scene = rv$current_scene,
+    continent = rv$current_continent,
     community_store = rv$community_filter,
     search = players_search_debounced(),
     search_column = "display_name",
@@ -382,7 +406,7 @@ output$mobile_players_cards <- renderUI({
              SUM(firsts)::int as \"1sts\",
              SUM(top3s)::int as \"Top 3s\"
       FROM mv_player_store_stats
-      WHERE 1=1 %s
+      WHERE NOT is_anonymized %s
       GROUP BY player_id, display_name
       HAVING SUM(events) >= $%d
     ),
@@ -390,7 +414,7 @@ output$mobile_players_cards <- renderUI({
       SELECT player_id, archetype_name as main_deck, primary_color as main_deck_color,
              ROW_NUMBER() OVER (PARTITION BY player_id ORDER BY SUM(times_played) DESC) as rn
       FROM mv_player_store_stats
-      WHERE 1=1 %s
+      WHERE NOT is_anonymized %s
         AND archetype_name IS NOT NULL AND archetype_name != 'UNKNOWN'
       GROUP BY player_id, archetype_name, primary_color
     )
@@ -563,13 +587,14 @@ output$player_detail_modal <- renderUI({
 
   # Get player info (parameterized query)
   player <- safe_query(db_pool, "
-    SELECT p.player_id, p.display_name, p.home_store_id, s.name as home_store
+    SELECT p.player_id, p.display_name, p.home_store_id, p.is_anonymized, s.name as home_store
     FROM players p
     LEFT JOIN stores s ON p.home_store_id = s.store_id
     WHERE p.player_id = $1
   ", params = list(player_id), default = data.frame())
 
   if (nrow(player) == 0) return(NULL)
+  if (isTRUE(player$is_anonymized)) return(NULL)
 
   # Get overall stats including ties and avg placement (parameterized query)
   stats <- safe_query(db_pool, "

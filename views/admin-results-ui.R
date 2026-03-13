@@ -50,7 +50,7 @@ admin_results_ui <- tagList(
             div(class = "col-12 col-md-4",
                 div(
                   class = "date-required",
-                  dateInput("tournament_date", "Date *", value = NA),
+                  dateInput("tournament_date", "Date *", value = character(0)),
                   div(id = "date_required_hint", class = "date-required-hint", "Required")
                 ))
           ),

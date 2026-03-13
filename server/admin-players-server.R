@@ -270,7 +270,7 @@ observeEvent(input$player_list_clicked, {
 
   # Look up player directly by ID
   player <- safe_query(db_pool, "
-    SELECT player_id, display_name, member_number FROM players WHERE player_id = $1
+    SELECT player_id, display_name, member_number, is_anonymized FROM players WHERE player_id = $1
   ", params = list(as.integer(player_id)), default = data.frame())
 
   if (nrow(player) == 0) return()
@@ -280,6 +280,8 @@ observeEvent(input$player_list_clicked, {
   updateTextInput(session, "player_display_name", value = player$display_name)
   updateTextInput(session, "player_member_number",
                   value = if (!is.na(player$member_number)) player$member_number else "")
+  updateCheckboxInput(session, "player_is_anonymized",
+                      value = isTRUE(player$is_anonymized))
 
   # Show buttons
   shinyjs::show("update_player")
@@ -339,6 +341,7 @@ observeEvent(input$cancel_edit_player, {
   updateTextInput(session, "editing_player_id", value = "")
   updateTextInput(session, "player_display_name", value = "")
   updateTextInput(session, "player_member_number", value = "")
+  updateCheckboxInput(session, "player_is_anonymized", value = FALSE)
 
   shinyjs::hide("update_player")
   shinyjs::hide("delete_player")
@@ -382,9 +385,11 @@ observeEvent(input$update_player, {
   tryCatch({
     safe_execute(db_pool, "
       UPDATE players
-      SET display_name = $1, member_number = $2, updated_at = CURRENT_TIMESTAMP, updated_by = $3
-      WHERE player_id = $4
-    ", params = list(new_name, new_member, current_admin_username(rv), player_id))
+      SET display_name = $1, member_number = $2, is_anonymized = $3,
+          updated_at = CURRENT_TIMESTAMP, updated_by = $4
+      WHERE player_id = $5
+    ", params = list(new_name, new_member, isTRUE(input$player_is_anonymized),
+                     current_admin_username(rv), player_id))
 
     notify(sprintf("Updated player: %s", new_name), type = "message")
 
@@ -392,6 +397,7 @@ observeEvent(input$update_player, {
     updateTextInput(session, "editing_player_id", value = "")
     updateTextInput(session, "player_display_name", value = "")
     updateTextInput(session, "player_member_number", value = "")
+    updateCheckboxInput(session, "player_is_anonymized", value = FALSE)
 
     shinyjs::hide("update_player")
     shinyjs::hide("delete_player")

@@ -156,6 +156,7 @@ CREATE TABLE IF NOT EXISTS players (
     identity_status VARCHAR DEFAULT 'unverified',  -- 'verified' (has Bandai ID/Limitless), 'unverified' (scene-locked)
     home_scene_id INTEGER REFERENCES scenes(scene_id) ON DELETE SET NULL,  -- Scoping for unverified players
     is_active BOOLEAN DEFAULT TRUE,
+    is_anonymized BOOLEAN DEFAULT FALSE,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_by TEXT                   -- Admin username who last modified

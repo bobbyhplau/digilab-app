@@ -738,6 +738,19 @@ ui <- page_fillable(
       span(class = "header-badge", paste0("v", APP_VERSION)),
       span(class = "header-circuit-line")
     ),
+    # Admin + help icons + dark mode toggle (separate div for mobile row 1)
+    div(
+      class = "header-actions",
+      actionLink("admin_login_link",
+                 bsicons::bs_icon("lock"),
+                 class = "header-action-btn",
+                 title = "Admin Login"),
+      actionLink("help_menu_link",
+                 bsicons::bs_icon("three-dots-vertical"),
+                 class = "header-action-btn",
+                 title = "Help & Resources"),
+      input_dark_mode(id = "dark_mode", mode = "light")
+    ),
     # Cascading scene selector: continent + scene dropdowns
     div(
       class = "header-scene-selector",
@@ -756,27 +769,12 @@ ui <- page_fillable(
                       "ONL" = "online"
                     ),
                     selected = "all",
-                    width = "72px",
                     selectize = FALSE)
       ),
       selectInput("scene_selector", NULL,
                   choices = list("All Scenes" = "all"),
                   selected = "all",
-                  width = "180px",
-                  selectize = FALSE),
-      # Admin + help icons + dark mode toggle
-      div(
-        class = "header-actions",
-        actionLink("admin_login_link",
-                   bsicons::bs_icon("lock"),
-                   class = "header-action-btn",
-                   title = "Admin Login"),
-        actionLink("help_menu_link",
-                   bsicons::bs_icon("three-dots-vertical"),
-                   class = "header-action-btn",
-                   title = "Help & Resources"),
-        input_dark_mode(id = "dark_mode", mode = "light")
-      )
+                  selectize = FALSE)
     )
   ),
 
@@ -1013,6 +1011,7 @@ server <- function(input, output, session) {
     # === NAVIGATION ===
     current_nav = "dashboard",
     current_scene = "all",             # Scene filter - defaults to "all" for initial load (e.g., "dfw")
+    current_continent = "all",          # Continent filter - "all", "north_america", "europe", etc.
     community_filter = NULL,           # Store slug for community-filtered view (e.g., "eagles-nest")
     navigate_to_tournament_id = NULL,
 

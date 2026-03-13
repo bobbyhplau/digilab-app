@@ -46,6 +46,7 @@ meta_archetype_data <- reactive({
   filters <- build_mv_filters(
     format = input$meta_format,
     scene = rv$current_scene,
+    continent = rv$current_continent,
     community_store = rv$community_filter,
     search = meta_search_debounced(),
     search_column = "archetype_name",
@@ -269,6 +270,7 @@ output$deck_detail_modal <- renderUI({
   scene_filters <- build_filters_param(
     table_alias = "t",
     scene = rv$current_scene,
+    continent = rv$current_continent,
     store_alias = "s",
     community_store = rv$community_filter,
     start_idx = 2
@@ -315,7 +317,7 @@ output$deck_detail_modal <- renderUI({
     JOIN players p ON r.player_id = p.player_id
     JOIN tournaments t ON r.tournament_id = t.tournament_id
     JOIN stores s ON t.store_id = s.store_id
-    WHERE r.archetype_id = $1 %s
+    WHERE r.archetype_id = $1 AND p.is_anonymized IS NOT TRUE %s
     GROUP BY p.player_id, p.display_name
     ORDER BY COUNT(CASE WHEN r.placement = 1 THEN 1 END) DESC, COUNT(*) DESC
     LIMIT 5
@@ -323,7 +325,8 @@ output$deck_detail_modal <- renderUI({
 
   # Get recent results with this deck
   recent_results <- safe_query(db_pool, sprintf("
-    SELECT t.event_date as \"Date\", s.name as \"Store\", p.display_name as \"Player\",
+    SELECT t.event_date as \"Date\", s.name as \"Store\",
+           CASE WHEN p.is_anonymized THEN 'Anonymous' ELSE p.display_name END as \"Player\",
            r.placement as \"Place\", r.wins as \"W\", r.losses as \"L\", r.decklist_url
     FROM results r
     JOIN tournaments t ON r.tournament_id = t.tournament_id

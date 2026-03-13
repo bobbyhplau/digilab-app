@@ -193,6 +193,7 @@ body {
   flex-wrap: nowrap;
   align-items: center;
   gap: 0.75rem;
+  flex: 0 0 auto;
 }
 
 .header-title-text {
@@ -248,6 +249,34 @@ body {
   display: flex;
   align-items: center;
   gap: 0.5rem;
+  position: relative;
+  padding-left: 1.5rem;
+  order: 3;
+  flex: 0 0 auto;
+}
+
+/* Circuit-style separator between scene dropdown and action buttons */
+.header-actions::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 15%;
+  height: 70%;
+  width: 1px;
+  background: linear-gradient(to bottom, transparent, rgba(0, 200, 255, 0.4), transparent);
+}
+
+.header-actions::after {
+  content: '';
+  position: absolute;
+  left: -1px;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 3px;
+  height: 3px;
+  background: rgba(0, 200, 255, 0.6);
+  border-radius: 50%;
+  box-shadow: 0 0 4px rgba(0, 200, 255, 0.4);
 }
 
 .header-action-btn {
@@ -363,10 +392,25 @@ body {
   align-items: center;
   gap: 0.5rem;
   margin-left: auto;
+  flex: 0 0 auto;
+  order: 2;
 }
 
 .header-scene-selector .form-group {
   margin-bottom: 0;
+}
+
+/* Scene selector dropdown width */
+.header-scene-selector > .form-group,
+.header-scene-selector > .shiny-input-container {
+  width: 190px !important;
+  min-width: 190px !important;
+  max-width: 190px !important;
+}
+
+.header-scene-selector > .form-group select,
+.header-scene-selector > .shiny-input-container select {
+  width: 190px !important;
 }
 
 .continent-selector-wrapper {
@@ -376,13 +420,18 @@ body {
   flex: 0 0 auto;
 }
 
-.continent-selector-wrapper .form-group {
-  width: auto !important;
+.continent-selector-wrapper .form-group,
+.continent-selector-wrapper .shiny-input-container {
+  width: 62px !important;
+  min-width: 62px !important;
+  max-width: 62px !important;
   margin-bottom: 0;
 }
 
 .continent-selector-wrapper select {
   width: 62px !important;
+  min-width: 62px !important;
+  max-width: 62px !important;
   padding-left: 0.3rem !important;
   padding-right: 1.2rem !important;
   font-size: 0.75rem;
@@ -428,12 +477,25 @@ body {
 .header-scene-selector select option {
   background-color: #0A3055;
   color: #FFFFFF;
+  padding: 4px 8px;
 }
 
 .header-scene-selector select optgroup {
-  font-weight: 600;
+  font-weight: 700;
   font-style: normal;
-  color: rgba(255, 255, 255, 0.6);
+  color: rgba(255, 255, 255, 0.5);
+  font-size: 0.7rem;
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
+  padding-top: 6px;
+}
+
+.header-scene-selector select optgroup option {
+  font-weight: 400;
+  text-transform: none;
+  letter-spacing: normal;
+  font-size: 0.875rem;
+  color: #FFFFFF;
 }
 
 /* Mobile responsive header */
@@ -441,9 +503,12 @@ body {
   .app-header {
     flex-wrap: wrap;
     padding: 0.4rem 0.75rem;
-    overflow: visible;
+    overflow: hidden;
     gap: 0.5rem;
+    margin-bottom: 0;
   }
+
+  /* Gap already removed globally via .bslib-gap-spacing { gap: 0 } */
 
   .header-title {
     min-width: 0;
@@ -473,6 +538,14 @@ body {
     flex-shrink: 0;
     gap: 0.5rem;
     align-items: center;
+    padding-left: 0;
+    order: 2;
+    margin-left: auto;
+  }
+
+  .header-actions::before,
+  .header-actions::after {
+    display: none;
   }
 
   .header-action-btn {
@@ -490,10 +563,14 @@ body {
   /* Scene selector wraps to full-width row below header items on mobile */
   .header-scene-selector {
     width: 100%;
+    max-width: 100%;
+    flex: 1 1 100% !important;
     order: 10;
+    margin-left: 0;
     border-top: 1px solid rgba(255, 255, 255, 0.1);
     padding-top: 0.4rem;
     gap: 0.35rem;
+    box-sizing: border-box;
   }
 
   .continent-selector-wrapper {
@@ -507,13 +584,19 @@ body {
   }
 
   /* Scene dropdown fills remaining space on mobile */
-  .header-scene-selector > .form-group {
+  .header-scene-selector > .form-group,
+  .header-scene-selector > .shiny-input-container {
     flex: 1;
-    min-width: 0;
+    min-width: 0 !important;
+    max-width: none !important;
+    width: auto !important;
   }
 
-  .header-scene-selector > .form-group select {
+  .header-scene-selector > .form-group select,
+  .header-scene-selector > .shiny-input-container select {
     width: 100% !important;
+    min-width: 0 !important;
+    max-width: none !important;
   }
 
   /* Slightly reduce top padding on tablet/mobile */
@@ -752,13 +835,23 @@ body {
 }
 
 /* Reduce whitespace between header and content */
-/* Target bslib spacing classes on body and containers */
-body.bslib-gap-spacing {
+/* Target bslib spacing classes on body and ALL containers (page_fillable wraps in intermediate divs) */
+.bslib-gap-spacing {
   gap: 0 !important;
 }
 
 .bslib-mb-spacing {
   margin-bottom: 0 !important;
+}
+
+/* Ensure no padding/margin between app-header and layout_sidebar */
+.app-header {
+  margin-bottom: 0 !important;
+}
+
+.app-header + .bslib-sidebar-layout,
+.app-header + div > .bslib-sidebar-layout {
+  margin-top: 0 !important;
 }
 
 /* Make sidebar layout extend to both edges */
@@ -787,10 +880,7 @@ body.bslib-gap-spacing {
     margin-bottom: 0;
   }
 
-  /* Remove gap between header and sidebar layout on mobile */
-  body.bslib-gap-spacing {
-    gap: 0 !important;
-  }
+  /* Gap already removed globally via .bslib-gap-spacing { gap: 0 } */
 
   /* Reset sidebar layout negative margins on mobile (sidebar is hidden) */
   .bslib-sidebar-layout {
@@ -1972,6 +2062,11 @@ body.bslib-gap-spacing {
 /* =============================================================================
    ADMIN NOTIFICATION BAR
    ============================================================================= */
+
+/* Collapse the empty Shiny output placeholder before any renderUI fires */
+#admin_notification_bar:empty {
+  display: none;
+}
 
 .admin-notification-bar {
   background: rgba(247, 148, 29, 0.08);

@@ -21,6 +21,7 @@ CREATE MATERIALIZED VIEW mv_player_store_stats AS
 SELECT
   p.player_id,
   p.display_name,
+  p.is_anonymized,
   s.store_id,
   s.slug,
   s.scene_id,
@@ -44,7 +45,7 @@ JOIN tournaments t ON r.tournament_id = t.tournament_id
 JOIN stores s ON t.store_id = s.store_id
 JOIN scenes sc ON s.scene_id = sc.scene_id
 LEFT JOIN deck_archetypes da ON r.archetype_id = da.archetype_id
-GROUP BY p.player_id, p.display_name, s.store_id, s.slug, s.scene_id, s.is_online,
+GROUP BY p.player_id, p.display_name, p.is_anonymized, s.store_id, s.slug, s.scene_id, s.is_online,
          sc.country, sc.state_region, t.format,
          r.archetype_id, da.archetype_name, da.primary_color;
 
@@ -124,7 +125,7 @@ SELECT
   sc.country,
   sc.state_region,
   sc.scene_type,
-  p.display_name as winner_name,
+  CASE WHEN p.is_anonymized THEN 'Anonymous' ELSE p.display_name END as winner_name,
   da.archetype_name as winning_deck
 FROM tournaments t
 JOIN stores s ON t.store_id = s.store_id

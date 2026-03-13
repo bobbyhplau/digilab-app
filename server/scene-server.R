@@ -35,11 +35,7 @@ get_scene_choices <- function(db_con, continent = "all") {
     return(list("Online / Webcam" = "online"))
   }
 
-  # Start with "All Scenes" option
-  choices <- list("All Scenes" = "all")
-
   # Check if continent column exists AND has data (migration may not have run yet)
-  # Use information_schema to avoid error-logging noise from safe_query
   has_continent <- tryCatch({
     result <- safe_query(db_con,
       "SELECT EXISTS (
@@ -47,70 +43,129 @@ get_scene_choices <- function(db_con, continent = "all") {
          WHERE table_name = 'scenes' AND column_name = 'continent'
        ) AS col_exists",
       default = data.frame(col_exists = FALSE))
-    if (!isTRUE(result$col_exists[1])) return(FALSE)
-    # Column exists — check if any rows have data
-    result2 <- safe_query(db_con,
-      "SELECT EXISTS (SELECT 1 FROM scenes WHERE continent IS NOT NULL) AS has_data",
-      default = data.frame(has_data = FALSE))
-    isTRUE(result2$has_data[1])
+    if (!isTRUE(result$col_exists[1])) {
+      FALSE
+    } else {
+      result2 <- safe_query(db_con,
+        "SELECT EXISTS (SELECT 1 FROM scenes WHERE continent IS NOT NULL) AS has_data",
+        default = data.frame(has_data = FALSE))
+      isTRUE(result2$has_data[1])
+    }
   }, error = function(e) FALSE)
 
-  # Query scenes — filter by continent only if column exists and not "all"
+  # Query scenes with state_region for US grouping
+  base_cols <- "slug, display_name, scene_type, country, state_region, parent_scene_id"
+  base_where <- "is_active = TRUE AND scene_type IN ('metro', 'country')"
+
   if (!has_continent || continent == "all") {
     scenes <- safe_query(db_con,
-      "SELECT slug, display_name, scene_type, country, parent_scene_id FROM scenes
-       WHERE is_active = TRUE AND scene_type IN ('metro', 'country')
-       ORDER BY country, display_name",
+      sprintf("SELECT %s FROM scenes WHERE %s ORDER BY country, state_region, display_name",
+              base_cols, base_where),
       default = data.frame(slug = character(), display_name = character(),
                            scene_type = character(), country = character(),
-                           parent_scene_id = integer())
-    )
+                           state_region = character(), parent_scene_id = integer()))
   } else {
     scenes <- safe_query(db_con,
-      "SELECT slug, display_name, scene_type, country, parent_scene_id FROM scenes
-       WHERE is_active = TRUE AND scene_type IN ('metro', 'country')
-         AND continent = $1
-       ORDER BY country, display_name",
+      sprintf("SELECT %s FROM scenes WHERE %s AND continent = $1
+               ORDER BY country, state_region, display_name", base_cols, base_where),
       params = list(continent),
       default = data.frame(slug = character(), display_name = character(),
                            scene_type = character(), country = character(),
-                           parent_scene_id = integer())
-    )
+                           state_region = character(), parent_scene_id = integer()))
   }
 
-  if (nrow(scenes) == 0) return(choices)
+  if (nrow(scenes) == 0) return(list("All Scenes" = "all"))
 
-  # Build optgroup structure by country
-  countries <- unique(scenes$country[!is.na(scenes$country)])
+  # --- Helper: extract metro name from "Country (Metro)" display_name ---
+  extract_metro <- function(display_name) {
+    m <- regmatches(display_name, regexpr("\\(([^)]+)\\)", display_name))
+    if (length(m) > 0 && nchar(m) > 0) gsub("^\\(|\\)$", "", m) else display_name
+  }
+
+  # --- US state abbreviation map ---
+  state_abbrev <- c(
+    "Alabama" = "AL", "Alaska" = "AK", "Arizona" = "AZ", "Arkansas" = "AR",
+    "California" = "CA", "Colorado" = "CO", "Connecticut" = "CT", "Delaware" = "DE",
+    "District of Columbia" = "DC", "Florida" = "FL", "Georgia" = "GA", "Hawaii" = "HI",
+    "Idaho" = "ID", "Illinois" = "IL", "Indiana" = "IN", "Iowa" = "IA",
+    "Kansas" = "KS", "Kentucky" = "KY", "Louisiana" = "LA", "Maine" = "ME",
+    "Maryland" = "MD", "Massachusetts" = "MA", "Michigan" = "MI", "Minnesota" = "MN",
+    "Mississippi" = "MS", "Missouri" = "MO", "Montana" = "MT", "Nebraska" = "NE",
+    "Nevada" = "NV", "New Hampshire" = "NH", "New Jersey" = "NJ", "New Mexico" = "NM",
+    "New York" = "NY", "North Carolina" = "NC", "North Dakota" = "ND", "Ohio" = "OH",
+    "Oklahoma" = "OK", "Oregon" = "OR", "Pennsylvania" = "PA", "Rhode Island" = "RI",
+    "South Carolina" = "SC", "South Dakota" = "SD", "Tennessee" = "TN", "Texas" = "TX",
+    "Utah" = "UT", "Vermont" = "VT", "Virginia" = "VA", "Washington" = "WA",
+    "West Virginia" = "WV", "Wisconsin" = "WI", "Wyoming" = "WY"
+  )
+  get_state_abbrev <- function(state) {
+    ab <- state_abbrev[state]
+    if (is.na(ab)) substr(state, 1, 2) else ab
+  }
+
+  # Separate US vs non-US metros
+  us_metros <- scenes[scenes$country == "United States" & scenes$scene_type == "metro", ]
+  other_metros <- scenes[(scenes$country != "United States" | is.na(scenes$country)) &
+                          scenes$scene_type == "metro", ]
+
+  # --- Build choices using optgroups for visual separation ---
+  # Optgroup labels are non-clickable visual headers;
+  # first option inside each group is the selectable "all of country/state"
+  choices <- list("All Scenes" = "all")
+
+  # Non-US countries
+  countries <- unique(other_metros$country[!is.na(other_metros$country)])
+  countries <- sort(countries)
 
   for (cty in countries) {
-    metro_scenes <- scenes[scenes$country == cty & scenes$scene_type == "metro", ]
-    country_scene <- scenes[scenes$country == cty & scenes$scene_type == "country", ]
+    metros <- other_metros[other_metros$country == cty, ]
+    if (nrow(metros) == 0) next
 
-    if (nrow(metro_scenes) == 0) next
+    group <- list()
 
-    group_choices <- list()
+    # Selectable "all of country" option
+    group[[paste0("All of ", cty)]] <- paste0("country:", cty)
 
-    # Add "All of Country" if parent scene exists and 2+ metros
-    if (nrow(country_scene) > 0 && nrow(metro_scenes) >= 2) {
-      group_choices[[paste0("All of ", cty)]] <- country_scene$slug[1]
+    # Individual metros with clean names
+    for (i in seq_len(nrow(metros))) {
+      metro_name <- extract_metro(metros$display_name[i])
+      group[[metro_name]] <- metros$slug[i]
     }
 
-    # Single metro in a country — add directly (no optgroup nesting)
-    if (nrow(metro_scenes) == 1 && nrow(country_scene) == 0) {
-      choices[[metro_scenes$display_name[1]]] <- metro_scenes$slug[1]
-      next
-    }
-
-    # Add individual metros
-    for (i in seq_len(nrow(metro_scenes))) {
-      group_choices[[metro_scenes$display_name[i]]] <- metro_scenes$slug[i]
-    }
-
-    choices[[cty]] <- group_choices
+    choices[[cty]] <- group
   }
 
-  # If "all" continent, also add Online
+  # US scenes grouped by state
+  if (nrow(us_metros) > 0) {
+    us_group <- list()
+    us_group[["All of United States"]] <- "country:United States"
+
+    states <- unique(us_metros$state_region[!is.na(us_metros$state_region)])
+    states <- sort(states)
+
+    for (st in states) {
+      state_metros <- us_metros[us_metros$state_region == st, ]
+      if (nrow(state_metros) == 0) next
+      ab <- get_state_abbrev(st)
+
+      if (nrow(state_metros) == 1) {
+        # Single metro state — show as "ST · Metro"
+        metro_name <- extract_metro(state_metros$display_name[1])
+        us_group[[paste0(ab, " \u00B7 ", metro_name)]] <- state_metros$slug[1]
+      } else {
+        # Multi-metro state: state header + individual metros
+        us_group[[paste0("", st)]] <- paste0("state:", st)
+        for (i in seq_len(nrow(state_metros))) {
+          metro_name <- extract_metro(state_metros$display_name[i])
+          us_group[[paste0(ab, " \u00B7 ", metro_name)]] <- state_metros$slug[i]
+        }
+      }
+    }
+
+    choices[["United States"]] <- us_group
+  }
+
+  # Online option
   if (continent == "all") {
     choices[["Online / Webcam"]] <- "online"
   }
@@ -152,7 +207,8 @@ observeEvent(db_pool, {
     }
   }
 
-  # Set continent dropdown
+  # Set continent dropdown and reactive value
+  rv$current_continent <- continent
   updateSelectInput(session, "continent_selector", selected = continent)
   session$sendCustomMessage("updateContinentIcon", get_continent_icon(continent))
 
@@ -209,6 +265,7 @@ observeEvent(input$scene_from_storage, {
   # If there's a stored scene preference, apply it
   if (!is.null(stored$scene) && stored$scene != "") {
     continent <- stored$continent %||% "all"
+    rv$current_continent <- continent
     updateSelectInput(session, "continent_selector", selected = continent)
     session$sendCustomMessage("updateContinentIcon", get_continent_icon(continent))
 
@@ -236,6 +293,9 @@ observeEvent(input$continent_selector, {
   # Update icon
   session$sendCustomMessage("updateContinentIcon", get_continent_icon(continent))
 
+  # Store continent in reactive value
+  rv$current_continent <- continent
+
   # Rebuild scene choices for this continent
   choices <- get_scene_choices(db_pool, continent)
 
@@ -244,7 +304,21 @@ observeEvent(input$continent_selector, {
     updateSelectInput(session, "scene_selector", choices = choices, selected = "online")
   } else {
     updateSelectInput(session, "scene_selector", choices = choices, selected = "all")
+    # When scene stays "all", the scene observer won't fire (same value),
+    # so trigger data refresh here for continent-level filtering
+    rv$current_scene <- "all"
+    rv$data_refresh <- Sys.time()
   }
+
+  # Save preference
+  session$sendCustomMessage("saveScenePreference", list(
+    scene = if (continent == "online") "online" else "all",
+    continent = continent
+  ))
+
+  # Reset pill toggles
+  session$sendCustomMessage("resetPillToggle", list(inputId = "players_min_events", value = "0"))
+  session$sendCustomMessage("resetPillToggle", list(inputId = "meta_min_entries", value = "0"))
 }, ignoreInit = TRUE)
 
 # -----------------------------------------------------------------------------

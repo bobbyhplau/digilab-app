@@ -2,6 +2,29 @@
 # Admin Scenes Server - Manage scenes (super admin only)
 # =============================================================================
 
+#' Derive continent from country name
+#' @param country Character country name
+#' @return Character continent code or NA
+derive_continent <- function(country) {
+  if (is.null(country) || is.na(country) || country == "") return(NA_character_)
+  continent_map <- list(
+    north_america = c("United States", "Canada", "Mexico"),
+    south_america = c("Brazil", "Costa Rica", "Colombia", "Argentina", "Chile", "Peru"),
+    europe = c("Germany", "Italy", "France", "Spain", "United Kingdom", "Netherlands",
+               "Poland", "Portugal", "Sweden", "Norway", "Denmark", "Finland", "Austria",
+               "Switzerland", "Belgium", "Czech Republic", "Romania", "Hungary", "Greece",
+               "Ireland", "Croatia"),
+    asia = c("Japan", "South Korea", "China", "Taiwan", "Philippines", "Thailand",
+             "Malaysia", "Singapore", "Indonesia", "India", "Saudi Arabia"),
+    oceania = c("Australia", "New Zealand"),
+    africa = c("South Africa", "Nigeria", "Kenya", "Egypt")
+  )
+  for (cont in names(continent_map)) {
+    if (country %in% continent_map[[cont]]) return(cont)
+  }
+  NA_character_
+}
+
 # Editing state
 editing_scene_id <- reactiveVal(NULL)
 
@@ -359,13 +382,14 @@ execute_scene_save <- function() {
 
     insert_result <- safe_query(db_pool,
       "INSERT INTO scenes (name, slug, display_name, scene_type, latitude, longitude,
-       is_active, country, state_region)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+       is_active, country, state_region, continent)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
        RETURNING scene_id",
       params = list(form$display_name, form$slug, form$display_name, form$scene_type,
                     if (is.na(form$lat)) NA_real_ else form$lat,
                     if (is.na(form$lng)) NA_real_ else form$lng,
-                    form$is_active, form$country, form$state_region),
+                    form$is_active, form$country, form$state_region,
+                    derive_continent(form$country)),
       default = data.frame())
 
     if (nrow(insert_result) > 0) {
@@ -400,12 +424,13 @@ execute_scene_save <- function() {
     safe_execute(db_pool,
       "UPDATE scenes SET name = $1, slug = $2, display_name = $3, scene_type = $4,
        latitude = $5, longitude = $6, is_active = $7,
-       country = $8, state_region = $9, updated_at = CURRENT_TIMESTAMP
-       WHERE scene_id = $10",
+       country = $8, state_region = $9, continent = $10, updated_at = CURRENT_TIMESTAMP
+       WHERE scene_id = $11",
       params = list(form$display_name, form$slug, form$display_name, form$scene_type,
                     if (is.na(form$lat)) NA_real_ else form$lat,
                     if (is.na(form$lng)) NA_real_ else form$lng,
-                    form$is_active, form$country, form$state_region, sid))
+                    form$is_active, form$country, form$state_region,
+                    derive_continent(form$country), sid))
 
     notify(paste0("Scene '", form$display_name, "' updated"), type = "message")
     rv$data_refresh <- rv$data_refresh + 1

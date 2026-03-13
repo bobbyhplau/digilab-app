@@ -48,6 +48,11 @@ admin_players_ui <- tagList(
           textInput("player_display_name", "Display Name", placeholder = "Enter player name..."),
           textInput("player_member_number", "Member Number", placeholder = "e.g. 0012345678"),
 
+          checkboxInput("player_is_anonymized", "Anonymize Player", value = FALSE),
+          tags$small(class = "text-muted d-block mt-n2 mb-2",
+            "Hides player name from all public views. Deck and tournament data still count toward meta stats."
+          ),
+
           hr(),
 
           # Player stats (read-only info)

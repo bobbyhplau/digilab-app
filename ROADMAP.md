@@ -1,113 +1,161 @@
 ---
 currentVersion: "1.6.0"
-lastUpdated: "2026-03-10"
+lastUpdated: "2026-03-12"
 
 inProgress: []
 
 planned:
 
-  # v1.7.0 — Results Redesign & Data Entry
+  # v1.7.0 — Filter Redesign & Scene Restructure
+  - id: cascading-scene-selector
+    title: "Cascading Scene Selector"
+    description: "Replace single scene dropdown with two-level continent + scene selector in navbar. FA earth-* icons with 3-letter codes, country optgroups with 'All of Country' entries. Add continent column to scenes table."
+    tags: [ux, scaling]
+    targetVersion: "v1.7.0"
+
+  - id: advanced-filters
+    title: "Advanced Filters"
+    description: "Add expandable 'Advanced Filters' accordion to all tab title strips. Players: store, win %. Tournaments: store, date range, size (min players). Meta: top 3 only, has decklist, color, top 3 conversion %, store."
+    tags: [ux, feature]
+    targetVersion: "v1.7.0"
+
+  - id: ranked-unranked-pill
+    title: "Ranked/Unranked Pill Toggle"
+    description: "Replace All/5+/10+ min events pill with Ranked (10+ events) / Unranked (all) on Players and Meta tabs. Always default to Unranked — remove auto-default logic based on scene size."
+    tags: [ux]
+    targetVersion: "v1.7.0"
+
+  - id: admin-scene-junction
+    title: "Admin-Scene Junction Table & Regional Admin Role"
+    description: "New admin_user_scenes many-to-many table, regional_admin role with auto-inheritance of child scenes. Update admin UI for multi-scene assignment. Deprecate 1:1 scene_id on admin_users."
+    tags: [admin, scaling, schema]
+    targetVersion: "v1.7.0"
+
+  - id: scene-slug-standardization
+    title: "Scene Slug & Name Standardization"
+    description: "Standardize slugs to city names (e.g., dfw → dallas-fort-worth). Update display_name to remove country prefix right before go-live (e.g., 'Brazil (São Paulo)' → 'São Paulo')."
+    tags: [data, ux]
+    targetVersion: "v1.7.0"
+
+  - id: player-anonymization
+    title: "Player Anonymization Toggle"
+    description: "Add is_anonymized flag to players table with toggle in Edit Players. Anonymized players show as 'Anonymous' in tournament results and are excluded from leaderboards, search, and profiles. Deck archetype data still counts toward meta stats. Reversible by admin."
+    tags: [privacy, admin, feature]
+    targetVersion: "v1.7.0"
+
+  - id: discord-ui-cleanup
+    title: "Discord UI Cleanup"
+    description: "Remove 'Post Welcome to Discord' button and discord_thread_id field from scene edit form. NULL out discord_thread_id on all scenes."
+    tags: [admin]
+    targetVersion: "v1.7.0"
+
+  # v1.8.0 — Discord Restructure & Datamon Bot
+  - id: datamon-bot
+    title: "Datamon Bot Launch"
+    description: "Discord bot (discord.py) on DigitalOcean droplet. Role sync for Scene Admin/Regional Admin roles, slash commands (/admins, /roster, /scene), react-to-resolve, auto-archive stale threads, welcome DM delivery."
+    tags: [integration, community, scaling]
+    targetVersion: "v1.8.0"
+
+  - id: webhook-refactor
+    title: "Webhook Refactor & Discord Restructure"
+    description: "Repurpose #scene-coordination from per-scene threads to per-action-item threads with @mentions from junction table. Archive existing 70 threads. Add discord_thread_id to admin_requests for bidirectional sync."
+    tags: [integration, admin]
+    targetVersion: "v1.8.0"
+
+  - id: welcome-dm-automation
+    title: "Automated Welcome DM"
+    description: "Replace manual copy-paste credential delivery with bot-sent DM on admin creation. Eliminates captcha friction. Fallback to clipboard if user has DMs disabled."
+    tags: [admin, integration]
+    targetVersion: "v1.8.0"
+
+  # v1.9.0 — Results Redesign & Data Entry
   - id: results-upload-redesign
     title: "Results & Upload Tab Redesign"
     description: "Paired redesign of Enter Results and Upload Results tabs. Touch-friendly grids, camera upload flow, mobile optimization, tournament data quality checks."
     tags: [admin, ux, mobile]
-    targetVersion: "v1.7.0"
+    targetVersion: "v1.9.0"
 
   - id: mobile-admin-tabs
     title: "Mobile Admin Tabs"
     description: "Mobile layouts for scene admin tabs (Edit Stores, Edit Tournaments, Edit Players) and super admin tabs (Edit Scenes, Edit Admins, Edit Decks)."
     tags: [mobile, admin]
-    targetVersion: "v1.7.0"
+    targetVersion: "v1.9.0"
 
   - id: postmessage-origin-fix
     title: "postMessage Origin Validation Tightening"
     description: "scene-selector.js sends postMessage with wildcard '*' origin. Tighten to 'https://app.digilab.cards'. The receiver side already validates origin, so risk is minimal — this is defense-in-depth."
     tags: [security, fix]
-    targetVersion: "v1.7.0"
+    targetVersion: "v1.9.0"
 
-  # v1.8.0 — Tournament Data & Ingestion
+  # v1.10.0 — Tournament Data & Ingestion
   - id: decklist-entry-expansion
     title: "Decklist Entry Expansion"
     description: "Tier 2: Deck builder integration, text paste import, and richer decklist display beyond URL links."
     tags: [feature, data]
-    targetVersion: "v1.8.0"
+    targetVersion: "v1.10.0"
 
   - id: ocr-improvements
     title: "OCR Upload Improvements"
     description: "Bug fixes and process improvements for screenshot-based OCR uploads including better error handling and accuracy."
     tags: [feature, data]
-    targetVersion: "v1.8.0"
+    targetVersion: "v1.10.0"
 
   - id: round-by-round
     title: "Round-by-Round Enhancements"
     description: "Improved UX for match history uploads, better database handling, and player-facing visibility for round-by-round data."
     tags: [feature, data]
-    targetVersion: "v1.8.0"
+    targetVersion: "v1.10.0"
 
-  # v1.9.0 — UX Polish & Store Improvements
+  # v1.11.0 — UX Polish & Modals
   - id: modal-improvements
     title: "Modal Improvements"
     description: "Enhanced player, store, and deck modals with rating sparklines, global vs local rank, deck history, and other data-rich additions."
     tags: [ux, feature]
-    targetVersion: "v1.9.0"
+    targetVersion: "v1.11.0"
 
-  - id: scene-selector-redesign
-    title: "Scene Selector Redesign"
-    description: "Rethink the scene selection UX to handle growth beyond a single dropdown — grouped, searchable, or hierarchical selection."
-    tags: [ux, scaling]
-    targetVersion: "v1.9.0"
+  - id: accessibility-pass
+    title: "Accessibility Pass"
+    description: "WCAG compliance audit covering color contrast, screen reader labels, keyboard navigation, and ARIA attributes."
+    tags: [ux]
+    targetVersion: "v1.11.0"
 
-  # v1.10.0 — Achievement Badges & Gamification
+  # v1.12.0 — Achievement Badges & Gamification
   - id: achievement-badges
     title: "Achievement Badges"
     description: "Auto-calculated player achievements displayed in player modals — tournament streaks, deck mastery, and scene milestones."
     tags: [gamification, feature]
-    targetVersion: "v1.10.0"
+    targetVersion: "v1.12.0"
 
-  # v1.11.0 — Regional Admin & Multi-Region
-  - id: regional-admin-tier
-    title: "Regional Admin Tier"
-    description: "New admin role between Super Admin and Scene Admin for country or state-level oversight with cross-scene management."
-    tags: [admin, scaling]
-    targetVersion: "v1.11.0"
-
+  # v1.13.0 — Admin Infrastructure & Multi-Region
   - id: admin-audit-log
     title: "Admin Audit Log"
     description: "Track who changed what and when across all admin actions with before/after snapshots and optional undo."
     tags: [admin, security]
-    targetVersion: "v1.11.0"
+    targetVersion: "v1.13.0"
 
   - id: tournament-tiers
     title: "Tournament Tiers"
     description: "Add tier classification to tournaments (local, regional, national, international) for filtering and ranking context."
     tags: [feature, data]
-    targetVersion: "v1.11.0"
+    targetVersion: "v1.13.0"
 
   - id: cross-scene-badges
     title: "Cross-Scene Player Badges"
     description: "Show which scenes a player has competed in within their player modal, with home scene inference."
     tags: [feature, community]
-    targetVersion: "v1.11.0"
+    targetVersion: "v1.13.0"
 
-  # v1.9.0 additions
-  - id: accessibility-pass
-    title: "Accessibility Pass"
-    description: "WCAG compliance audit covering color contrast, screen reader labels, keyboard navigation, and ARIA attributes."
-    tags: [ux]
-    targetVersion: "v1.9.0"
-
-  # v1.11.0 additions
   - id: login-rate-limiting
     title: "Login Rate Limiting & Brute Force Protection"
     description: "Add per-username failed attempt tracking with exponential backoff and temporary lockout after 5 failures. Current admin login has no rate limiting — low risk given small user base and unlisted login page, but good hardening for scale."
     tags: [security, admin]
-    targetVersion: "v1.11.0"
+    targetVersion: "v1.13.0"
 
   - id: automated-testing
     title: "Automated Testing & CI"
     description: "Integration test suite for app loading, key queries, OCR parser accuracy, and regression prevention in CI."
     tags: [scaling]
-    targetVersion: "v1.11.0"
+    targetVersion: "v1.13.0"
 
   # Future
   - id: mascot-branding
@@ -476,7 +524,7 @@ completed:
 # DigiLab Roadmap
 
 **Current Version:** v1.6.0
-**Last Updated:** 2026-03-10
+**Last Updated:** 2026-03-12
 
 > This file is the source of truth for the [public roadmap](https://digilab.cards/roadmap).
 > A GitHub Action syncs the YAML frontmatter to the website on every push to main.
@@ -491,36 +539,51 @@ No features currently in progress.
 
 ## Planned
 
-### v1.7.0 — Results Redesign & Data Entry
+### v1.7.0 — Filter Redesign & Scene Restructure
+| Feature | Description |
+|---------|-------------|
+| **Cascading Scene Selector** | Two-level continent + scene navbar selector with FA earth-* icons and country optgroups |
+| **Advanced Filters** | Expandable filter accordion on all tabs — store, win %, date range, size, color, top 3, has decklist |
+| **Ranked/Unranked Pill** | Replace All/5+/10+ with Ranked/Unranked, always default to Unranked |
+| **Admin-Scene Junction Table** | Many-to-many admin-scene assignments, regional_admin role with child scene inheritance |
+| **Scene Slug Standardization** | Standardize slugs to city names, update display_name before go-live |
+| **Discord UI Cleanup** | Remove per-scene thread UI, deprecate discord_thread_id on scenes |
+
+### v1.8.0 — Discord Restructure & Datamon Bot
+| Feature | Description |
+|---------|-------------|
+| **Datamon Bot Launch** | Discord bot on DigitalOcean — role sync, slash commands, react-to-resolve, auto-archive |
+| **Webhook Refactor** | Per-action-item threads in #scene-coordination with @mentions from junction table |
+| **Automated Welcome DM** | Bot-sent credentials to new scene admins, eliminating manual DM + captcha friction |
+
+### v1.9.0 — Results Redesign & Data Entry
 | Feature | Description |
 |---------|-------------|
 | **Results & Upload Tab Redesign** | Paired redesign of Enter Results and Upload Results with mobile optimization and data quality checks |
 | **Mobile Admin Tabs** | Mobile layouts for all scene admin and super admin tabs |
 | **postMessage Origin Fix** | Tighten wildcard origin to app.digilab.cards (defense-in-depth) |
 
-### v1.8.0 — Tournament Data & Ingestion
+### v1.10.0 — Tournament Data & Ingestion
 | Feature | Description |
 |---------|-------------|
 | **Decklist Entry Expansion** | Tier 2: Deck builder integration, text paste import, richer decklist display |
 | **OCR Improvements** | Bug fixes and accuracy improvements for screenshot uploads |
 | **Round-by-Round Enhancements** | Better UX, database handling, and player visibility |
 
-### v1.9.0 — UX Polish & Store Improvements
+### v1.11.0 — UX Polish & Modals
 | Feature | Description |
 |---------|-------------|
 | **Modal Improvements** | Rating sparklines, global vs local rank, deck history in player/store/deck modals |
-| **Scene Selector Redesign** | Scalable scene selection beyond a single dropdown |
 | **Accessibility Pass** | WCAG audit — color contrast, screen readers, keyboard navigation |
 
-### v1.10.0 — Achievement Badges & Gamification
+### v1.12.0 — Achievement Badges & Gamification
 | Feature | Description |
 |---------|-------------|
 | **Achievement Badges** | Auto-calculated player achievements — streaks, deck mastery, scene milestones |
 
-### v1.11.0 — Regional Admin & Multi-Region
+### v1.13.0 — Admin Infrastructure & Multi-Region
 | Feature | Description |
 |---------|-------------|
-| **Regional Admin Tier** | Country/state-level admin role with cross-scene management |
 | **Admin Audit Log** | Track all admin changes with before/after snapshots and undo |
 | **Tournament Tiers** | Local, regional, national, international classification |
 | **Cross-Scene Badges** | Show scenes competed in with home scene inference |
@@ -722,7 +785,83 @@ Design doc: `docs/plans/2026-03-09-player-identity-disambiguation-design.md`
 
 ---
 
-## v1.7.0 — Results Redesign & Data Entry
+## v1.7.0 — Filter Redesign & Scene Restructure
+
+Design doc: `datamon-bot/DESIGN.md` (sections 3.3–3.5, 4.1–4.6)
+
+### Cascading Scene Selector
+| ID | Type | Description |
+|----|------|-------------|
+| CS1 | UX | Continent dropdown in navbar with FA `earth-*` icons + 3-letter codes (`globe` for All, `wifi` for Online) |
+| CS2 | UX | Scene dropdown with country optgroups and "All of Country" entries |
+| CS3 | SCHEMA | Add `continent` column to scenes table, populate from lat/lng |
+| CS4 | DATA | Standardize scene slugs to city names (e.g., `dfw` → `dallas-fort-worth`) |
+| CS5 | DATA | Update scene `display_name` to remove country prefix (right before go-live only) |
+
+### Advanced Filters
+| ID | Type | Description |
+|----|------|-------------|
+| AF1 | UX | "Advanced Filters" accordion toggle on all tab title strips |
+| AF2 | UX | Players: store filter, win % dropdown (`Any`, `50%+`, `60%+`, `70%+`) |
+| AF3 | UX | Tournaments: store filter, date range, size dropdown (`Any`, `8+`, `16+`, `32+`, `64+`, `128+`) |
+| AF4 | UX | Meta: top 3 only toggle, has decklist toggle, color dropdown, top 3 conversion % dropdown, store filter |
+| AF5 | UX | Ranked/Unranked pill toggle on Players and Meta tabs (replaces All/5+/10+) |
+| AF6 | FIX | Remove auto-default min events logic — always default to Unranked |
+| AF7 | UX | Store filter dropdown choices scoped to currently selected scene |
+
+### Admin-Scene Junction Table
+| ID | Type | Description |
+|----|------|-------------|
+| AJ1 | SCHEMA | Create `admin_user_scenes` junction table (many-to-many) |
+| AJ2 | SCHEMA | Add `regional_admin` role option to `admin_users` |
+| AJ3 | MIGRATION | Populate junction table from existing 1:1 `admin_users.scene_id` assignments |
+| AJ4 | UX | Update admin user form for multi-scene assignment |
+| AJ5 | UX | Show scene admin roster in scene edit view |
+
+### Discord UI Cleanup
+| ID | Type | Description |
+|----|------|-------------|
+| DC1 | UX | Remove "Post Welcome to Discord" button from scene edit UI |
+| DC2 | UX | Remove `discord_thread_id` input field from scene form |
+| DC3 | MIGRATION | NULL out `discord_thread_id` on all scenes (deprecate column) |
+
+---
+
+## v1.8.0 — Discord Restructure & Datamon Bot
+
+Design doc: `datamon-bot/DESIGN.md` (sections 2, 5, 6, 7)
+
+### Datamon Bot (datamon-bot repo)
+| ID | Type | Description |
+|----|------|-------------|
+| DB1 | FEATURE | Scaffold discord.py bot with cog structure, deploy to DigitalOcean droplet |
+| DB2 | FEATURE | Role sync — grant/revoke Scene Admin and Regional Admin Discord roles on admin changes |
+| DB3 | FEATURE | Slash commands: `/admins <scene>`, `/roster`, `/scene <name>` |
+| DB4 | FEATURE | React-to-resolve — checkmark reaction adds `Resolved` tag to forum thread |
+| DB5 | FEATURE | Auto-archive sweep — `Resolved` after 3 days, inactive after 7 days |
+| DB6 | FEATURE | Welcome DM delivery — send credentials to new scene admins via bot DM |
+| DB7 | FEATURE | Stale thread reminders — @mention assigned admin after X days unresolved |
+
+### Webhook Refactor (digilab-app repo)
+| ID | Type | Description |
+|----|------|-------------|
+| WR1 | REFACTOR | Repurpose `discord_create_scene_thread()` → `discord_create_action_thread()` for per-item threads |
+| WR2 | REFACTOR | Update `discord_post_to_scene()` and `discord_post_data_error()` to create threads with @mentions from junction table |
+| WR3 | SCHEMA | Add `discord_thread_id` column to `admin_requests` for bidirectional sync |
+| WR4 | FEATURE | Resolution → Discord sync — update thread tag when request resolved in-app |
+| WR5 | FEATURE | Automated welcome DM trigger on admin creation (calls Discord REST API with bot token) |
+
+### Discord Server Setup (manual)
+| ID | Type | Description |
+|----|------|-------------|
+| DS1 | MANUAL | Archive/delete existing 70 scene threads in #scene-coordination |
+| DS2 | MANUAL | Set up forum tags (continent + type + status) |
+| DS3 | MANUAL | Create #scene-admin-chat text channel |
+| DS4 | MANUAL | Create Discord bot application, Scene Admin and Regional Admin roles |
+
+---
+
+## v1.9.0 — Results Redesign & Data Entry
 
 ### Results & Upload Tab Redesign
 | ID | Type | Description |
@@ -739,7 +878,7 @@ Design doc: `docs/plans/2026-03-09-player-identity-disambiguation-design.md`
 
 ---
 
-## v1.8.0 — Tournament Data & Ingestion
+## v1.10.0 — Tournament Data & Ingestion
 
 ### Decklist Entry & Backfill
 | ID | Type | Description |
@@ -762,7 +901,7 @@ Design doc: `docs/plans/2026-03-09-player-identity-disambiguation-design.md`
 
 ---
 
-## v1.9.0 — UX Polish & Store Improvements
+## v1.11.0 — UX Polish & Modals
 
 ### Modal Improvements
 | ID | Type | Description |
@@ -772,15 +911,9 @@ Design doc: `docs/plans/2026-03-09-player-identity-disambiguation-design.md`
 | MOD3 | UX | Player modal: deck history timeline across formats |
 | MOD4 | UX | Store and deck modal enhancements (TBD based on review) |
 
-### Scene Selector Redesign
-| ID | Type | Description |
-|----|------|-------------|
-| SS1 | UX | Replace flat dropdown with grouped/searchable/hierarchical selector |
-| SS2 | UX | Support for growing scene count without UX degradation |
-
 ---
 
-## v1.10.0 — Achievement Badges & Gamification
+## v1.12.0 — Achievement Badges & Gamification
 
 | ID | Type | Description |
 |----|------|-------------|
@@ -792,15 +925,7 @@ Design doc: `docs/plans/2026-03-09-player-identity-disambiguation-design.md`
 
 ---
 
-## v1.11.0 — Regional Admin & Multi-Region
-
-### Regional Admin Tier
-| ID | Type | Description |
-|----|------|-------------|
-| RA1 | FEATURE | Regional Admin role — new tier between Super Admin and Scene Admin |
-| RA2 | SCHEMA | Admin hierarchy — Regional Admin manages multiple scenes within their geography |
-| RA3 | FEATURE | Regional Admin permissions — approve stores, onboard scene admins, view cross-scene reports |
-| RA4 | UI | Regional Admin dashboard — aggregated stats across managed scenes |
+## v1.13.0 — Admin Infrastructure & Multi-Region
 
 ### Admin Audit Log
 | ID | Type | Description |
@@ -836,7 +961,6 @@ Items for future consideration, not scheduled:
 | DC4 | INTEGRATION | Link Discord users to DigiLab accounts | Enables bot-based workflows |
 | INF1 | DEVEX | Sentry MCP integration | Claude Code workflow for proactive error monitoring |
 | INF2 | DEVEX | Sentry error collection workflow | Process for identifying and addressing production errors |
-| PD2 | FEATURE | Multi-scene admin role | Junction table for admin→scene assignment, new "regional admin" role between scene_admin and super_admin. Enables one account to manage multiple scenes (e.g., BBoyHung for Aachen + Heerlen). Workaround: create a second account per scene. |
 
 ---
 
@@ -874,16 +998,15 @@ Items for future consideration, not scheduled:
 
 ## Decision Points
 
-### Repository & Architecture Strategy
+### Repository & Architecture Strategy (RESOLVED)
 
-Before building out Discord integrations, satellite apps, or expanding significantly, decide on repo structure:
-
-| Question | Option A | Option B |
-|----------|----------|----------|
-| Discord bot location? | Same repo (monorepo) | Separate `digilab-discord-bot` repo |
-| Scene comparison / analytics tools? | Tab in main app | Standalone `digilab-analytics` app |
-| Shared data access? | Direct DB connection | API layer between apps |
-| Repo visibility? | Keep public (open source community) | Make private (protect business logic) |
+| Question | Decision |
+|----------|----------|
+| Discord bot location? | Separate repo: `datamon-bot` (Python, discord.py) |
+| Bot hosting? | DigitalOcean droplet (~$4-6/mo) |
+| Shared data access? | Bot gets read-only Neon DB access; app calls Discord REST API directly |
+| Scene comparison / analytics tools? | Tab in main app (TBD) |
+| Repo visibility? | Keep public (open source community) (TBD) |
 
 ### Platform Evaluation
 

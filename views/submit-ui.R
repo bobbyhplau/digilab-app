@@ -81,7 +81,7 @@ submit_ui <- tagList(
                     actionLink("submit_request_store", "Store not listed? Request it",
                                class = "small text-primary")
                   ),
-                  dateInput("submit_date", "Date", value = NA)
+                  dateInput("submit_date", "Date", value = character(0))
                 ),
                 layout_columns(
                   col_widths = breakpoints(sm = c(6, 6, 6, 6), md = c(4, 4, 2, 2)),
