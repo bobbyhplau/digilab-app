@@ -64,9 +64,10 @@ admin_users_data <- reactive({
   req(db_pool, rv$is_superadmin)
   safe_query(db_pool,
     "SELECT u.user_id, u.username, u.discord_user_id, u.role,
-            u.is_active, u.created_at, u.scene_id, s.display_name as scene_name
+            u.is_active, u.created_at, aus.scene_id, s.display_name as scene_name
      FROM admin_users u
-     LEFT JOIN scenes s ON u.scene_id = s.scene_id
+     LEFT JOIN admin_user_scenes aus ON u.user_id = aus.user_id AND aus.is_primary = TRUE
+     LEFT JOIN scenes s ON aus.scene_id = s.scene_id
      ORDER BY u.role DESC, u.username",
     default = data.frame())
 })
@@ -186,9 +187,9 @@ observeEvent(input$admin_user_clicked, {
   updateTextInput(session, "admin_password", value = "")
   updateSelectInput(session, "admin_role", selected = row$role)
 
-  # Set scene dropdown
+  # Set scene dropdown (from junction table)
   admin_row <- safe_query(db_pool,
-    "SELECT scene_id FROM admin_users WHERE user_id = $1",
+    "SELECT scene_id FROM admin_user_scenes WHERE user_id = $1 AND is_primary = TRUE",
     params = list(row$user_id),
     default = data.frame())
   if (nrow(admin_row) > 0 && !is.na(admin_row$scene_id[1])) {
@@ -287,6 +288,15 @@ observeEvent(input$save_admin_btn, {
       default = data.frame())
 
     if (nrow(insert_result) > 0) {
+      # Also write to junction table
+      new_uid <- insert_result$user_id[1]
+      if (!is.na(scene_id)) {
+        safe_execute(db_pool,
+          "INSERT INTO admin_user_scenes (user_id, scene_id, is_primary)
+           VALUES ($1, $2, TRUE)
+           ON CONFLICT (user_id, scene_id) DO NOTHING",
+          params = list(new_uid, scene_id))
+      }
       # Look up scene display name for the DM template
       scene_name <- ""
       discord_thread_info <- ""
@@ -389,6 +399,18 @@ observeEvent(input$save_admin_btn, {
          WHERE user_id = $5",
         params = list(username, discord_user_id, role,
                       if (is.na(scene_id)) NA_integer_ else scene_id, uid))
+    }
+
+    # Sync junction table
+    safe_execute(db_pool,
+      "DELETE FROM admin_user_scenes WHERE user_id = $1 AND is_primary = TRUE",
+      params = list(uid))
+    if (!is.na(scene_id)) {
+      safe_execute(db_pool,
+        "INSERT INTO admin_user_scenes (user_id, scene_id, is_primary)
+         VALUES ($1, $2, TRUE)
+         ON CONFLICT (user_id, scene_id) DO UPDATE SET is_primary = TRUE",
+        params = list(uid, scene_id))
     }
 
     notify(paste0("Admin '", username, "' updated"), type = "message")

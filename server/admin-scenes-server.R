@@ -41,7 +41,7 @@ scenes_data <- reactive({
             s.is_active, s.country, s.state_region,
             TO_CHAR(s.created_at, 'YYYY-MM-DD') as created_at,
             COUNT(st.store_id) as store_count,
-            (SELECT COUNT(*) FROM admin_users au WHERE au.scene_id = s.scene_id) as admin_count
+            (SELECT COUNT(*) FROM admin_user_scenes aus WHERE aus.scene_id = s.scene_id) as admin_count
      FROM scenes s
      LEFT JOIN stores st ON s.scene_id = st.scene_id AND st.is_active = TRUE
      GROUP BY s.scene_id, s.display_name, s.slug, s.scene_type, s.latitude, s.longitude,
@@ -454,9 +454,9 @@ observeEvent(input$delete_scene_btn, {
     return()
   }
 
-  # Check for admin users assigned to this scene
+  # Check for admin users assigned to this scene (via junction table)
   admin_count <- safe_query(db_pool,
-    "SELECT COUNT(*) as n FROM admin_users WHERE scene_id = $1",
+    "SELECT COUNT(*) as n FROM admin_user_scenes WHERE scene_id = $1",
     params = list(sid),
     default = data.frame(n = 0))
 

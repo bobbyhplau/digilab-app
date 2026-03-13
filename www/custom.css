@@ -1239,6 +1239,10 @@ body {
   box-shadow: 0 0 0 2px rgba(0, 200, 255, 0.15);
 }
 
+#tournaments_size_filter {
+  width: 120px !important;
+}
+
 .advanced-filter-group input[type="checkbox"] {
   margin-right: 0.25rem;
   accent-color: #00C8FF;
@@ -1373,7 +1377,7 @@ body {
 
 /* Selectize store dropdowns: explicit width since .shiny-input-container is auto */
 .advanced-filter-group .selectize-control {
-  width: 160px;
+  width: 320px;
 }
 
 /* ===== Advanced Filter Selectize (autocomplete store dropdowns) ===== */

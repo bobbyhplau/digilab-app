@@ -911,10 +911,13 @@ observeEvent(input$login_btn, {
     return()
   }
 
-  # Look up user
+  # Look up user (primary scene from junction table)
   user <- safe_query(db_pool,
-    "SELECT user_id, username, password_hash, discord_user_id, role, scene_id
-     FROM admin_users WHERE username = $1 AND is_active = TRUE",
+    "SELECT u.user_id, u.username, u.password_hash, u.discord_user_id, u.role,
+            aus.scene_id
+     FROM admin_users u
+     LEFT JOIN admin_user_scenes aus ON u.user_id = aus.user_id AND aus.is_primary = TRUE
+     WHERE u.username = $1 AND u.is_active = TRUE",
     params = list(username),
     default = data.frame())
 
