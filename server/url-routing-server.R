@@ -110,12 +110,9 @@ observeEvent(input$url_initial, {
           rv$current_scene <- scene_result$slug
         }
       }
-      # Set dynamic min_events default based on community's tournament count
       shinyjs::delay(150, {
-        tournament_count <- count_tournaments_for_scope(db_pool, NULL, params$community)
-        default_min <- get_default_min_events(tournament_count)
-        session$sendCustomMessage("resetPillToggle", list(inputId = "players_min_events", value = default_min))
-        session$sendCustomMessage("resetPillToggle", list(inputId = "meta_min_entries", value = default_min))
+        session$sendCustomMessage("resetPillToggle", list(inputId = "players_min_events", value = "0"))
+        session$sendCustomMessage("resetPillToggle", list(inputId = "meta_min_entries", value = "0"))
       })
     }
   }

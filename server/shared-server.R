@@ -1271,74 +1271,10 @@ output$community_banner <- renderUI({
 observeEvent(input$clear_community_filter, {
   rv$community_filter <- NULL
   clear_community_filter(session)
-  # Reset filters to dynamic default for current scene
- tournament_count <- count_tournaments_for_scope(db_pool, rv$current_scene, NULL)
-  default_min <- get_default_min_events(tournament_count)
-  session$sendCustomMessage("resetPillToggle", list(inputId = "players_min_events", value = default_min))
-  session$sendCustomMessage("resetPillToggle", list(inputId = "meta_min_entries", value = default_min))
+  session$sendCustomMessage("resetPillToggle", list(inputId = "players_min_events", value = "0"))
+  session$sendCustomMessage("resetPillToggle", list(inputId = "meta_min_entries", value = "0"))
   notify("Community filter cleared", type = "message", duration = 2)
 })
-
-# -----------------------------------------------------------------------------
-# Dynamic Min Events Helpers
-# -----------------------------------------------------------------------------
-
-#' Calculate default min_events based on tournament count
-#'
-#' Returns the appropriate default filter value for the min events pill toggle
-#' based on how much tournament data exists for the current scope.
-#'
-#' @param tournament_count Integer count of tournaments
-#' @return Character value for pill-toggle: "0" (All), "5" (5+), or "10" (10+)
-get_default_min_events <- function(tournament_count) {
-  if (is.null(tournament_count) || is.na(tournament_count)) {
-    return("5")  # Fallback to current default
-  }
-  if (tournament_count < 20) {
-    return("0")  # "All"
-  } else if (tournament_count <= 100) {
-    return("5")  # "5+"
-  } else {
-    return("10") # "10+"
-
-  }
-}
-
-#' Count tournaments for the current view scope
-#'
-#' Returns the number of tournaments visible in the current scope, which is used
-#' to determine the appropriate default min events filter.
-#'
-#' @param db_pool Database connection pool
-#' @param scene_slug Current scene slug or "all"
-#' @param community_slug Optional community filter slug (store slug)
-#' @return Integer count of tournaments
-count_tournaments_for_scope <- function(db_pool, scene_slug, community_slug = NULL) {
-  if (!is.null(community_slug) && community_slug != "") {
-    # Community view: count for specific store
-    result <- safe_query(db_pool,
-      "SELECT COUNT(*) as n FROM tournaments t JOIN stores s ON t.store_id = s.store_id WHERE s.slug = $1",
-      params = list(community_slug),
-      default = data.frame(n = 0))
-  } else if (is.null(scene_slug) || scene_slug == "all") {
-    # All scenes
-    result <- safe_query(db_pool,
-      "SELECT COUNT(*) as n FROM tournaments",
-      default = data.frame(n = 0))
-  } else if (scene_slug == "online") {
-    # Online scene: count tournaments from online stores
-    result <- safe_query(db_pool,
-      "SELECT COUNT(*) as n FROM tournaments t JOIN stores s ON t.store_id = s.store_id WHERE s.is_online = TRUE",
-      default = data.frame(n = 0))
-  } else {
-    # Specific scene
-    result <- safe_query(db_pool,
-      "SELECT COUNT(*) as n FROM tournaments t JOIN stores s ON t.store_id = s.store_id JOIN scenes sc ON s.scene_id = sc.scene_id WHERE sc.slug = $1",
-      params = list(scene_slug),
-      default = data.frame(n = 0))
-  }
-  return(result$n[1])
-}
 
 # -----------------------------------------------------------------------------
 # Helper Functions

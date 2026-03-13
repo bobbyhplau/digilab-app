@@ -28,20 +28,12 @@ tagList(
                       width = "140px",
                       selectize = FALSE)
         ),
-        span(class = "title-strip-pill-label",
-          "Min Entries:",
-          tags$span(
-            class = "help-icon",
-            title = "Default adjusts based on scene data. Newer scenes show all decks; established scenes filter to frequently played archetypes.",
-            bsicons::bs_icon("question-circle")
-          )
-        ),
+        span(class = "title-strip-pill-label", "Status"),
         div(
           class = "pill-toggle",
           `data-input-id` = "meta_min_entries",
-          tags$button("All", class = "pill-option", `data-value` = "0"),
-          tags$button("5+", class = "pill-option active", `data-value` = "5"),
-          tags$button("10+", class = "pill-option", `data-value` = "10")
+          tags$button("Unranked", class = "pill-option active", `data-value` = "0"),
+          tags$button("Ranked", class = "pill-option", `data-value` = "10")
         ),
         actionButton("reset_meta_filters", NULL,
                      icon = icon("rotate-right"),

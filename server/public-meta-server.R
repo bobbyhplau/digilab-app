@@ -18,10 +18,7 @@ output$meta_page <- renderUI({
 observeEvent(input$reset_meta_filters, {
   updateTextInput(session, "meta_search", value = "")
   updateSelectInput(session, "meta_format", selected = "")
-  # Reset pill toggle to dynamic default based on current scope
-  tournament_count <- count_tournaments_for_scope(db_pool, rv$current_scene, rv$community_filter)
-  default_min <- get_default_min_events(tournament_count)
-  session$sendCustomMessage("resetPillToggle", list(inputId = "meta_min_entries", value = default_min))
+  session$sendCustomMessage("resetPillToggle", list(inputId = "meta_min_entries", value = "0"))
 })
 
 # Debounce search input (300ms)

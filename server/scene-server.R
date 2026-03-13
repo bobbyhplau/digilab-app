@@ -119,10 +119,8 @@ observeEvent(input$scene_from_storage, {
       updateSelectInput(session, "scene_selector", choices = choices, selected = stored$scene)
       # Set dynamic min_events default for initial scene load
       shinyjs::delay(200, {
-        tournament_count <- count_tournaments_for_scope(db_pool, stored$scene, NULL)
-        default_min <- get_default_min_events(tournament_count)
-        session$sendCustomMessage("resetPillToggle", list(inputId = "players_min_events", value = default_min))
-        session$sendCustomMessage("resetPillToggle", list(inputId = "meta_min_entries", value = default_min))
+        session$sendCustomMessage("resetPillToggle", list(inputId = "players_min_events", value = "0"))
+        session$sendCustomMessage("resetPillToggle", list(inputId = "meta_min_entries", value = "0"))
       })
     }
   }
@@ -162,11 +160,9 @@ observeEvent(input$scene_selector, {
   # Trigger data refresh
   rv$data_refresh <- Sys.time()
 
-  # Update min_events default based on scene's tournament count
-  tournament_count <- count_tournaments_for_scope(db_pool, new_scene, NULL)
-  default_min <- get_default_min_events(tournament_count)
-  session$sendCustomMessage("resetPillToggle", list(inputId = "players_min_events", value = default_min))
-  session$sendCustomMessage("resetPillToggle", list(inputId = "meta_min_entries", value = default_min))
+  # Reset pill toggles to Unranked on scene change
+  session$sendCustomMessage("resetPillToggle", list(inputId = "players_min_events", value = "0"))
+  session$sendCustomMessage("resetPillToggle", list(inputId = "meta_min_entries", value = "0"))
 }, ignoreInit = TRUE)
 
 # -----------------------------------------------------------------------------
