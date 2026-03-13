@@ -21,6 +21,18 @@ observeEvent(input$reset_tournaments_filters, {
   updateTextInput(session, "tournaments_search", value = "")
   updateSelectInput(session, "tournaments_format", selected = "")
   updateSelectInput(session, "tournaments_event_type", selected = "")
+  updateSelectInput(session, "tournaments_store_filter", selected = "")
+  updateDateInput(session, "tournaments_date_from", value = NA)
+  updateDateInput(session, "tournaments_date_to", value = NA)
+  updateSelectInput(session, "tournaments_size_filter", selected = "0")
+})
+
+# Clear advanced filters
+observeEvent(input$tournaments_clear_advanced, {
+  updateSelectInput(session, "tournaments_store_filter", selected = "")
+  updateDateInput(session, "tournaments_date_from", value = NA)
+  updateDateInput(session, "tournaments_date_to", value = NA)
+  updateSelectInput(session, "tournaments_size_filter", selected = "0")
 })
 
 # Debounce search input (300ms)

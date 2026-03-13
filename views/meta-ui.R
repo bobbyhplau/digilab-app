@@ -38,9 +38,43 @@ tagList(
         actionButton("reset_meta_filters", NULL,
                      icon = icon("rotate-right"),
                      class = "btn-title-strip-reset",
-                     title = "Reset filters")
+                     title = "Reset filters"),
+        tags$button(
+          class = "btn-title-strip-filters",
+          `data-target` = "meta_advanced_filters",
+          icon("sliders"),
+          "Filters"
+        )
       )
     )
+  ),
+  # Advanced filters row (hidden by default)
+  div(
+    id = "meta_advanced_filters",
+    class = "advanced-filters-row",
+    div(class = "advanced-filter-group",
+      tags$label("Top 3 only", class = "advanced-filter-label"),
+      checkboxInput("meta_top3_toggle", NULL, value = FALSE)
+    ),
+    div(class = "advanced-filter-group",
+      tags$label("Has decklist", class = "advanced-filter-label"),
+      checkboxInput("meta_decklist_toggle", NULL, value = FALSE)
+    ),
+    div(class = "advanced-filter-group",
+      tags$label("Color", class = "advanced-filter-label", `for` = "meta_color_filter"),
+      selectInput("meta_color_filter", NULL,
+        choices = list("Any" = "", "Red" = "Red", "Blue" = "Blue", "Green" = "Green",
+                       "Yellow" = "Yellow", "Purple" = "Purple", "Black" = "Black", "White" = "White"),
+        width = "100px", selectize = FALSE)
+    ),
+    div(class = "advanced-filter-group",
+      tags$label("Top 3 Conv %", class = "advanced-filter-label", `for` = "meta_conversion_filter"),
+      selectInput("meta_conversion_filter", NULL,
+        choices = list("Any" = "0", "5%+" = "5", "10%+" = "10", "20%+" = "20", "30%+" = "30"),
+        width = "90px", selectize = FALSE)
+    ),
+    actionButton("meta_clear_advanced", "Clear All",
+      class = "btn btn-outline-secondary btn-sm btn-clear-advanced")
   ),
 
   # Help text

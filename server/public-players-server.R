@@ -86,6 +86,39 @@ observeEvent(input$reset_players_filters, {
   updateTextInput(session, "players_search", value = "")
   updateSelectInput(session, "players_format", selected = "")
   session$sendCustomMessage("resetPillToggle", list(inputId = "players_min_events", value = "0"))
+  updateSelectInput(session, "players_store_filter", selected = "")
+  updateSelectInput(session, "players_win_pct_filter", selected = "0")
+})
+
+# Clear advanced filters
+observeEvent(input$players_clear_advanced, {
+  updateSelectInput(session, "players_store_filter", selected = "")
+  updateSelectInput(session, "players_win_pct_filter", selected = "0")
+})
+
+# Update store filter choices when scene changes
+observeEvent(rv$data_refresh, {
+  stores <- safe_query(db_pool, sprintf(
+    "SELECT DISTINCT s.slug, s.name FROM stores s
+     JOIN tournaments t ON s.store_id = t.store_id
+     WHERE s.is_active = TRUE %s
+     ORDER BY s.name",
+    if (!is.null(rv$current_scene) && rv$current_scene != "all" && rv$current_scene != "online") {
+      "AND s.scene_id IN (SELECT scene_id FROM scenes WHERE slug = $1)"
+    } else ""
+  ),
+  params = if (!is.null(rv$current_scene) && rv$current_scene != "all" && rv$current_scene != "online") {
+    list(rv$current_scene)
+  },
+  default = data.frame(slug = character(), name = character()))
+
+  store_choices <- list("All" = "")
+  if (nrow(stores) > 0) {
+    for (i in seq_len(nrow(stores))) {
+      store_choices[[stores$name[i]]] <- stores$slug[i]
+    }
+  }
+  updateSelectInput(session, "players_store_filter", choices = store_choices, selected = "")
 })
 
 # Historical rating indicator

@@ -36,4 +36,19 @@
       Shiny.setInputValue(message.inputId, String(message.value), {priority: 'event'});
     });
   });
+
+  // Toggle advanced filters visibility
+  $(document).on('click', '.btn-title-strip-filters', function(e) {
+    e.preventDefault();
+    var btn = $(this);
+    var targetId = btn.data('target');
+    var $target = $('#' + targetId);
+    if ($target.hasClass('open')) {
+      $target.removeClass('open');
+      btn.removeClass('active');
+    } else {
+      $target.addClass('open');
+      btn.addClass('active');
+    }
+  });
 })();

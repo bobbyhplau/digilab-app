@@ -38,9 +38,34 @@ tagList(
         actionButton("reset_players_filters", NULL,
                      icon = icon("rotate-right"),
                      class = "btn-title-strip-reset",
-                     title = "Reset filters")
+                     title = "Reset filters"),
+        tags$button(
+          class = "btn-title-strip-filters",
+          `data-target` = "players_advanced_filters",
+          icon("sliders"),
+          "Filters"
+        )
       )
     )
+  ),
+  # Advanced filters row (hidden by default)
+  div(
+    id = "players_advanced_filters",
+    class = "advanced-filters-row",
+    div(class = "advanced-filter-group",
+      tags$label("Store", class = "advanced-filter-label", `for` = "players_store_filter"),
+      selectInput("players_store_filter", NULL,
+        choices = list("All" = ""),
+        width = "160px", selectize = FALSE)
+    ),
+    div(class = "advanced-filter-group",
+      tags$label("Win %", class = "advanced-filter-label", `for` = "players_win_pct_filter"),
+      selectInput("players_win_pct_filter", NULL,
+        choices = list("Any" = "0", "50%+" = "50", "60%+" = "60", "70%+" = "70"),
+        width = "100px", selectize = FALSE)
+    ),
+    actionButton("players_clear_advanced", "Clear All",
+      class = "btn btn-outline-secondary btn-sm btn-clear-advanced")
   ),
 
   # Historical rating indicator (shown when viewing past format)

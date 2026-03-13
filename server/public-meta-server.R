@@ -19,6 +19,18 @@ observeEvent(input$reset_meta_filters, {
   updateTextInput(session, "meta_search", value = "")
   updateSelectInput(session, "meta_format", selected = "")
   session$sendCustomMessage("resetPillToggle", list(inputId = "meta_min_entries", value = "0"))
+  updateCheckboxInput(session, "meta_top3_toggle", value = FALSE)
+  updateCheckboxInput(session, "meta_decklist_toggle", value = FALSE)
+  updateSelectInput(session, "meta_color_filter", selected = "")
+  updateSelectInput(session, "meta_conversion_filter", selected = "0")
+})
+
+# Clear advanced filters
+observeEvent(input$meta_clear_advanced, {
+  updateCheckboxInput(session, "meta_top3_toggle", value = FALSE)
+  updateCheckboxInput(session, "meta_decklist_toggle", value = FALSE)
+  updateSelectInput(session, "meta_color_filter", selected = "")
+  updateSelectInput(session, "meta_conversion_filter", selected = "0")
 })
 
 # Debounce search input (300ms)

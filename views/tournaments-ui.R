@@ -42,9 +42,42 @@ tagList(
         actionButton("reset_tournaments_filters", NULL,
                      icon = icon("rotate-right"),
                      class = "btn-title-strip-reset",
-                     title = "Reset filters")
+                     title = "Reset filters"),
+        tags$button(
+          class = "btn-title-strip-filters",
+          `data-target` = "tournaments_advanced_filters",
+          icon("sliders"),
+          "Filters"
+        )
       )
     )
+  ),
+  # Advanced filters row (hidden by default)
+  div(
+    id = "tournaments_advanced_filters",
+    class = "advanced-filters-row",
+    div(class = "advanced-filter-group",
+      tags$label("Store", class = "advanced-filter-label", `for` = "tournaments_store_filter"),
+      selectInput("tournaments_store_filter", NULL,
+        choices = list("All" = ""),
+        width = "160px", selectize = FALSE)
+    ),
+    div(class = "advanced-filter-group",
+      tags$label("From", class = "advanced-filter-label", `for` = "tournaments_date_from"),
+      dateInput("tournaments_date_from", NULL, value = NA, width = "130px")
+    ),
+    div(class = "advanced-filter-group",
+      tags$label("To", class = "advanced-filter-label", `for` = "tournaments_date_to"),
+      dateInput("tournaments_date_to", NULL, value = NA, width = "130px")
+    ),
+    div(class = "advanced-filter-group",
+      tags$label("Size", class = "advanced-filter-label", `for` = "tournaments_size_filter"),
+      selectInput("tournaments_size_filter", NULL,
+        choices = list("Any" = "0", "8+" = "8", "16+" = "16", "32+" = "32", "64+" = "64", "128+" = "128"),
+        width = "80px", selectize = FALSE)
+    ),
+    actionButton("tournaments_clear_advanced", "Clear All",
+      class = "btn btn-outline-secondary btn-sm btn-clear-advanced")
   ),
 
   # Help text
