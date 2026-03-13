@@ -211,7 +211,7 @@ output$admin_notification_bar <- renderUI({
   # Exclude bug_report from total — bugs are Discord-only, not shown in-app
   total <- sum(unlist(counts)) - (counts$bug_report %||% 0)
 
-  if (total == 0) return(div(style = "display:none;"))
+  if (total == 0) return(NULL)
 
   items <- list()
 
@@ -269,6 +269,11 @@ output$admin_notification_bar <- renderUI({
     div(class = "notif-items", items)
   )
 })
+
+# Force render even when display:none — CSS hides the container by default,
+# and Shiny won't send HTML to a hidden output without this option.
+# The MutationObserver in app.R then shows it when content arrives.
+outputOptions(output, "admin_notification_bar", suspendWhenHidden = FALSE)
 
 # ---------------------------------------------------------------------------
 # Pending Request Panels (rendered on admin tabs)

@@ -717,6 +717,21 @@ ui <- page_fillable(
         }
       });
       $(window).on('resize', function() { setTimeout(fitDeckText, 100); });
+
+      // Auto-show/hide admin notification bar based on whether it has real content
+      $(document).ready(function() {
+        var notifBar = document.getElementById('admin_notification_bar');
+        if (notifBar) {
+          var observer = new MutationObserver(function() {
+            if (notifBar.querySelector('.admin-notification-bar')) {
+              notifBar.style.display = 'block';
+            } else {
+              notifBar.style.display = 'none';
+            }
+          });
+          observer.observe(notifBar, { childList: true, subtree: true });
+        }
+      });
     "))
   ),
 
