@@ -52,11 +52,6 @@ admin_scenes_ui <- tagList(
             )
           ),
           checkboxInput("scene_is_active", "Active", value = TRUE),
-          textInput("scene_discord_thread_id", "Discord Thread ID",
-                    placeholder = "e.g., 1234567890"),
-          tags$small(class = "form-text text-muted d-block mt-n2 mb-2",
-                     "Thread ID from #scene-coordination (right-click thread \u2192 Copy Link \u2192 number at end)"),
-          uiOutput("scene_discord_post_area"),
           div(
             class = "d-flex gap-2 mt-3",
             actionButton("save_scene_btn", "Save", class = "btn-primary"),
