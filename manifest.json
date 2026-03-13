@@ -835,6 +835,42 @@
         "Built": "R 4.5.2; ; 2026-01-14 11:24:11 UTC; unix"
       }
     },
+    "brand.yml": {
+      "Source": "CRAN",
+      "Repository": "https://cran.rstudio.com",
+      "description": {
+        "Package": "brand.yml",
+        "Title": "Unified Branding with a Simple YAML File",
+        "Version": "0.1.0",
+        "Authors@R": "c(\n    person(\"Garrick\", \"Aden-Buie\", , \"garrick@posit.co\", role = c(\"aut\", \"cre\"),\n           comment = c(ORCID = \"0000-0002-7111-0077\")),\n    person(\"Posit Software, PBC\", role = c(\"cph\", \"fnd\"),\n           comment = c(ROR = \"03wc8by49\"))\n  )",
+        "Description": "Read and process 'brand.yml' 'YAML' files. 'brand.yml' is a\n    simple, portable 'YAML' file that codifies your company's brand\n    guidelines into a format that can be used by 'Quarto', 'Shiny' and 'R'\n    tooling to create branded outputs. Maintain unified, branded theming\n    for web applications to printed reports to dashboards and\n    presentations with a consistent look and feel.",
+        "License": "MIT + file LICENSE",
+        "URL": "https://posit-dev.github.io/brand-yml/pkg/r/,\nhttps://github.com/posit-dev/brand-yml",
+        "BugReports": "https://github.com/posit-dev/brand-yml/issues",
+        "Depends": "R (>= 4.1.0)",
+        "Imports": "cli, rlang (>= 1.1.0), utils, yaml",
+        "Suggests": "base64enc, dplyr, flextable, ggiraph, ggplot2 (>= 4.0.0), gt,\nhtmltools, knitr, mime, palmerpenguins, patchwork, plotly,\nprismatic, rmarkdown, sass, stringr, testthat (>= 3.0.0),\nthematic (>= 0.1.7.9000), tidyr, tidyverse, withr",
+        "VignetteBuilder": "knitr",
+        "Config/testthat/edition": "3",
+        "Config/testthat/parallel": "true",
+        "Encoding": "UTF-8",
+        "RoxygenNote": "7.3.3",
+        "NeedsCompilation": "no",
+        "Packaged": "2025-11-03 17:23:28 UTC; garrick",
+        "Author": "Garrick Aden-Buie [aut, cre] (ORCID:\n    <https://orcid.org/0000-0002-7111-0077>),\n  Posit Software, PBC [cph, fnd] (ROR: <https://ror.org/03wc8by49>)",
+        "Maintainer": "Garrick Aden-Buie <garrick@posit.co>",
+        "Repository": "CRAN",
+        "Date/Publication": "2025-11-06 10:40:02 UTC",
+        "Built": "R 4.5.0; ; 2025-11-06 11:08:48 UTC; unix",
+        "RemoteType": "standard",
+        "RemoteRef": "brand.yml",
+        "RemotePkgRef": "brand.yml",
+        "RemoteRepos": "https://cran.rstudio.com",
+        "RemoteReposName": "CRAN",
+        "RemotePkgPlatform": "aarch64-apple-darwin20",
+        "RemoteSha": "0.1.0"
+      }
+    },
     "broom": {
       "Source": "CRAN",
       "Repository": "https://cran.rstudio.com",
@@ -5131,10 +5167,10 @@
       "checksum": "398ec9c32d5ac46410678f35adadb1b5"
     },
     ".Rprofile": {
-      "checksum": "70f99face3a56aeffe58e37fab458f0f"
+      "checksum": "431e4e1cd314795e2c12df7d1a439282"
     },
     "app.R": {
-      "checksum": "4f687c67b89c723fad2b1d48fa62bbcd"
+      "checksum": "33ab4626602f22a707aaf9121d4a7bc2"
     },
     "ARCHITECTURE.md": {
       "checksum": "ffc3c21ddb550f0e7f574c2b2ee2a000"
@@ -5584,7 +5620,7 @@
       "checksum": "fccaee506e50c8a0158bd30b24b33c8f"
     },
     "renv.lock": {
-      "checksum": "cb5dbd7306a44a339b53e4c87bca9c6a"
+      "checksum": "7106a3846578ead4a9da86c79c7d7f7b"
     },
     "ROADMAP.md": {
       "checksum": "7bba0818055c27c754d3011d637d2c9c"

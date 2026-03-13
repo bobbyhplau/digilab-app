@@ -7,6 +7,7 @@
 library(shiny)
 library(shinyjs)
 library(bslib)
+library(brand.yml)
 library(bsicons)
 library(DBI)
 library(pool)
