@@ -375,10 +375,16 @@ body {
   gap: 0.35rem;
 }
 
+.continent-selector-wrapper .form-group {
+  width: auto !important;
+  margin-bottom: 0;
+}
+
 .continent-selector-wrapper select {
-  padding-left: 0.4rem !important;
-  padding-right: 1.3rem !important;
-  font-size: 0.8rem;
+  width: 62px !important;
+  padding-left: 0.3rem !important;
+  padding-right: 1.2rem !important;
+  font-size: 0.75rem;
   font-weight: 600;
   letter-spacing: 0.5px;
 }

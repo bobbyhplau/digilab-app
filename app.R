@@ -738,19 +738,6 @@ ui <- page_fillable(
       span(class = "header-badge", paste0("v", APP_VERSION)),
       span(class = "header-circuit-line")
     ),
-    div(
-      class = "header-actions",
-      # Admin - lock icon only
-      actionLink("admin_login_link",
-                 bsicons::bs_icon("lock"),
-                 class = "header-action-btn",
-                 title = "Admin Login"),
-      # Help menu (three-dots icon → modal)
-      actionLink("help_menu_link",
-                 bsicons::bs_icon("three-dots-vertical"),
-                 class = "header-action-btn",
-                 title = "Help & Resources")
-    ),
     # Cascading scene selector: continent + scene dropdowns
     div(
       class = "header-scene-selector",
@@ -776,7 +763,19 @@ ui <- page_fillable(
                   choices = list("All Scenes" = "all"),
                   selected = "all",
                   width = "180px",
-                  selectize = FALSE)
+                  selectize = FALSE),
+      # Admin + help icons (right of scene selector)
+      div(
+        class = "header-actions",
+        actionLink("admin_login_link",
+                   bsicons::bs_icon("lock"),
+                   class = "header-action-btn",
+                   title = "Admin Login"),
+        actionLink("help_menu_link",
+                   bsicons::bs_icon("three-dots-vertical"),
+                   class = "header-action-btn",
+                   title = "Help & Resources")
+      )
     ),
     # Dark mode toggle (after scene selector)
     input_dark_mode(id = "dark_mode", mode = "light")
