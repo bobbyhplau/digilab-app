@@ -401,17 +401,25 @@ observeEvent(input$save_admin_btn, {
                       if (is.na(scene_id)) NA_integer_ else scene_id, uid))
     }
 
-    # Sync junction table
-    safe_execute(db_pool,
-      "DELETE FROM admin_user_scenes WHERE user_id = $1 AND is_primary = TRUE",
-      params = list(uid))
-    if (!is.na(scene_id)) {
-      safe_execute(db_pool,
-        "INSERT INTO admin_user_scenes (user_id, scene_id, is_primary)
-         VALUES ($1, $2, TRUE)
-         ON CONFLICT (user_id, scene_id) DO UPDATE SET is_primary = TRUE",
-        params = list(uid, scene_id))
-    }
+    # Sync junction table (transactional to avoid orphaned state)
+    con <- pool::localCheckout(db_pool)
+    tryCatch({
+      DBI::dbExecute(con, "BEGIN")
+      DBI::dbExecute(con,
+        "DELETE FROM admin_user_scenes WHERE user_id = $1 AND is_primary = TRUE",
+        params = list(uid))
+      if (!is.na(scene_id)) {
+        DBI::dbExecute(con,
+          "INSERT INTO admin_user_scenes (user_id, scene_id, is_primary)
+           VALUES ($1, $2, TRUE)
+           ON CONFLICT (user_id, scene_id) DO UPDATE SET is_primary = TRUE",
+          params = list(uid, scene_id))
+      }
+      DBI::dbExecute(con, "COMMIT")
+    }, error = function(e) {
+      try(DBI::dbExecute(con, "ROLLBACK"), silent = TRUE)
+      warning("Junction table sync failed: ", e$message)
+    })
 
     notify(paste0("Admin '", username, "' updated"), type = "message")
     rv$data_refresh <- rv$data_refresh + 1

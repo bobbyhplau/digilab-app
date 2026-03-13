@@ -599,6 +599,7 @@ output$mobile_players_cards <- renderUI({
   players_search_debounced(),
   input$players_min_events,
   rv$current_scene,
+  rv$current_continent,
   rv$community_filter,
   rv$data_refresh,
   mobile_players_limit()

@@ -44,6 +44,7 @@ tagList(
                      class = "btn-title-strip-reset",
                      title = "Reset filters"),
         tags$button(
+          type = "button",
           class = "btn-title-strip-filters",
           `data-target` = "tournaments_advanced_filters",
           icon("sliders"),

@@ -316,9 +316,20 @@ observeEvent(input$continent_selector, {
     continent = continent
   ))
 
-  # Reset pill toggles
+  # Reset pill toggles and advanced filters
   session$sendCustomMessage("resetPillToggle", list(inputId = "players_min_events", value = "0"))
   session$sendCustomMessage("resetPillToggle", list(inputId = "meta_min_entries", value = "0"))
+  updateSelectInput(session, "players_store_filter", selected = "")
+  updateSelectInput(session, "tournaments_store_filter", selected = "")
+  updateSelectInput(session, "players_win_pct_filter", selected = "0")
+  updateSelectInput(session, "meta_conversion_filter", selected = "0")
+  updateSelectInput(session, "tournaments_size_filter", selected = "0")
+  updateCheckboxInput(session, "players_top3_toggle", value = FALSE)
+  updateCheckboxInput(session, "players_decklist_toggle", value = FALSE)
+  updateCheckboxInput(session, "meta_top3_toggle", value = FALSE)
+  updateCheckboxInput(session, "meta_decklist_toggle", value = FALSE)
+  updateDateInput(session, "tournaments_date_from", value = NA)
+  updateDateInput(session, "tournaments_date_to", value = NA)
 }, ignoreInit = TRUE)
 
 # -----------------------------------------------------------------------------
@@ -358,9 +369,20 @@ observeEvent(input$scene_selector, {
   # Trigger data refresh
   rv$data_refresh <- Sys.time()
 
-  # Reset pill toggles to Unranked on scene change
+  # Reset pill toggles and advanced filters on scene change
   session$sendCustomMessage("resetPillToggle", list(inputId = "players_min_events", value = "0"))
   session$sendCustomMessage("resetPillToggle", list(inputId = "meta_min_entries", value = "0"))
+  updateSelectInput(session, "players_store_filter", selected = "")
+  updateSelectInput(session, "tournaments_store_filter", selected = "")
+  updateSelectInput(session, "players_win_pct_filter", selected = "0")
+  updateSelectInput(session, "meta_conversion_filter", selected = "0")
+  updateSelectInput(session, "tournaments_size_filter", selected = "0")
+  updateCheckboxInput(session, "players_top3_toggle", value = FALSE)
+  updateCheckboxInput(session, "players_decklist_toggle", value = FALSE)
+  updateCheckboxInput(session, "meta_top3_toggle", value = FALSE)
+  updateCheckboxInput(session, "meta_decklist_toggle", value = FALSE)
+  updateDateInput(session, "tournaments_date_from", value = NA)
+  updateDateInput(session, "tournaments_date_to", value = NA)
 }, ignoreInit = TRUE)
 
 # -----------------------------------------------------------------------------

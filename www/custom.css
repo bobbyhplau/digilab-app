@@ -836,7 +836,7 @@ body {
 
 /* Reduce whitespace between header and content */
 /* Target bslib spacing classes on body and ALL containers (page_fillable wraps in intermediate divs) */
-.bslib-gap-spacing {
+body.bslib-gap-spacing, body > .bslib-gap-spacing {
   gap: 0 !important;
 }
 
@@ -1473,9 +1473,9 @@ body {
 .color-pill[data-color="Blue"] { background: rgba(45, 125, 210, 0.35); color: #5CA3E8; }
 .color-pill[data-color="Yellow"] { background: rgba(245, 183, 0, 0.35); color: #FFD24D; }
 .color-pill[data-color="Green"] { background: rgba(56, 161, 105, 0.35); color: #5CC98A; }
-.color-pill[data-color="Black"] { background: rgba(100, 110, 130, 0.5); color: #CBD5E0; border: 1px solid rgba(160, 174, 192, 0.4); }
+.color-pill[data-color="Black"] { background: rgba(100, 110, 130, 0.5); color: #CBD5E0; border-color: rgba(160, 174, 192, 0.4); }
 .color-pill[data-color="Purple"] { background: rgba(160, 120, 240, 0.4); color: #C4B5FD; }
-.color-pill[data-color="White"] { background: rgba(220, 230, 240, 0.4); color: #FFFFFF; border: 1px solid rgba(255, 255, 255, 0.4); }
+.color-pill[data-color="White"] { background: rgba(220, 230, 240, 0.4); color: #FFFFFF; border-color: rgba(255, 255, 255, 0.4); }
 
 .color-pill[data-color="Red"] .color-dot { background: #E5383B; }
 .color-pill[data-color="Blue"] .color-dot { background: #2D7DD2; }
