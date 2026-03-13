@@ -64,8 +64,17 @@ tagList(
         choices = list("Any" = "0", "50%+" = "50", "60%+" = "60", "70%+" = "70"),
         width = "100px", selectize = FALSE)
     ),
-    actionButton("players_clear_advanced", "Clear All",
-      class = "btn btn-outline-secondary btn-sm btn-clear-advanced")
+    # Row 2: filters that also apply to player profile modal
+    div(class = "advanced-filter-row-break"),
+    span(class = "advanced-filter-hint", "Also filters player profile modal:"),
+    div(class = "advanced-filter-group",
+      tags$label("Top 3 only", class = "advanced-filter-label"),
+      checkboxInput("players_top3_toggle", NULL, value = FALSE)
+    ),
+    div(class = "advanced-filter-group",
+      tags$label("Has decklist", class = "advanced-filter-label"),
+      checkboxInput("players_decklist_toggle", NULL, value = FALSE)
+    )
   ),
 
   # Historical rating indicator (shown when viewing past format)

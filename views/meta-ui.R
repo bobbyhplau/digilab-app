@@ -52,7 +52,7 @@ tagList(
   div(
     id = "meta_advanced_filters",
     class = "advanced-filters-row",
-    # Row 1: Color pills + checkboxes
+    # Row 1: Color pills + conversion %
     div(class = "advanced-filter-group",
       tags$label("Color", class = "advanced-filter-label"),
       div(id = "meta_color_pills", class = "color-filter-pills",
@@ -73,21 +73,22 @@ tagList(
       )
     ),
     div(class = "advanced-filter-group",
+      tags$label("Conv %", class = "advanced-filter-label", `for` = "meta_conversion_filter"),
+      selectInput("meta_conversion_filter", NULL,
+        choices = list("Any" = "0", "5%+" = "5", "10%+" = "10", "20%+" = "20", "30%+" = "30"),
+        width = "80px", selectize = FALSE)
+    ),
+    # Row 2: filters that also apply to deck profile modal
+    div(class = "advanced-filter-row-break"),
+    span(class = "advanced-filter-hint", "Also filters deck profile modal:"),
+    div(class = "advanced-filter-group",
       tags$label("Top 3 only", class = "advanced-filter-label"),
       checkboxInput("meta_top3_toggle", NULL, value = FALSE)
     ),
     div(class = "advanced-filter-group",
       tags$label("Has decklist", class = "advanced-filter-label"),
       checkboxInput("meta_decklist_toggle", NULL, value = FALSE)
-    ),
-    div(class = "advanced-filter-group",
-      tags$label("Conv %", class = "advanced-filter-label", `for` = "meta_conversion_filter"),
-      selectInput("meta_conversion_filter", NULL,
-        choices = list("Any" = "0", "5%+" = "5", "10%+" = "10", "20%+" = "20", "30%+" = "30"),
-        width = "80px", selectize = FALSE)
-    ),
-    actionButton("meta_clear_advanced", "Clear All",
-      class = "btn btn-outline-secondary btn-sm btn-clear-advanced")
+    )
   ),
 
   # Help text

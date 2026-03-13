@@ -62,12 +62,10 @@ tagList(
         choices = list("All" = ""),
         width = "160px")
     ),
-    div(class = "advanced-filter-group",
-      tags$label("From", class = "advanced-filter-label", `for` = "tournaments_date_from"),
-      dateInput("tournaments_date_from", NULL, value = NA, width = "110px")
-    ),
-    div(class = "advanced-filter-group",
-      tags$label("To", class = "advanced-filter-label", `for` = "tournaments_date_to"),
+    div(class = "advanced-filter-group date-range-group",
+      tags$label("From", class = "advanced-filter-label"),
+      dateInput("tournaments_date_from", NULL, value = NA, width = "110px"),
+      span(class = "advanced-filter-label", "\u2013"),
       dateInput("tournaments_date_to", NULL, value = NA, width = "110px")
     ),
     div(class = "advanced-filter-group",
@@ -75,9 +73,7 @@ tagList(
       selectInput("tournaments_size_filter", NULL,
         choices = list("Any" = "0", "8+" = "8", "16+" = "16", "32+" = "32", "64+" = "64", "128+" = "128"),
         width = "80px", selectize = FALSE)
-    ),
-    actionButton("tournaments_clear_advanced", "Clear All",
-      class = "btn btn-outline-secondary btn-sm btn-clear-advanced")
+    )
   ),
 
   # Help text

@@ -88,13 +88,10 @@ observeEvent(input$reset_players_filters, {
   session$sendCustomMessage("resetPillToggle", list(inputId = "players_min_events", value = "0"))
   updateSelectInput(session, "players_store_filter", selected = "")
   updateSelectInput(session, "players_win_pct_filter", selected = "0")
+  updateCheckboxInput(session, "players_top3_toggle", value = FALSE)
+  updateCheckboxInput(session, "players_decklist_toggle", value = FALSE)
 })
 
-# Clear advanced filters
-observeEvent(input$players_clear_advanced, {
-  updateSelectInput(session, "players_store_filter", selected = "")
-  updateSelectInput(session, "players_win_pct_filter", selected = "0")
-})
 
 # Update store filter choices when scene changes or tab is first visited
 observe({
@@ -225,6 +222,19 @@ output$player_standings <- renderReactable({
     result <- result[!is.na(result$`Win %`) & result$`Win %` >= win_pct_min, ]
   }
 
+  # Advanced filters: top 3 only
+  if (isTRUE(input$players_top3_toggle) && nrow(result) > 0) {
+    result <- result[result$`Top 3s` > 0, ]
+  }
+
+  # Advanced filters: has decklist
+  if (isTRUE(input$players_decklist_toggle) && nrow(result) > 0) {
+    decklist_player_ids <- safe_query(db_pool,
+      "SELECT DISTINCT player_id FROM results WHERE decklist_url IS NOT NULL AND decklist_url != ''",
+      default = data.frame(player_id = integer()))
+    result <- result[result$player_id %in% decklist_player_ids$player_id, ]
+  }
+
   if (nrow(result) == 0) {
     has_filters <- nchar(trimws(players_search_debounced() %||% "")) > 0 ||
                    nchar(trimws(input$players_format %||% "")) > 0
@@ -334,6 +344,10 @@ output$player_standings <- renderReactable({
         align = "center",
         cell = JS("function(cellInfo) {
           var r = cellInfo.value;
+          var events = cellInfo.row.Events;
+          if (events < 10) {
+            return '<span class=\"desktop-rating-badge rating-tier-pending\">Pending</span>';
+          }
           var tier = r >= 1800 ? 'rating-tier-elite' :
                     r >= 1700 ? 'rating-tier-strong' :
                     r >= 1600 ? 'rating-tier-good' :
@@ -375,6 +389,8 @@ output$player_standings <- renderReactable({
   input$players_min_events,
   input$players_store_filter,
   input$players_win_pct_filter,
+  input$players_top3_toggle,
+  input$players_decklist_toggle,
   rv$current_scene,
   rv$current_continent,
   rv$community_filter,
@@ -602,8 +618,11 @@ observeEvent(input$overview_player_clicked, {
 output$player_detail_modal <- renderUI({
   req(rv$selected_player_id)
 
-  player_id <- rv$selected_player_id
+  # React to advanced filter changes so modal updates
+  input$players_top3_toggle
+  input$players_decklist_toggle
 
+  player_id <- rv$selected_player_id
 
   # Get player info (parameterized query)
   player <- safe_query(db_pool, "
@@ -661,6 +680,14 @@ output$player_detail_modal <- renderUI({
     WHERE r.player_id = $1
     ORDER BY t.event_date DESC
   ", params = list(player_id), default = data.frame())
+
+  # Apply advanced filters to modal results
+  if (isTRUE(input$players_top3_toggle) && nrow(recent_results) > 0) {
+    recent_results <- recent_results[recent_results$Place <= 3, ]
+  }
+  if (isTRUE(input$players_decklist_toggle) && nrow(recent_results) > 0) {
+    recent_results <- recent_results[!is.na(recent_results$decklist_url) & recent_results$decklist_url != "", ]
+  }
 
   # Get placement history for sparkline
   sparkline_data <- safe_query(db_pool, "

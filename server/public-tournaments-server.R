@@ -27,14 +27,6 @@ observeEvent(input$reset_tournaments_filters, {
   updateSelectInput(session, "tournaments_size_filter", selected = "0")
 })
 
-# Clear advanced filters
-observeEvent(input$tournaments_clear_advanced, {
-  updateSelectInput(session, "tournaments_store_filter", selected = "")
-  updateDateInput(session, "tournaments_date_from", value = NA)
-  updateDateInput(session, "tournaments_date_to", value = NA)
-  updateSelectInput(session, "tournaments_size_filter", selected = "0")
-})
-
 # Update store filter choices when scene changes or tab is first visited
 observe({
   req("tournaments" %in% visited_tabs())
@@ -104,7 +96,7 @@ tournaments_data <- reactive({
     start_idx = 1
   )
 
-  # Advanced filters: store
+  # Advanced filters: store (same pattern as players tab)
   store_filter <- input$tournaments_store_filter %||% ""
   if (nchar(store_filter) > 0) {
     store_idx <- filters$next_idx
@@ -142,6 +134,7 @@ tournaments_data <- reactive({
 
   query <- paste0("
     SELECT tournament_id, event_date as \"Date\", store_name as \"Store\",
+           country, is_online,
            event_type as \"Type\", format as \"Format\", player_count as \"Players\",
            rounds as \"Rounds\", winner_name as \"Winner\", winning_deck as \"Winning Deck\"
     FROM mv_tournament_list
@@ -193,6 +186,33 @@ output$tournament_history <- renderReactable({
   # Format event type nicely
   result$Type <- sapply(result$Type, format_event_type)
 
+  # Build scene indicator (flag emoji or globe for online)
+  result$Scene <- sapply(seq_len(nrow(result)), function(i) {
+    if (isTRUE(result$is_online[i])) return("\U0001F310")
+    country <- result$country[i]
+    if (is.na(country) || country == "") return("")
+    # Map common countries to flag emojis
+    switch(country,
+      "United States" = "\U0001F1FA\U0001F1F8",
+      "Canada" = "\U0001F1E8\U0001F1E6",
+      "Mexico" = "\U0001F1F2\U0001F1FD",
+      "United Kingdom" = "\U0001F1EC\U0001F1E7",
+      "Japan" = "\U0001F1EF\U0001F1F5",
+      "Australia" = "\U0001F1E6\U0001F1FA",
+      "Germany" = "\U0001F1E9\U0001F1EA",
+      "France" = "\U0001F1EB\U0001F1F7",
+      "Italy" = "\U0001F1EE\U0001F1F9",
+      "Spain" = "\U0001F1EA\U0001F1F8",
+      "Brazil" = "\U0001F1E7\U0001F1F7",
+      "South Korea" = "\U0001F1F0\U0001F1F7",
+      "Philippines" = "\U0001F1F5\U0001F1ED",
+      "Singapore" = "\U0001F1F8\U0001F1EC",
+      "Netherlands" = "\U0001F1F3\U0001F1F1",
+      "Belgium" = "\U0001F1E7\U0001F1EA",
+      "\U0001F3F3\uFE0F"
+    )
+  })
+
   reactable(
     result,
     compact = TRUE,
@@ -208,7 +228,10 @@ output$tournament_history <- renderReactable({
     }"),
     columns = list(
       tournament_id = colDef(show = FALSE),
+      country = colDef(show = FALSE),
+      is_online = colDef(show = FALSE),
       Date = colDef(minWidth = 90),
+      Scene = colDef(minWidth = 40, align = "center", name = ""),
       Store = colDef(minWidth = 150),
       Type = colDef(minWidth = 90),
       Format = colDef(minWidth = 70),

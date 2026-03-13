@@ -25,14 +25,6 @@ observeEvent(input$reset_meta_filters, {
   updateSelectInput(session, "meta_conversion_filter", selected = "0")
 })
 
-# Clear advanced filters
-observeEvent(input$meta_clear_advanced, {
-  updateCheckboxInput(session, "meta_top3_toggle", value = FALSE)
-  updateCheckboxInput(session, "meta_decklist_toggle", value = FALSE)
-  session$sendCustomMessage("clearColorPills", TRUE)
-  updateSelectInput(session, "meta_conversion_filter", selected = "0")
-})
-
 # Debounce search input (300ms)
 meta_search_debounced <- reactive(input$meta_search) |> debounce(300)
 
@@ -85,6 +77,14 @@ meta_archetype_data <- reactive({
   # Advanced filters: top 3 only
   if (isTRUE(input$meta_top3_toggle) && nrow(result) > 0) {
     result <- result[result$`Top 3s` > 0, ]
+  }
+
+  # Advanced filters: has decklist
+  if (isTRUE(input$meta_decklist_toggle) && nrow(result) > 0) {
+    decklist_arch_ids <- safe_query(db_pool,
+      "SELECT DISTINCT archetype_id FROM results WHERE decklist_url IS NOT NULL AND decklist_url != ''",
+      default = data.frame(archetype_id = integer()))
+    result <- result[result$archetype_id %in% decklist_arch_ids$archetype_id, ]
   }
 
   # Advanced filters: conversion rate minimum
