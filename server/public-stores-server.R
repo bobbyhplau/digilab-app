@@ -1906,12 +1906,22 @@ submit_store_request_final <- function(store_name, city, state, scene_id, discor
       state = state,
       request_subtype = "new_store"
     )
-    safe_execute(db_pool, "
+    req_result <- safe_query(db_pool, "
       INSERT INTO admin_requests (request_type, scene_id, payload, discord_username)
       VALUES ($1, $2, $3, $4)
-    ", params = list("store_request", scene_id, jsonlite::toJSON(payload, auto_unbox = TRUE), discord_username))
+      RETURNING id
+    ", params = list("store_request", scene_id, jsonlite::toJSON(payload, auto_unbox = TRUE), discord_username),
+    default = data.frame())
 
-    discord_post_to_scene(scene_id, store_name, location, db_pool)
+    thread_id <- discord_post_to_scene(scene_id, store_name, location, db_pool)
+
+    # Capture thread_id on the request
+    if (!is.null(thread_id) && nrow(req_result) > 0) {
+      safe_execute(db_pool, "
+        UPDATE admin_requests SET discord_thread_id = $1 WHERE id = $2
+      ", params = list(thread_id, req_result$id[1]))
+    }
+
     removeModal()
     notify("Your store request has been sent to the scene admin! We'll follow up on Discord.", type = "message", duration = 5)
 
@@ -2005,12 +2015,22 @@ submit_scene_request_final <- function(city_name, state, stores, notes, discord_
     if (nchar(stores) > 0) payload$suggested_stores <- stores
     if (nchar(notes) > 0) payload$notes <- notes
 
-    safe_execute(db_pool, "
+    req_result <- safe_query(db_pool, "
       INSERT INTO admin_requests (request_type, scene_id, payload, discord_username)
       VALUES ($1, NULL, $2, $3)
-    ", params = list("scene_request", jsonlite::toJSON(payload, auto_unbox = TRUE), discord_username))
+      RETURNING id
+    ", params = list("scene_request", jsonlite::toJSON(payload, auto_unbox = TRUE), discord_username),
+    default = data.frame())
 
-    discord_post_scene_request(city_name, location, discord_username)
+    thread_id <- discord_post_scene_request(city_name, location, discord_username)
+
+    # Capture thread_id on the request
+    if (!is.null(thread_id) && nrow(req_result) > 0) {
+      safe_execute(db_pool, "
+        UPDATE admin_requests SET discord_thread_id = $1 WHERE id = $2
+      ", params = list(thread_id, req_result$id[1]))
+    }
+
     rv$requests_refresh <- (rv$requests_refresh %||% 0) + 1
 
     removeModal()

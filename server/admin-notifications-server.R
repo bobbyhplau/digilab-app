@@ -373,6 +373,16 @@ observeEvent(input$resolve_request, {
       WHERE id = $3 AND status = 'pending'
     ", params = list(action, admin_name, req_id))
 
+    # Sync resolution to Discord thread if one exists
+    thread_row <- safe_query(db_pool,
+      "SELECT discord_thread_id FROM admin_requests WHERE id = $1",
+      params = list(req_id),
+      default = data.frame())
+    if (nrow(thread_row) > 0 && !is.null(thread_row$discord_thread_id[1]) &&
+        !is.na(thread_row$discord_thread_id[1]) && nchar(thread_row$discord_thread_id[1]) > 0) {
+      discord_resolve_thread(thread_row$discord_thread_id[1], admin_name, action)
+    }
+
     rv$requests_refresh <- (rv$requests_refresh %||% 0) + 1
 
     label <- if (action == "resolved") "resolved" else "rejected"
