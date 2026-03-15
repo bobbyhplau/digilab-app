@@ -310,7 +310,7 @@ observeEvent(input$update_tournament, {
 
     # Trigger table refresh (admin + public tables)
     rv$tournament_refresh <- (rv$tournament_refresh %||% 0) + 1
-    rv$data_refresh <- (rv$data_refresh %||% 0) + 1
+    rv$refresh_tournaments <- rv$refresh_tournaments + 1
 
   }, error = function(e) {
     notify(paste("Error:", e$message), type = "error")
@@ -414,7 +414,8 @@ observeEvent(input$confirm_delete_tournament, {
 
   # Trigger table refresh (admin + public tables)
   rv$tournament_refresh <- (rv$tournament_refresh %||% 0) + 1
-  rv$data_refresh <- (rv$data_refresh %||% 0) + 1
+  rv$refresh_tournaments <- rv$refresh_tournaments + 1
+  rv$refresh_players <- rv$refresh_players + 1
 
   defer_ratings_recalc(db_pool, notify)
 })
@@ -1275,7 +1276,8 @@ observeEvent(input$edit_grid_save, {
       stop(e)
     })
 
-    rv$data_refresh <- (rv$data_refresh %||% 0) + 1
+    rv$refresh_tournaments <- rv$refresh_tournaments + 1
+    rv$refresh_players <- rv$refresh_players + 1
 
     defer_ratings_recalc(db_pool, notify)
 

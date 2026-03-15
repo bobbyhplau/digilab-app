@@ -252,7 +252,8 @@ observeEvent(input$clear_results_only, {
     rv$admin_player_matches <- list()
     rv$results_refresh <- (rv$results_refresh %||% 0) + 1
 
-    rv$data_refresh <- (rv$data_refresh %||% 0) + 1
+    rv$refresh_tournaments <- rv$refresh_tournaments + 1
+    rv$refresh_players <- rv$refresh_players + 1
 
     removeModal()
     notify("Results cleared. Tournament kept for re-entry.", type = "message")
@@ -290,7 +291,8 @@ observeEvent(input$delete_tournament_confirm, {
     notify("Tournament deleted.", type = "message")
 
     # Trigger refresh of public tables
-    rv$data_refresh <- (rv$data_refresh %||% 0) + 1
+    rv$refresh_tournaments <- rv$refresh_tournaments + 1
+    rv$refresh_players <- rv$refresh_players + 1
 
     defer_ratings_recalc(db_pool, notify)
 
@@ -1215,7 +1217,8 @@ observeEvent(input$admin_submit_results, {
       stop(e)  # re-throw so the outer tryCatch handles notification
     })
 
-    rv$data_refresh <- (rv$data_refresh %||% 0) + 1
+    rv$refresh_tournaments <- rv$refresh_tournaments + 1
+    rv$refresh_players <- rv$refresh_players + 1
 
     notify(sprintf("Tournament submitted! %d results recorded.", as.integer(result_count)),
                      type = "message", duration = 5)

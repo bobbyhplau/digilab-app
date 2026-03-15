@@ -1570,7 +1570,8 @@ observeEvent(input$submit_tournament, {
     DBI::dbExecute(conn, "COMMIT")
 
     # Trigger refresh
-    rv$data_refresh <- (rv$data_refresh %||% 0) + 1
+    rv$refresh_tournaments <- rv$refresh_tournaments + 1
+    rv$refresh_players <- rv$refresh_players + 1
     rv$results_refresh <- (rv$results_refresh %||% 0) + 1
 
     notify(
