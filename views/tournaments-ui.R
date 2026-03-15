@@ -18,10 +18,12 @@ tagList(
         class = "title-strip-controls",
         div(
           class = "title-strip-search",
+          tags$label(class = "visually-hidden", `for` = "tournaments_search", "Search tournaments"),
           textInput("tournaments_search", NULL, placeholder = "Search...", width = "120px")
         ),
         div(
           class = "title-strip-select",
+          tags$label(class = "visually-hidden", `for` = "tournaments_format", "Format"),
           selectInput("tournaments_format", NULL,
                       choices = format_choices_with_all,
                       selected = "",
@@ -30,6 +32,7 @@ tagList(
         ),
         div(
           class = "title-strip-select",
+          tags$label(class = "visually-hidden", `for` = "tournaments_event_type", "Event type"),
           selectInput("tournaments_event_type", NULL,
                       choices = list(
                         "All Events" = "",
@@ -42,7 +45,8 @@ tagList(
         actionButton("reset_tournaments_filters", NULL,
                      icon = icon("rotate-right"),
                      class = "btn-title-strip-reset",
-                     title = "Reset filters"),
+                     title = "Reset filters",
+                     `aria-label` = "Reset filters"),
         tags$button(
           type = "button",
           class = "btn-title-strip-filters",
