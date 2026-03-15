@@ -8167,6 +8167,14 @@ div.player-match-indicator.new {
   color: rgba(231, 76, 60, 0.7);
 }
 
+/* --- Right-side cluster (discord + status) --- */
+.admin-user-row-end {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
+}
+
 /* --- Discord indicator --- */
 .admin-discord-indicator {
   display: inline-flex;

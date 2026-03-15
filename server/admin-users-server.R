@@ -233,13 +233,15 @@ output$admin_users_grouped <- renderUI({
         div(class = "admin-user-row-top",
           span(class = "admin-user-row-name", username),
           role_badge,
-          inherit_tag,
-          discord_indicator
+          inherit_tag
         )
       ),
-      div(class = paste("admin-status", status_cls),
-        span(class = "admin-status-dot"),
-        span(class = "admin-status-label", status_label)
+      div(class = "admin-user-row-end",
+        discord_indicator,
+        div(class = paste("admin-status", status_cls),
+          span(class = "admin-status-dot"),
+          span(class = "admin-status-label", status_label)
+        )
       )
     )
   }
