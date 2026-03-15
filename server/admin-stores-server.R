@@ -498,17 +498,15 @@ output$admin_store_list <- renderReactable({
   # Determine completeness status for each row
   data$status <- sapply(1:nrow(data), function(i) {
     is_online <- isTRUE(data$is_online[i])
-    has_schedule <- data$schedule_count[i] > 0
-    has_zip <- !is.na(data$zip_code[i]) && nchar(data$zip_code[i]) > 0
+    has_schedule <- isTRUE(data$schedule_count[i] > 0)
+    has_zip <- !is.na(data$zip_code[i]) && nzchar(trimws(data$zip_code[i]))
 
     if (is_online) {
-      "complete"  # Online stores don't need schedules or zip
+      "complete"
     } else if (!has_schedule && !has_zip) {
-      "missing_both"
-    } else if (!has_schedule) {
-      "missing_schedule"
-    } else if (!has_zip) {
-      "missing_zip"
+      "incomplete"
+    } else if (!has_schedule || !has_zip) {
+      "incomplete"
     } else {
       "complete"
     }
