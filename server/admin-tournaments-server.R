@@ -147,7 +147,6 @@ output$admin_tournament_list <- renderReactable({
     Type = sapply(data$event_type, format_event_type),
     Format = data$format,
     Players = data$player_count,
-    Rounds = data$rounds,
     Results = data$results_entered,
     stringsAsFactors = FALSE
   )
@@ -176,13 +175,20 @@ output$admin_tournament_list <- renderReactable({
     defaultPageSize = 12,
     columns = list(
       ID = colDef(show = FALSE),
-      Store = colDef(minWidth = 150),
-      Date = colDef(width = 100),
-      Type = colDef(width = 90),
-      Format = colDef(minWidth = 100),
-      Players = colDef(width = 70, align = "center"),
-      Rounds = colDef(width = 65, align = "center"),
-      Results = colDef(width = 70, align = "center")
+      Store = colDef(minWidth = 160, style = list(whiteSpace = "normal")),
+      Date = colDef(width = 105),
+      Type = colDef(width = 95),
+      Format = colDef(width = 80),
+      Players = colDef(width = 65, align = "center"),
+      Results = colDef(width = 65, align = "center",
+        cell = function(value) {
+          if (value == 0) {
+            span(class = "text-muted", "\u2014")
+          } else {
+            value
+          }
+        }
+      )
     )
   )
 })

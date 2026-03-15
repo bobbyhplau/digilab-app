@@ -95,9 +95,9 @@ The architecture doc contains:
 
 ## Current Work
 
-### Latest Release: v1.7.0 - Filter Redesign & Scene Restructure
+### Latest Release: v1.7.3 - Discord Restructure & Admin UI Design Pass
 
-Cascading continent+scene selector, advanced filter accordions on all tabs, ranked/unranked pill toggle, admin-scene junction table, mobile filter panels with CSS Grid layout, Discord UI cleanup. See `CHANGELOG.md` for full details.
+Discord restructure (Phases 1–5): DB migration, webhook refactor to per-action threads, thread ID capture, resolution sync, regional admin role, scene-centric tree view, scene naming standardization. Admin UI design pass: sectioned form layouts, info-hint-box helper text, global pagination styling, table consistency. See `CHANGELOG.md` for full details.
 
 See `ROADMAP.md` for the full version plan.
 
@@ -105,6 +105,8 @@ See `ROADMAP.md` for the full version plan.
 
 | Version | Focus |
 |---------|-------|
+| v1.7.3 | Discord Restructure & Admin UI Design Pass |
+| v1.7.2 | Dual-Color Badges, Rating Snapshots & Bug Fixes |
 | v1.7.0 | Filter Redesign & Scene Restructure |
 | v1.6.0 | Player Identity & Disambiguation |
 | v1.5.2 | Prepared Statement Resilience |
@@ -113,7 +115,6 @@ See `ROADMAP.md` for the full version plan.
 | v1.3.2 | Sentry Error Fixes |
 | v1.3.1 | Fixes & Upload Improvements |
 | v1.3.0 | Mobile Views & PWA Fixes |
-| v1.2.0 | Rating System Redesign & DigiLab Website |
 
 ### Key Architectural Decisions
 
@@ -380,6 +381,6 @@ See `ARCHITECTURE.md` > CSS Architecture for full documentation.
 
 ## Current Version
 
-**v1.7.2** - Dual-Color Badges, Rating Snapshots & Bug Fixes
+**v1.7.3** - Discord Restructure & Admin UI Design Pass
 
 See `CHANGELOG.md` for full version history and `ROADMAP.md` for upcoming features.

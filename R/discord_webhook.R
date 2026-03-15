@@ -3,25 +3,32 @@
 # Fire-and-forget: errors are logged but never block the user.
 
 # Base helper — sends a webhook POST to Discord
+# Returns TRUE on success, FALSE on failure
 discord_send <- function(webhook_url, body, thread_id = NULL) {
-  if (is.null(webhook_url) || nchar(webhook_url) == 0) {
+  if (is.null(webhook_url) || is.na(webhook_url) || nchar(webhook_url) == 0) {
     warning("Discord webhook URL not configured")
     return(invisible(FALSE))
   }
 
   tryCatch({
     url <- webhook_url
-    if (!is.null(thread_id) && nchar(thread_id) > 0) {
+    if (!is.null(thread_id) && !is.na(thread_id) && nchar(thread_id) > 0) {
       url <- paste0(url, "?thread_id=", thread_id)
     }
 
-    httr2::request(url) |>
+    resp <- httr2::request(url) |>
       httr2::req_body_json(body) |>
       httr2::req_timeout(10) |>
       httr2::req_error(is_error = function(resp) FALSE) |>
       httr2::req_perform()
 
-    invisible(TRUE)
+    status <- httr2::resp_status(resp)
+    if (status >= 200 && status < 300) {
+      invisible(TRUE)
+    } else {
+      warning(paste("Discord webhook returned status:", status))
+      invisible(FALSE)
+    }
   }, error = function(e) {
     warning(paste("Discord webhook error:", e$message))
     if (exists("sentry_capture_exception", mode = "function")) {
@@ -34,43 +41,143 @@ discord_send <- function(webhook_url, body, thread_id = NULL) {
   })
 }
 
-# Post a store request to an existing scene's #scene-coordination thread
+# Create a new forum thread via webhook. Returns thread_id (channel_id) or NULL.
+# Generic thread creator — accepts title, content, and optional tags list.
+discord_create_action_thread <- function(thread_title, message_content,
+                                         tags = list(), webhook_url = NULL) {
+  if (is.null(webhook_url)) {
+    webhook_url <- Sys.getenv("DISCORD_WEBHOOK_SCENE_COORDINATION")
+  }
+
+  if (is.null(webhook_url) || nchar(webhook_url) == 0) {
+    warning("Discord webhook URL not configured for thread creation")
+    return(NULL)
+  }
+
+  # Append ?wait=true to get the message object back (includes channel_id = thread ID)
+  url <- paste0(webhook_url, "?wait=true")
+
+  body <- list(
+    thread_name = substr(thread_title, 1, 100),
+    content = message_content
+  )
+
+  # Apply tags (filter out empty strings)
+  valid_tags <- Filter(function(t) nchar(t) > 0, tags)
+  if (length(valid_tags) > 0) {
+    body$applied_tags <- valid_tags
+  }
+
+  tryCatch({
+    resp <- httr2::request(url) |>
+      httr2::req_body_json(body) |>
+      httr2::req_timeout(15) |>
+      httr2::req_error(is_error = function(resp) FALSE) |>
+      httr2::req_perform()
+
+    status <- httr2::resp_status(resp)
+    if (status >= 200 && status < 300) {
+      parsed <- httr2::resp_body_json(resp)
+      # Discord returns the message object; channel_id is the thread ID
+      return(parsed$channel_id)
+    } else {
+      warning(paste("Discord webhook returned status:", status))
+      return(NULL)
+    }
+  }, error = function(e) {
+    warning(paste("Discord thread creation error:", e$message))
+    if (exists("sentry_capture_exception", mode = "function")) {
+      try(sentry_capture_exception(e, tags = list(
+        component = "discord_webhook",
+        webhook_type = "action_thread_create"
+      )), silent = TRUE)
+    }
+    return(NULL)
+  })
+}
+
+# Query scene admins (direct + regional) for @mention strings
+# Returns "<@id1> <@id2>" string, or "" if none found
+get_scene_admin_mentions <- function(scene_id, db_pool) {
+  if (is.null(scene_id) || is.na(scene_id)) return("")
+
+  tryCatch({
+    mentions <- pool::dbGetQuery(db_pool, "
+      SELECT DISTINCT au.discord_user_id FROM admin_user_scenes aus
+      JOIN admin_users au ON aus.user_id = au.user_id
+      WHERE aus.scene_id = $1 AND au.is_active = TRUE AND au.discord_user_id IS NOT NULL
+      UNION
+      SELECT DISTINCT au.discord_user_id FROM admin_regions ar
+      JOIN admin_users au ON ar.user_id = au.user_id
+      JOIN scenes s ON s.scene_id = $1
+      WHERE au.is_active = TRUE AND au.discord_user_id IS NOT NULL
+        AND ar.country = s.country
+        AND (ar.state_region IS NULL OR ar.state_region = s.state_region)
+    ", params = list(scene_id))
+
+    if (nrow(mentions) == 0) return("")
+
+    ids <- mentions$discord_user_id[!is.na(mentions$discord_user_id) & nchar(mentions$discord_user_id) > 0]
+    if (length(ids) == 0) return("")
+    paste0("<@", ids, ">", collapse = " ")
+  }, error = function(e) {
+    warning(paste("Failed to fetch scene admin mentions:", e$message))
+    ""
+  })
+}
+
+# Post a store request — creates a NEW forum thread per request (not routed to scene thread)
+# Returns thread_id or NULL
 discord_post_to_scene <- function(scene_id, store_name, city_state, db_pool) {
   scene <- tryCatch(
     pool::dbGetQuery(db_pool,
-      "SELECT discord_thread_id, display_name FROM scenes WHERE scene_id = $1",
+      "SELECT display_name, latitude, longitude, country FROM scenes WHERE scene_id = $1",
       params = list(scene_id)),
     error = function(e) data.frame()
   )
 
-  if (nrow(scene) == 0) {
-    warning(paste("Scene not found:", scene_id))
-    return(invisible(FALSE))
-  }
-
-  thread_id <- scene$discord_thread_id[1]
-  webhook_url <- Sys.getenv("DISCORD_WEBHOOK_SCENE_COORDINATION")
-
-  if (is.null(thread_id) || is.na(thread_id) || nchar(thread_id) == 0) {
-    return(discord_post_scene_request(store_name, city_state, discord_username = NA_character_))
-  }
-
   timestamp <- format(Sys.time(), "%m/%d/%Y %I:%M %p %Z")
+  mentions <- get_scene_admin_mentions(scene_id, db_pool)
 
-  body <- list(
-    content = paste0(
-      "**New Store Request**\n",
-      "**Store:** ", store_name, "\n",
-      "**Location:** ", city_state, "\n",
-      "**Submitted:** ", timestamp, "\n",
-      "*Submitted via DigiLab*"
-    )
+  content_lines <- c(
+    "**New Store Request**",
+    paste0("**Store:** ", store_name),
+    paste0("**Location:** ", city_state)
   )
 
-  discord_send(webhook_url, body, thread_id = thread_id)
+  if (nrow(scene) > 0) {
+    content_lines <- c(content_lines, paste0("**Scene:** ", scene$display_name[1]))
+  }
+
+  content_lines <- c(content_lines,
+    paste0("**Submitted:** ", timestamp),
+    "*Submitted via DigiLab*"
+  )
+
+  if (nchar(mentions) > 0) {
+    content_lines <- c(content_lines, "", mentions)
+  }
+
+  # Build tags: continent + STORE_REQUEST
+  tags <- list()
+  if (nrow(scene) > 0) {
+    continent_tag <- get_continent_tag(scene$latitude[1], scene$longitude[1])
+    if (nchar(continent_tag) > 0) tags <- c(tags, continent_tag)
+  }
+  store_req_tag <- Sys.getenv("DISCORD_TAG_STORE_REQUEST", "")
+  if (nchar(store_req_tag) > 0) tags <- c(tags, store_req_tag)
+
+  thread_title <- paste0("Store Request: ", store_name, " - ", city_state)
+
+  discord_create_action_thread(
+    thread_title = thread_title,
+    message_content = paste(content_lines, collapse = "\n"),
+    tags = tags
+  )
 }
 
 # Post a new scene/store request to #scene-requests Forum
+# Returns thread_id or NULL
 discord_post_scene_request <- function(store_name, location, discord_username = NA_character_) {
   webhook_url <- Sys.getenv("DISCORD_WEBHOOK_SCENE_REQUESTS")
   tag_id <- Sys.getenv("DISCORD_TAG_NEW_REQUEST")
@@ -92,29 +199,30 @@ discord_post_scene_request <- function(store_name, location, discord_username = 
     "*Submitted via DigiLab*"
   )
 
-  body <- list(
-    thread_name = paste0("Scene Request: ", location),
-    content = paste(content_lines, collapse = "\n")
+  thread_title <- paste0("Scene Request: ", location)
+  tags <- if (nchar(tag_id) > 0) list(tag_id) else list()
+
+  discord_create_action_thread(
+    thread_title = thread_title,
+    message_content = paste(content_lines, collapse = "\n"),
+    tags = tags,
+    webhook_url = webhook_url
   )
-
-  if (nchar(tag_id) > 0) {
-    body$applied_tags <- list(tag_id)
-  }
-
-  discord_send(webhook_url, body)
 }
 
-# Post a data error report to a scene's coordination thread
+# Post a data error report — creates a NEW forum thread per error
+# Returns thread_id or NULL. Falls back to bug_report if no scene.
 discord_post_data_error <- function(scene_id, item_type, item_name, description,
                                     discord_username = NA_character_, db_pool) {
   scene <- tryCatch(
     pool::dbGetQuery(db_pool,
-      "SELECT discord_thread_id, display_name FROM scenes WHERE scene_id = $1",
+      "SELECT display_name, latitude, longitude, country FROM scenes WHERE scene_id = $1",
       params = list(scene_id)),
     error = function(e) data.frame()
   )
 
   timestamp <- format(Sys.time(), "%m/%d/%Y %I:%M %p %Z")
+  mentions <- get_scene_admin_mentions(scene_id, db_pool)
 
   content_lines <- c(
     "**Data Error Report**",
@@ -137,15 +245,24 @@ discord_post_data_error <- function(scene_id, item_type, item_name, description,
     "*Submitted via DigiLab*"
   )
 
-  body <- list(content = paste(content_lines, collapse = "\n"))
+  if (nchar(mentions) > 0) {
+    content_lines <- c(content_lines, "", mentions)
+  }
 
-  # Route to scene thread if available, otherwise fall back to bug reports
+  # Build tags: continent + DATA_ERROR
+  tags <- list()
   if (nrow(scene) > 0) {
-    thread_id <- scene$discord_thread_id[1]
-    if (!is.null(thread_id) && !is.na(thread_id) && nchar(thread_id) > 0) {
-      webhook_url <- Sys.getenv("DISCORD_WEBHOOK_SCENE_COORDINATION")
-      return(discord_send(webhook_url, body, thread_id = thread_id))
-    }
+    continent_tag <- get_continent_tag(scene$latitude[1], scene$longitude[1])
+    if (nchar(continent_tag) > 0) tags <- c(tags, continent_tag)
+    data_error_tag <- Sys.getenv("DISCORD_TAG_DATA_ERROR", "")
+    if (nchar(data_error_tag) > 0) tags <- c(tags, data_error_tag)
+
+    thread_title <- paste0("Data Error: ", item_type, " - ", item_name)
+    return(discord_create_action_thread(
+      thread_title = thread_title,
+      message_content = paste(content_lines, collapse = "\n"),
+      tags = tags
+    ))
   }
 
   # Fallback: post as bug report
@@ -158,6 +275,7 @@ discord_post_data_error <- function(scene_id, item_type, item_name, description,
 }
 
 # Post a bug report to #bug-reports Forum channel
+# Returns thread_id or NULL
 discord_post_bug_report <- function(title, description, context = "",
                                     discord_username = NA_character_) {
   webhook_url <- Sys.getenv("DISCORD_WEBHOOK_BUG_REPORTS")
@@ -182,16 +300,15 @@ discord_post_bug_report <- function(title, description, context = "",
     "*Submitted via DigiLab*"
   )
 
-  body <- list(
-    thread_name = paste0("Bug: ", substr(title, 1, 90)),
-    content = paste(content_lines, collapse = "\n")
+  thread_title <- paste0("Bug: ", substr(title, 1, 90))
+  tags <- if (nchar(tag_id) > 0) list(tag_id) else list()
+
+  discord_create_action_thread(
+    thread_title = thread_title,
+    message_content = paste(content_lines, collapse = "\n"),
+    tags = tags,
+    webhook_url = webhook_url
   )
-
-  if (nchar(tag_id) > 0) {
-    body$applied_tags <- list(tag_id)
-  }
-
-  discord_send(webhook_url, body)
 }
 
 # Determine continent from lat/lng coordinates and return the Discord tag ID.
@@ -239,56 +356,140 @@ get_continent_tag <- function(lat, lng) {
   Sys.getenv(tag_env, "")
 }
 
-# Post a welcome message to #scene-coordination Forum, creating a new thread
-# Returns the channel_id (thread ID) from Discord's response, or NULL on failure
-# lat/lng: scene coordinates used to auto-detect continent for Discord forum tag
+# Legacy alias — kept for backward compatibility with scene creation flow
 discord_create_scene_thread <- function(scene_name, message_content, lat = NULL, lng = NULL) {
-  webhook_url <- Sys.getenv("DISCORD_WEBHOOK_SCENE_COORDINATION")
-
-  if (is.null(webhook_url) || nchar(webhook_url) == 0) {
-    warning("DISCORD_WEBHOOK_SCENE_COORDINATION not configured")
-    return(NULL)
-  }
-
-  # Append ?wait=true to get the message object back (includes channel_id = thread ID)
-  url <- paste0(webhook_url, "?wait=true")
-
-  body <- list(
-    thread_name = scene_name,
-    content = message_content
-  )
-
-  # Apply continent tag if available
+  tags <- list()
   tag_id <- get_continent_tag(lat, lng)
-  if (nchar(tag_id) > 0) {
-    body$applied_tags <- list(tag_id)
+  if (nchar(tag_id) > 0) tags <- c(tags, tag_id)
+
+  discord_create_action_thread(
+    thread_title = scene_name,
+    message_content = message_content,
+    tags = tags
+  )
+}
+
+# Resolve a Discord thread via bot token REST API
+# Posts a resolution message and adds the Resolved tag to the thread.
+# No-ops gracefully if DISCORD_BOT_TOKEN is not set.
+discord_resolve_thread <- function(thread_id, resolved_by, action = "resolved") {
+  bot_token <- Sys.getenv("DISCORD_BOT_TOKEN", "")
+  if (nchar(bot_token) == 0 || is.null(thread_id) || is.na(thread_id) || nchar(thread_id) == 0) {
+    return(invisible(FALSE))
   }
+
+  label <- if (action == "resolved") "Resolved" else "Rejected"
 
   tryCatch({
-    resp <- httr2::request(url) |>
-      httr2::req_body_json(body) |>
-      httr2::req_timeout(15) |>
+    # 1. Post resolution message to the thread
+    msg_url <- paste0("https://discord.com/api/v10/channels/", thread_id, "/messages")
+    msg_body <- list(
+      content = paste0("**", label, "** by ", resolved_by, " via DigiLab")
+    )
+
+    httr2::request(msg_url) |>
+      httr2::req_headers(
+        Authorization = paste("Bot", bot_token),
+        `Content-Type` = "application/json"
+      ) |>
+      httr2::req_body_json(msg_body) |>
+      httr2::req_timeout(10) |>
       httr2::req_error(is_error = function(resp) FALSE) |>
       httr2::req_perform()
 
-    status <- httr2::resp_status(resp)
-    if (status >= 200 && status < 300) {
-      parsed <- httr2::resp_body_json(resp)
-      # Discord returns the message object; channel_id is the thread ID
-      return(parsed$channel_id)
-    } else {
-      warning(paste("Discord webhook returned status:", status))
-      return(NULL)
+    # 2. Add Resolved tag to the thread (PATCH channel)
+    resolved_tag <- Sys.getenv("DISCORD_TAG_RESOLVED", "")
+    if (nchar(resolved_tag) > 0) {
+      # First get current tags
+      thread_url <- paste0("https://discord.com/api/v10/channels/", thread_id)
+      thread_resp <- httr2::request(thread_url) |>
+        httr2::req_headers(Authorization = paste("Bot", bot_token)) |>
+        httr2::req_timeout(10) |>
+        httr2::req_error(is_error = function(resp) FALSE) |>
+        httr2::req_perform()
+
+      if (httr2::resp_status(thread_resp) >= 200 && httr2::resp_status(thread_resp) < 300) {
+        thread_data <- httr2::resp_body_json(thread_resp)
+        current_tags <- thread_data$applied_tags %||% list()
+        new_tags <- unique(c(unlist(current_tags), resolved_tag))
+
+        httr2::request(thread_url) |>
+          httr2::req_method("PATCH") |>
+          httr2::req_headers(
+            Authorization = paste("Bot", bot_token),
+            `Content-Type` = "application/json"
+          ) |>
+          httr2::req_body_json(list(applied_tags = as.list(new_tags))) |>
+          httr2::req_timeout(10) |>
+          httr2::req_error(is_error = function(resp) FALSE) |>
+          httr2::req_perform()
+      }
     }
+
+    invisible(TRUE)
   }, error = function(e) {
-    warning(paste("Discord scene thread creation error:", e$message))
+    warning(paste("Discord resolve thread error:", e$message))
     if (exists("sentry_capture_exception", mode = "function")) {
       try(sentry_capture_exception(e, tags = list(
         component = "discord_webhook",
-        webhook_type = "scene_thread_create"
+        webhook_type = "resolve_thread"
       )), silent = TRUE)
     }
-    return(NULL)
+    invisible(FALSE)
+  })
+}
+
+# Send a welcome DM to a Discord user via bot token REST API
+# Returns TRUE on success, FALSE on failure. No-ops if no bot token.
+discord_send_welcome_dm <- function(discord_user_id, message) {
+  bot_token <- Sys.getenv("DISCORD_BOT_TOKEN", "")
+  if (nchar(bot_token) == 0 || is.null(discord_user_id) || is.na(discord_user_id) || nchar(discord_user_id) == 0) {
+    return(invisible(FALSE))
+  }
+
+  tryCatch({
+    # 1. Create DM channel
+    dm_url <- "https://discord.com/api/v10/users/@me/channels"
+    dm_resp <- httr2::request(dm_url) |>
+      httr2::req_headers(
+        Authorization = paste("Bot", bot_token),
+        `Content-Type` = "application/json"
+      ) |>
+      httr2::req_body_json(list(recipient_id = discord_user_id)) |>
+      httr2::req_timeout(10) |>
+      httr2::req_error(is_error = function(resp) FALSE) |>
+      httr2::req_perform()
+
+    if (httr2::resp_status(dm_resp) < 200 || httr2::resp_status(dm_resp) >= 300) {
+      warning("Failed to create DM channel")
+      return(FALSE)
+    }
+
+    dm_channel <- httr2::resp_body_json(dm_resp)
+    channel_id <- dm_channel$id
+
+    # 2. Send message
+    msg_url <- paste0("https://discord.com/api/v10/channels/", channel_id, "/messages")
+    msg_resp <- httr2::request(msg_url) |>
+      httr2::req_headers(
+        Authorization = paste("Bot", bot_token),
+        `Content-Type` = "application/json"
+      ) |>
+      httr2::req_body_json(list(content = message)) |>
+      httr2::req_timeout(10) |>
+      httr2::req_error(is_error = function(resp) FALSE) |>
+      httr2::req_perform()
+
+    httr2::resp_status(msg_resp) >= 200 && httr2::resp_status(msg_resp) < 300
+  }, error = function(e) {
+    warning(paste("Discord DM error:", e$message))
+    if (exists("sentry_capture_exception", mode = "function")) {
+      try(sentry_capture_exception(e, tags = list(
+        component = "discord_webhook",
+        webhook_type = "welcome_dm"
+      )), silent = TRUE)
+    }
+    FALSE
   })
 }
 

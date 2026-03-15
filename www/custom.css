@@ -2661,6 +2661,150 @@ body.bslib-gap-spacing, body > .bslib-gap-spacing {
   border-color: rgba(15, 76, 129, 0.25);
 }
 
+/* Admin card header hint text */
+.admin-panel .card-header .small.text-muted {
+  font-size: 0.72rem;
+  letter-spacing: 0.3px;
+}
+
+/* --- Reactable pagination (global — all tabs) ---
+   Uses info-hint-box style: grid background, cyan border, corner accents */
+.rt-pagination {
+  position: relative;
+  margin-top: 10px;
+  padding: 10px 12px;
+  background:
+    repeating-linear-gradient(0deg, rgba(15, 76, 129, 0.03) 0px, transparent 1px, transparent 12px),
+    repeating-linear-gradient(90deg, rgba(15, 76, 129, 0.03) 0px, transparent 1px, transparent 12px),
+    linear-gradient(135deg, rgba(15, 76, 129, 0.08) 0%, rgba(0, 200, 255, 0.05) 100%);
+  border: 1px solid rgba(0, 200, 255, 0.35);
+  border-radius: 6px;
+  font-size: 0.78rem;
+  gap: 8px;
+}
+
+[data-bs-theme="dark"] .rt-pagination {
+  background:
+    repeating-linear-gradient(0deg, rgba(0, 200, 255, 0.04) 0px, transparent 1px, transparent 12px),
+    repeating-linear-gradient(90deg, rgba(0, 200, 255, 0.04) 0px, transparent 1px, transparent 12px),
+    linear-gradient(135deg, rgba(0, 200, 255, 0.12) 0%, rgba(15, 76, 129, 0.08) 100%);
+  border-color: rgba(0, 200, 255, 0.4);
+}
+
+/* Corner accent — top left */
+.rt-pagination::before {
+  content: '';
+  position: absolute;
+  top: 5px;
+  left: 5px;
+  width: 14px;
+  height: 2px;
+  background: linear-gradient(90deg, rgba(0, 200, 255, 0.6), transparent);
+}
+
+.rt-pagination::after {
+  content: '';
+  position: absolute;
+  top: 5px;
+  left: 5px;
+  width: 2px;
+  height: 14px;
+  background: linear-gradient(180deg, rgba(0, 200, 255, 0.6), transparent);
+}
+
+.rt-page-info {
+  font-size: 0.72rem;
+  color: #4a5568;
+  letter-spacing: 0.3px;
+}
+
+[data-bs-theme="dark"] .rt-page-info {
+  color: #a0aec0;
+}
+
+.rt-page-size-select {
+  font-size: 0.75rem;
+  padding: 2px 6px;
+  border: 1px solid rgba(0, 200, 255, 0.3);
+  border-radius: 4px;
+  background: rgba(255, 255, 255, 0.6);
+  color: inherit;
+}
+
+[data-bs-theme="dark"] .rt-page-size-select {
+  border-color: rgba(0, 200, 255, 0.3);
+  background: rgba(0, 200, 255, 0.08);
+}
+
+.rt-page-button {
+  min-width: 28px;
+  height: 28px;
+  padding: 0 6px;
+  border: 1px solid rgba(0, 200, 255, 0.25);
+  border-radius: 4px;
+  background: rgba(255, 255, 255, 0.5);
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: #4a5568;
+  transition: all 0.15s ease;
+}
+
+[data-bs-theme="dark"] .rt-page-button {
+  border-color: rgba(0, 200, 255, 0.2);
+  background: rgba(0, 200, 255, 0.06);
+  color: #a0aec0;
+}
+
+.rt-page-button:hover:not(:disabled):not([aria-current="true"]) {
+  background: rgba(0, 200, 255, 0.1);
+  border-color: rgba(0, 200, 255, 0.5);
+  color: #0F4C81;
+}
+
+[data-bs-theme="dark"] .rt-page-button:hover:not(:disabled):not([aria-current="true"]) {
+  background: rgba(0, 200, 255, 0.15);
+  border-color: rgba(0, 200, 255, 0.4);
+  color: rgba(255, 255, 255, 0.9);
+}
+
+.rt-page-button[aria-current="true"] {
+  background: linear-gradient(135deg, rgba(15, 76, 129, 0.85) 0%, rgba(0, 200, 255, 0.6) 100%);
+  border-color: rgba(0, 200, 255, 0.5);
+  color: #fff;
+  box-shadow: 0 0 6px rgba(0, 200, 255, 0.25);
+}
+
+[data-bs-theme="dark"] .rt-page-button[aria-current="true"] {
+  background: linear-gradient(135deg, rgba(0, 200, 255, 0.3) 0%, rgba(15, 76, 129, 0.4) 100%);
+  border-color: rgba(0, 200, 255, 0.5);
+  color: #fff;
+  box-shadow: 0 0 6px rgba(0, 200, 255, 0.2);
+}
+
+.rt-page-button:disabled {
+  opacity: 0.3;
+  cursor: default;
+}
+
+/* Previous/Next text buttons */
+.rt-prev-button,
+.rt-next-button {
+  font-size: 0.72rem;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  font-weight: 700;
+}
+
+/* Page size label */
+.rt-page-size {
+  font-size: 0.72rem;
+  color: #4a5568;
+}
+
+[data-bs-theme="dark"] .rt-page-size {
+  color: #a0aec0;
+}
+
 /* =============================================================================
    TABLES
    ============================================================================= */
@@ -7929,96 +8073,490 @@ div.player-match-indicator.new {
 }
 
 /* =============================================================================
-   ADMIN USERS GROUPED VIEW
+   ADMIN USERS TREE VIEW
+   Scene-centric tree: Country → State → Scene → Admin rows
    ============================================================================= */
 
 .admin-users-scroll {
-  max-height: 500px;
+  max-height: 560px;
   overflow-y: auto;
-  padding: 12px;
+  padding: 8px;
 }
 
+/* --- Country groups --- */
 .admin-users-group {
   margin-bottom: 0;
 }
 
 .admin-users-group + .admin-users-group {
-  border-top: 1px solid rgba(0, 0, 0, 0.1);
-  padding-top: 8px;
+  border-top: 1px solid rgba(0, 0, 0, 0.08);
+  margin-top: 4px;
+  padding-top: 4px;
 }
 
 [data-bs-theme="dark"] .admin-users-group + .admin-users-group {
-  border-top-color: rgba(255, 255, 255, 0.1);
+  border-top-color: rgba(255, 255, 255, 0.08);
 }
 
 .admin-users-group-header {
   display: flex;
   align-items: center;
   gap: 8px;
-  padding: 8px 10px;
+  padding: 6px 10px;
   margin-bottom: 2px;
-  font-weight: 600;
-  font-size: 0.85rem;
+  font-weight: 700;
+  font-size: 0.8rem;
   text-transform: uppercase;
-  letter-spacing: 0.5px;
-  color: rgba(0, 0, 0, 0.5);
+  letter-spacing: 0.8px;
+  color: rgba(0, 200, 255, 0.7);
 }
 
 [data-bs-theme="dark"] .admin-users-group-header {
-  color: rgba(255, 255, 255, 0.45);
+  color: rgba(0, 200, 255, 0.6);
 }
 
 .admin-users-group-header .badge {
-  font-size: 0.75rem;
+  font-size: 0.7rem;
+  font-weight: 600;
 }
 
+/* --- State sub-level --- */
+.admin-tree-state {
+  margin-left: 10px;
+  margin-bottom: 2px;
+  border-left: 2px solid rgba(0, 200, 255, 0.12);
+  padding-left: 10px;
+}
+
+.admin-tree-state-header {
+  font-size: 0.78rem;
+  font-weight: 600;
+  color: rgba(0, 0, 0, 0.55);
+  padding: 4px 0;
+  letter-spacing: 0.3px;
+}
+
+[data-bs-theme="dark"] .admin-tree-state-header {
+  color: rgba(255, 255, 255, 0.45);
+}
+
+/* --- Scene row (header + admins) --- */
+.admin-tree-scene {
+  margin-left: 10px;
+  margin-bottom: 2px;
+  border-left: 2px solid rgba(15, 76, 129, 0.15);
+  padding-left: 8px;
+}
+
+[data-bs-theme="dark"] .admin-tree-scene {
+  border-left-color: rgba(15, 76, 129, 0.3);
+}
+
+.admin-tree-scene--uncovered {
+  border-left-color: rgba(245, 183, 0, 0.25);
+  opacity: 0.7;
+}
+
+.admin-tree-scene-header {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  padding: 3px 6px;
+  font-size: 0.82rem;
+  font-weight: 500;
+  color: rgba(0, 0, 0, 0.6);
+}
+
+[data-bs-theme="dark"] .admin-tree-scene-header {
+  color: rgba(255, 255, 255, 0.55);
+}
+
+.admin-tree-scene-icon {
+  font-size: 0.7rem;
+  opacity: 0.5;
+}
+
+/* --- Admin user row --- */
 .admin-user-row {
   display: flex;
   align-items: center;
-  gap: 12px;
-  padding: 8px 12px;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+  gap: 10px;
+  padding: 6px 10px;
+  margin: 1px 0;
+  border-radius: 6px;
   cursor: pointer;
   transition: background 0.15s ease;
 }
 
 .admin-user-row:hover {
-  background: rgba(0, 123, 255, 0.08);
+  background: rgba(0, 200, 255, 0.06);
 }
 
-.admin-user-row.selected {
-  background: rgba(0, 123, 255, 0.1);
+[data-bs-theme="dark"] .admin-user-row:hover {
+  background: rgba(0, 200, 255, 0.08);
+}
+
+.admin-user-row-info {
+  flex: 1;
+  min-width: 0;
+}
+
+.admin-user-row-top {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
 }
 
 .admin-user-row-name {
-  flex: 1;
+  font-weight: 600;
+  font-size: 0.88rem;
+}
+
+/* --- Role badges --- */
+.admin-role-badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 1px 7px;
+  border-radius: 10px;
+  font-size: 0.68rem;
+  font-weight: 600;
+  letter-spacing: 0.3px;
+  text-transform: uppercase;
+  line-height: 1.5;
+}
+
+.admin-role-badge--scene {
+  background: rgba(15, 76, 129, 0.12);
+  color: rgba(15, 76, 129, 0.85);
+  border: 1px solid rgba(15, 76, 129, 0.2);
+}
+
+[data-bs-theme="dark"] .admin-role-badge--scene {
+  background: rgba(15, 76, 129, 0.25);
+  color: rgba(100, 180, 255, 0.9);
+  border-color: rgba(15, 76, 129, 0.4);
+}
+
+.admin-role-badge--regional {
+  background: rgba(0, 200, 255, 0.1);
+  color: rgba(0, 160, 210, 0.9);
+  border: 1px solid rgba(0, 200, 255, 0.25);
+}
+
+[data-bs-theme="dark"] .admin-role-badge--regional {
+  background: rgba(0, 200, 255, 0.15);
+  color: rgba(0, 200, 255, 0.85);
+  border-color: rgba(0, 200, 255, 0.3);
+}
+
+.admin-role-badge--super {
+  background: rgba(155, 89, 182, 0.1);
+  color: rgba(142, 68, 173, 0.9);
+  border: 1px solid rgba(155, 89, 182, 0.2);
+}
+
+[data-bs-theme="dark"] .admin-role-badge--super {
+  background: rgba(155, 89, 182, 0.2);
+  color: rgba(190, 140, 220, 0.9);
+  border-color: rgba(155, 89, 182, 0.35);
+}
+
+/* --- Inherited tag --- */
+.admin-inherited-tag {
+  font-size: 0.65rem;
+  font-style: italic;
+  color: rgba(0, 0, 0, 0.35);
+  letter-spacing: 0.2px;
+}
+
+[data-bs-theme="dark"] .admin-inherited-tag {
+  color: rgba(255, 255, 255, 0.3);
+}
+
+/* --- Status indicator --- */
+.admin-status {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  flex-shrink: 0;
+}
+
+.admin-status-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+}
+
+.admin-status-label {
+  font-size: 0.7rem;
   font-weight: 500;
+  letter-spacing: 0.2px;
 }
 
-.admin-user-row-username {
-  color: rgba(255, 255, 255, 0.5);
-  font-size: 0.85rem;
+.admin-status--active .admin-status-dot {
+  background: rgba(46, 204, 113, 0.85);
+  box-shadow: 0 0 4px rgba(46, 204, 113, 0.4);
 }
 
-.admin-user-row-status {
-  width: 24px;
-  text-align: center;
+.admin-status--active .admin-status-label {
+  color: rgba(46, 204, 113, 0.8);
 }
 
+.admin-status--inactive .admin-status-dot {
+  background: rgba(231, 76, 60, 0.7);
+}
+
+.admin-status--inactive .admin-status-label {
+  color: rgba(231, 76, 60, 0.7);
+}
+
+/* --- Right-side cluster (discord + status) --- */
+.admin-user-row-end {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
+}
+
+/* --- Discord indicator --- */
+.admin-discord-indicator {
+  display: inline-flex;
+  align-items: center;
+}
+
+.admin-discord-icon {
+  font-size: 0.75rem;
+  color: rgba(88, 101, 242, 0.6);
+}
+
+[data-bs-theme="dark"] .admin-discord-icon {
+  color: rgba(88, 101, 242, 0.7);
+}
+
+/* --- Uncovered scenes --- */
 .uncovered-scenes-list {
   display: flex;
   flex-wrap: wrap;
   gap: 6px;
-  padding: 4px 12px;
+  padding: 6px 12px;
 }
 
 .uncovered-scene-badge {
   padding: 2px 8px;
   border-radius: 4px;
-  font-size: 0.8rem;
-  background: rgba(245, 183, 0, 0.15);
-  color: rgba(245, 183, 0, 0.9);
-  border: 1px solid rgba(245, 183, 0, 0.3);
+  font-size: 0.75rem;
+  font-weight: 500;
+  background: rgba(245, 183, 0, 0.1);
+  color: rgba(245, 183, 0, 0.85);
+  border: 1px solid rgba(245, 183, 0, 0.25);
+}
+
+/* --- Region selector (regional_admin form) --- */
+.region-selector-scroll {
+  border: 1px solid rgba(0, 0, 0, 0.1);
+  border-radius: 6px;
+  padding: 8px;
+  background: rgba(0, 0, 0, 0.02);
+}
+
+[data-bs-theme="dark"] .region-selector-scroll {
+  border-color: rgba(255, 255, 255, 0.1);
+  background: rgba(255, 255, 255, 0.03);
+}
+
+.region-country-group .form-check {
+  margin-bottom: 2px;
+}
+
+.region-country-group .form-check-label {
+  font-size: 0.85rem;
+}
+
+/* --- Admin form sections --- */
+.admin-form-body {
+  padding: 0.75rem !important;
+}
+
+.admin-form-section {
+  padding: 10px 0;
+}
+
+.admin-form-section + .admin-form-section {
+  border-top: 1px solid rgba(0, 0, 0, 0.06);
+}
+
+[data-bs-theme="dark"] .admin-form-section + .admin-form-section {
+  border-top-color: rgba(255, 255, 255, 0.06);
+}
+
+.admin-form-section-label {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 0.72rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.8px;
+  color: rgba(0, 200, 255, 0.6);
+  margin-bottom: 8px;
+}
+
+[data-bs-theme="dark"] .admin-form-section-label {
+  color: rgba(0, 200, 255, 0.5);
+}
+
+.admin-form-section-label .bi {
+  font-size: 0.7rem;
+}
+
+/* Discord ID input with icon prefix */
+.admin-form-discord-group {
+  margin-bottom: 0.75rem;
+}
+
+.admin-form-discord-input {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.admin-form-input-icon {
+  position: absolute;
+  left: 10px;
+  z-index: 2;
+  color: rgba(88, 101, 242, 0.5);
+  font-size: 0.9rem;
+  pointer-events: none;
+}
+
+[data-bs-theme="dark"] .admin-form-input-icon {
+  color: rgba(88, 101, 242, 0.8);
+}
+
+.admin-form-discord-field {
+  padding-left: 32px !important;
+}
+
+.admin-form-discord-group .form-text {
+  display: block;
+  margin-top: 4px;
+}
+
+/* Password group with inline generate */
+.admin-form-password-group {
+  margin-bottom: 0.5rem;
+}
+
+.admin-form-password-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 4px;
+}
+
+.admin-form-generate-btn {
+  font-size: 0.75rem !important;
+  font-weight: 600;
+  padding: 2px 10px;
+  border-radius: 10px;
+  background: rgba(0, 200, 255, 0.08);
+  border: 1px solid rgba(0, 200, 255, 0.2);
+  color: rgba(0, 200, 255, 0.8);
+  text-decoration: none !important;
+  transition: all 0.15s ease;
+}
+
+.admin-form-generate-btn:hover {
+  background: rgba(0, 200, 255, 0.15);
+  color: rgba(0, 200, 255, 1);
+}
+
+.admin-form-password-group .form-text {
+  display: block;
+  margin-top: 2px;
+}
+
+/* Role hint text */
+.admin-form-role-hint {
+  font-size: 0.78rem;
+  font-style: italic;
+  color: rgba(0, 0, 0, 0.4);
+  margin-top: -4px;
+  margin-bottom: 10px;
+  min-height: 1.2em;
+}
+
+[data-bs-theme="dark"] .admin-form-role-hint {
+  color: rgba(255, 255, 255, 0.35);
+}
+
+/* Action buttons */
+.admin-form-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding-top: 12px;
+  border-top: 1px solid rgba(0, 0, 0, 0.06);
+  margin-top: 4px;
+}
+
+[data-bs-theme="dark"] .admin-form-actions {
+  border-top-color: rgba(255, 255, 255, 0.06);
+}
+
+/* --- Admin hint boxes ---
+   Style all helper/hint text inside admin panels to match the
+   info-hint-box pattern (grid background, cyan border, corner accents).
+   Excludes: table cells, badges, card headers, stat labels, filter chips */
+.admin-panel .card-body .admin-form-section .form-text.text-muted,
+.admin-panel .card-body .admin-form-section div.text-muted.small:not(.d-flex):not(.upload-tips):not(.stat-label),
+.admin-panel .card-body .admin-form-role-hint span,
+.admin-panel .card-body .admin-form-section div.text-muted:not(.d-flex):not(.small):not(.stat-label):not(.digital-stat-box),
+.admin-panel .card-body .admin-form-section .d-flex.text-muted.small {
+  position: relative;
+  display: block;
+  font-size: 0.75rem;
+  font-style: normal;
+  color: #4a5568;
+  background:
+    repeating-linear-gradient(0deg, rgba(15, 76, 129, 0.03) 0px, transparent 1px, transparent 12px),
+    repeating-linear-gradient(90deg, rgba(15, 76, 129, 0.03) 0px, transparent 1px, transparent 12px),
+    linear-gradient(135deg, rgba(15, 76, 129, 0.08) 0%, rgba(0, 200, 255, 0.05) 100%);
+  border: 1px solid rgba(0, 200, 255, 0.35);
+  border-radius: 6px;
+  padding: 0.5rem 0.875rem;
+  margin-top: 4px;
+  margin-bottom: 8px;
+  line-height: 1.4;
+}
+
+[data-bs-theme="dark"] .admin-panel .card-body .admin-form-section .form-text.text-muted,
+[data-bs-theme="dark"] .admin-panel .card-body .admin-form-section div.text-muted.small:not(.d-flex):not(.upload-tips):not(.stat-label),
+[data-bs-theme="dark"] .admin-panel .card-body .admin-form-role-hint span,
+[data-bs-theme="dark"] .admin-panel .card-body .admin-form-section div.text-muted:not(.d-flex):not(.small):not(.stat-label):not(.digital-stat-box),
+[data-bs-theme="dark"] .admin-panel .card-body .admin-form-section .d-flex.text-muted.small {
+  color: #a0aec0;
+  background:
+    repeating-linear-gradient(0deg, rgba(0, 200, 255, 0.04) 0px, transparent 1px, transparent 12px),
+    repeating-linear-gradient(90deg, rgba(0, 200, 255, 0.04) 0px, transparent 1px, transparent 12px),
+    linear-gradient(135deg, rgba(0, 200, 255, 0.12) 0%, rgba(15, 76, 129, 0.08) 100%);
+  border-color: rgba(0, 200, 255, 0.4);
+}
+
+/* Subheaders like "Stores in Selected Scene" */
+.admin-panel .card-body h6 {
+  font-size: 0.72rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.8px;
+  color: rgba(0, 200, 255, 0.6);
+  margin-top: 4px;
+  margin-bottom: 8px;
+}
+
+[data-bs-theme="dark"] .admin-panel .card-body h6 {
+  color: rgba(0, 200, 255, 0.5);
 }
 
 /* =============================================================================

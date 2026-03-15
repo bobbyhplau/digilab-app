@@ -4,6 +4,26 @@ This log tracks development decisions, blockers, and technical notes for DigiLab
 
 ---
 
+## 2026-03-15: v1.7.3 — Discord Restructure & Admin UI Design Pass
+
+### Discord Restructure (Phases 1–5)
+Implemented all app-side prerequisites for the Datamon Discord bot. Phase 1: DB migration adding `discord_thread_id` to `admin_requests` and new `admin_regions` table. Phase 2: Webhook refactor from persistent scene threads to per-action threads with @mentions pulled from both `admin_user_scenes` (direct) and `admin_regions` (regional). Phase 3: Thread ID capture on store request/scene request/data error/bug report submissions, plus resolution sync via bot REST API. Phase 4: Regional admin role with country/state assignments, scene-centric tree view showing direct + inherited coverage, automated welcome DM. Phase 5: Scene naming standardization — stripped country prefixes from display_name, replaced acronym slugs with city names, added redirect map for stale localStorage.
+
+All webhook/bot functions gracefully no-op when `DISCORD_BOT_TOKEN` is not set, so this deploys safely without the bot running.
+
+### Admin UI Design Pass
+Comprehensive styling overhaul across all admin tabs (Decks, Scenes, Tournaments, Players, Stores, Formats) and public Submit tab. Key patterns:
+
+- **Sectioned forms**: `.admin-form-section` divs with `.admin-form-section-label` (cyan uppercase + Bootstrap icon). `.admin-form-actions` border-top button footers.
+- **Hint box styling**: All helper/hint text styled as info-hint-box cards (grid-line background, cyan border, corner accents). Scoped to `.admin-form-section` to avoid overmatching table cells and store location labels.
+- **Global pagination**: All reactable pagination (admin + public) got info-hint-box treatment with corner accents and gradient active page buttons.
+- **Table consistency**: Removed admin-specific table overrides — admin tables now match public tab styling. Cleaned up columns across all admin tables (removed clutter, fixed clipping, added missing columns like Country).
+
+### CSS Selector Scoping Fix
+Code review caught hint box selectors (`div.text-muted`) accidentally matching store location text in scenes tab. Scoped all `div.text-muted` and `.d-flex.text-muted.small` selectors to require `.admin-form-section` ancestor. Removed dead `p.text-muted` selectors that matched nothing. Added dark mode opacity boost for Discord icon.
+
+---
+
 ## 2026-03-14: v1.7.2 — Dual-Color Badges, Rating Snapshots, Mobile Filters
 
 ### Dual-Color Deck Badges

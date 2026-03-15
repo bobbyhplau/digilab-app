@@ -477,12 +477,12 @@ output$admin_store_list <- renderReactable({
   # Query stores with schedule count
   data <- safe_query(db_pool, sprintf("
     SELECT s.store_id, s.name as \"Store\", s.city as \"City\", s.state as \"State\",
-           s.is_online, s.zip_code,
+           s.country as \"Country\", s.is_online, s.zip_code,
            COUNT(ss.schedule_id) as schedule_count
     FROM stores s
     LEFT JOIN store_schedules ss ON s.store_id = ss.store_id AND ss.is_active = TRUE
     WHERE s.is_active = TRUE %s
-    GROUP BY s.store_id, s.name, s.city, s.state, s.is_online, s.zip_code
+    GROUP BY s.store_id, s.name, s.city, s.state, s.country, s.is_online, s.zip_code
     ORDER BY
       CASE WHEN s.is_online = FALSE AND COUNT(ss.schedule_id) = 0 THEN 0 ELSE 1 END,
       CASE WHEN s.zip_code IS NULL OR s.zip_code = '' THEN 0 ELSE 1 END,
@@ -498,17 +498,15 @@ output$admin_store_list <- renderReactable({
   # Determine completeness status for each row
   data$status <- sapply(1:nrow(data), function(i) {
     is_online <- isTRUE(data$is_online[i])
-    has_schedule <- data$schedule_count[i] > 0
-    has_zip <- !is.na(data$zip_code[i]) && nchar(data$zip_code[i]) > 0
+    has_schedule <- isTRUE(data$schedule_count[i] > 0)
+    has_zip <- !is.na(data$zip_code[i]) && nzchar(trimws(data$zip_code[i]))
 
     if (is_online) {
-      "complete"  # Online stores don't need schedules or zip
+      "complete"
     } else if (!has_schedule && !has_zip) {
-      "missing_both"
-    } else if (!has_schedule) {
-      "missing_schedule"
-    } else if (!has_zip) {
-      "missing_zip"
+      "incomplete"
+    } else if (!has_schedule || !has_zip) {
+      "incomplete"
     } else {
       "complete"
     }
@@ -536,14 +534,8 @@ output$admin_store_list <- renderReactable({
       status <- data$status[index]
       base_style <- list(cursor = "pointer")
 
-      if (status == "missing_both") {
-        base_style$backgroundColor <- "rgba(229, 56, 59, 0.15)"  # Red tint
-        base_style$borderLeft <- "3px solid #E5383B"
-      } else if (status == "missing_schedule") {
-        base_style$backgroundColor <- "rgba(245, 183, 0, 0.15)"  # Yellow tint
-        base_style$borderLeft <- "3px solid #F5B700"
-      } else if (status == "missing_zip") {
-        base_style$backgroundColor <- "rgba(245, 183, 0, 0.1)"  # Light yellow tint
+      if (status != "complete") {
+        base_style$backgroundColor <- "rgba(245, 183, 0, 0.12)"
         base_style$borderLeft <- "3px solid #F5B700"
       }
 
@@ -553,17 +545,14 @@ output$admin_store_list <- renderReactable({
       store_id = colDef(show = FALSE),
       zip_code = colDef(show = FALSE),
       status = colDef(show = FALSE),
-      Store = colDef(minWidth = 140),
-      City = colDef(minWidth = 80),
-      State = colDef(width = 50),
-      is_online = colDef(
-        name = "Type",
-        width = 70,
-        cell = function(value) if (isTRUE(value)) "Online" else "Physical"
-      ),
+      Store = colDef(minWidth = 160, style = list(whiteSpace = "normal")),
+      City = colDef(minWidth = 90, style = list(whiteSpace = "normal")),
+      State = colDef(show = FALSE),
+      Country = colDef(width = 80),
+      is_online = colDef(show = FALSE),
       schedule_count = colDef(
-        name = "Schedules",
-        width = 85,
+        name = "Sched.",
+        width = 70,
         align = "center",
         cell = function(value, index) {
           is_online <- data$is_online[index]

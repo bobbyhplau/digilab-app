@@ -37,10 +37,12 @@ output$admin_format_list <- renderReactable({
     pagination = TRUE,
     defaultPageSize = 20,
     columns = list(
-      `Set Code` = colDef(width = 80),
-      `Set Name` = colDef(minWidth = 150),
-      `Release Date` = colDef(width = 110),
-      Active = colDef(width = 70, cell = function(value) if (value) "Yes" else "No")
+      `Set Code` = colDef(width = 90),
+      `Set Name` = colDef(minWidth = 120, style = list(whiteSpace = "normal")),
+      `Release Date` = colDef(name = "Released", width = 105),
+      Active = colDef(width = 60, align = "center", cell = function(value) {
+        if (value) "\u2705" else "\u274c"
+      })
     )
   )
 })

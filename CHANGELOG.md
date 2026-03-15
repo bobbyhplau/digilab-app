@@ -5,6 +5,23 @@ All notable changes to DigiLab will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.7.3] - 2026-03-15 - Discord Restructure & Admin UI Design Pass
+
+### Added
+- **Discord restructure (Phases 1–5)**: Database migration for `discord_thread_id` on admin requests and `admin_regions` table. Webhook refactor from per-scene threads to per-action threads with @mentions. Thread ID capture on submission and resolution sync to Discord. Regional admin role with country/state assignments and scene-centric tree view in Edit Admins. Scene naming standardization (stripped country prefixes, city-based slugs with redirect map).
+- **Admin form sectioned layout**: All admin tabs (Decks, Scenes, Tournaments, Players, Stores, Formats) and public Submit tab redesigned with `.admin-form-section` divs, cyan uppercase section headers with Bootstrap icons, and `.admin-form-actions` button footers.
+- **Admin hint box styling**: All helper/hint text across admin panels styled as info-hint-box cards with grid-line background, cyan border, and corner accents. Scoped to `.admin-form-section` to avoid overmatching.
+- **Global pagination styling**: All reactable table pagination (admin and public) styled with info-hint-box treatment — grid background, cyan border, corner pseudo-element accents, gradient active page buttons with glow.
+- **Discord icon input**: Discord User ID field uses inline blurple icon with dark mode visibility override.
+
+### Fixed
+- **Store completeness NA crash** (Sentry): `schedule_count > 0` returned NA when schedule_count was NA, crashing `if()`. Fixed with `isTRUE()` and `nzchar(trimws())` guards.
+- **Admin hint selectors overmatching**: `div.text-muted` selectors accidentally styled store location labels in scenes tab. Scoped to require `.admin-form-section` ancestor. Removed dead `p.text-muted` selectors.
+
+### Changed
+- **Admin tables match public styling**: Removed all admin-specific table overrides (uppercase headers, compact padding, custom borders). Admin tables now inherit default reactable styling consistent with public tabs.
+- **Admin table columns cleaned up**: Tournaments: removed Rounds display column. Players: hidden Wins column. Stores: added Country, removed Type, simplified incomplete status. Scenes: removed type/created_at, added Country. Formats: widened Set Code, added Active checkmark/X. Decks: removed striping, widened deck name.
+
 ## [1.7.2] - 2026-03-14
 
 ### Added

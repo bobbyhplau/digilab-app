@@ -58,21 +58,19 @@ output$admin_scenes_table <- renderReactable({
     df,
     columns = list(
       scene_id = colDef(show = FALSE),
-      display_name = colDef(name = "Name", minWidth = 120),
+      display_name = colDef(name = "Name", minWidth = 120, style = list(whiteSpace = "normal")),
       slug = colDef(name = "Slug", minWidth = 80),
-      scene_type = colDef(name = "Type", maxWidth = 80, cell = function(value) {
-        if (value == "metro") "Metro" else if (value == "online") "Online" else value
-      }),
+      scene_type = colDef(show = FALSE),
       latitude = colDef(show = FALSE),
       longitude = colDef(show = FALSE),
-      is_active = colDef(name = "Active", maxWidth = 70, cell = function(value) {
+      is_active = colDef(name = "Active", width = 55, align = "center", cell = function(value) {
         if (value) "\u2705" else "\u274c"
       }),
-      country = colDef(show = FALSE),
+      country = colDef(name = "Country", width = 85),
       state_region = colDef(show = FALSE),
-      created_at = colDef(name = "Created", maxWidth = 100),
-      store_count = colDef(name = "Stores", maxWidth = 70),
-      admin_count = colDef(name = "Admins", maxWidth = 70)
+      created_at = colDef(show = FALSE),
+      store_count = colDef(name = "# Stores", width = 75, align = "center"),
+      admin_count = colDef(name = "# Admins", width = 80, align = "center")
     ),
     searchable = TRUE,
     defaultPageSize = 10,
@@ -510,8 +508,8 @@ output$admin_announcements_table <- renderReactable({
     df,
     columns = list(
       id = colDef(show = FALSE),
-      title = colDef(name = "Title", minWidth = 150),
-      announcement_type = colDef(name = "Type", maxWidth = 90, cell = function(value) {
+      title = colDef(name = "Title", minWidth = 150, style = list(whiteSpace = "normal")),
+      announcement_type = colDef(name = "Type", width = 80, cell = function(value) {
         switch(value,
           info = "Info",
           donation = "Donation",

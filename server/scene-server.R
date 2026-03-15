@@ -3,6 +3,36 @@
 # Handles scene selection, onboarding modal, and localStorage sync
 # =============================================================================
 
+# Slug redirect map for stale localStorage values after scene renames (Phase 5)
+# Add entries here when renaming scene slugs, remove after sufficient time has passed
+SLUG_REDIRECTS <- c(
+  "scbr" = "santa-catarina",
+  "sampa" = "sao-paulo",
+  "gva" = "metro-vancouver",
+  "cph" = "copenhagen",
+  "prt" = "azores",
+  "mcr" = "manchester",
+  "wlg" = "wellington",
+  "ftlaudy" = "fort-lauderdale",
+  "bayarea" = "bay-area",
+  "cencal" = "central-valley",
+  "nwchi" = "nw-chicago",
+  "mci" = "kansas-city",
+  "nyc" = "new-york-city",
+  "cvg" = "cincinnati",
+  "colombus" = "columbus",
+  "oklahoma" = "tulsa-okc",
+  "nepa" = "northeastern-pa",
+  "dfw" = "dallas-fort-worth",
+  "dmv" = "dc-metro",
+  "rva" = "richmond"
+)
+
+# Helper: apply slug redirect if stale value found
+apply_slug_redirect <- function(slug) {
+  if (slug %in% names(SLUG_REDIRECTS)) SLUG_REDIRECTS[[slug]] else slug
+}
+
 # -----------------------------------------------------------------------------
 # Scene Choices Helper
 # -----------------------------------------------------------------------------
@@ -76,7 +106,9 @@ get_scene_choices <- function(db_con, continent = "all") {
 
   if (nrow(scenes) == 0) return(list("All Scenes" = "all"))
 
-  # --- Helper: extract metro name from "Country (Metro)" display_name ---
+  # --- Helper: extract metro name from display_name ---
+  # After scene rename (Phase 5), display_name is already the clean metro name.
+  # Falls back to parenthetical extraction for legacy "Country (Metro)" format.
   extract_metro <- function(display_name) {
     m <- regmatches(display_name, regexpr("\\(([^)]+)\\)", display_name))
     if (length(m) > 0 && nchar(m) > 0) gsub("^\\(|\\)$", "", m) else display_name
@@ -203,7 +235,7 @@ observeEvent(db_pool, {
       continent <- stored$continent
     }
     if (!is.null(stored$scene) && stored$scene != "") {
-      scene_selected <- stored$scene
+      scene_selected <- apply_slug_redirect(stored$scene)
     }
   }
 
@@ -264,15 +296,24 @@ observeEvent(input$scene_from_storage, {
 
   # If there's a stored scene preference, apply it
   if (!is.null(stored$scene) && stored$scene != "") {
+    scene_slug <- apply_slug_redirect(stored$scene)
+
     continent <- stored$continent %||% "all"
     rv$current_continent <- continent
     updateSelectInput(session, "continent_selector", selected = continent)
     session$sendCustomMessage("updateContinentIcon", get_continent_icon(continent))
 
     choices <- get_scene_choices(db_pool, continent)
-    if (stored$scene %in% unlist(choices)) {
-      rv$current_scene <- stored$scene
-      updateSelectInput(session, "scene_selector", choices = choices, selected = stored$scene)
+    if (scene_slug %in% unlist(choices)) {
+      rv$current_scene <- scene_slug
+      updateSelectInput(session, "scene_selector", choices = choices, selected = scene_slug)
+      # Persist corrected slug to localStorage if it was redirected
+      if (scene_slug != stored$scene) {
+        session$sendCustomMessage("saveScenePreference", list(
+          scene = scene_slug,
+          continent = continent
+        ))
+      }
       shinyjs::delay(200, {
         session$sendCustomMessage("resetPillToggle", list(inputId = "players_min_events", value = "0"))
         session$sendCustomMessage("resetPillToggle", list(inputId = "meta_min_entries", value = "0"))

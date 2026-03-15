@@ -613,14 +613,17 @@ observeEvent(input$submit_data_error, {
       context = paste(data_error_context$item_type, "-", data_error_context$item_name),
       description = description
     )
-    safe_execute(db_pool, "
+    req_result <- safe_query(db_pool, "
       INSERT INTO admin_requests (request_type, scene_id, payload, discord_username)
       VALUES ($1, $2, $3, $4)
-    ", params = list("data_error", scene_id, jsonlite::toJSON(payload, auto_unbox = TRUE), discord_username))
+      RETURNING id
+    ", params = list("data_error", scene_id, jsonlite::toJSON(payload, auto_unbox = TRUE), discord_username),
+    default = data.frame())
 
     # Fire Discord webhook
+    thread_id <- NULL
     if (!is.null(scene_id)) {
-      discord_post_data_error(
+      thread_id <- discord_post_data_error(
         scene_id = scene_id,
         item_type = data_error_context$item_type,
         item_name = data_error_context$item_name,
@@ -629,12 +632,19 @@ observeEvent(input$submit_data_error, {
         db_pool = db_pool
       )
     } else {
-      discord_post_bug_report(
+      thread_id <- discord_post_bug_report(
         title = paste("Data Error:", data_error_context$item_type, "-", data_error_context$item_name),
         description = description,
         context = paste("Tab:", rv$current_nav),
         discord_username = discord_username
       )
+    }
+
+    # Capture thread_id on the request
+    if (!is.null(thread_id) && nrow(req_result) > 0) {
+      safe_execute(db_pool, "
+        UPDATE admin_requests SET discord_thread_id = $1 WHERE id = $2
+      ", params = list(thread_id, req_result$id[1]))
     }
 
     # Refresh notification bar
@@ -709,18 +719,27 @@ observeEvent(input$submit_bug_report, {
 
     # Persist to admin_requests table
     payload <- list(title = title, description = description, context = context)
-    safe_execute(db_pool, "
+    req_result <- safe_query(db_pool, "
       INSERT INTO admin_requests (request_type, scene_id, payload, discord_username)
       VALUES ($1, NULL, $2, $3)
-    ", params = list("bug_report", jsonlite::toJSON(payload, auto_unbox = TRUE), discord_username))
+      RETURNING id
+    ", params = list("bug_report", jsonlite::toJSON(payload, auto_unbox = TRUE), discord_username),
+    default = data.frame())
 
     # Fire Discord webhook
-    discord_post_bug_report(
+    thread_id <- discord_post_bug_report(
       title = title,
       description = description,
       context = context,
       discord_username = discord_username
     )
+
+    # Capture thread_id on the request
+    if (!is.null(thread_id) && nrow(req_result) > 0) {
+      safe_execute(db_pool, "
+        UPDATE admin_requests SET discord_thread_id = $1 WHERE id = $2
+      ", params = list(thread_id, req_result$id[1]))
+    }
 
     # Refresh notification bar
     rv$requests_refresh <- (rv$requests_refresh %||% 0) + 1
@@ -752,12 +771,27 @@ outputOptions(output, "has_active_tournament", suspendWhenHidden = FALSE)
 observeEvent(input$admin_login_link, {
   if (rv$is_admin) {
     # Already logged in - show account info, change password, nav (mobile)
-    role_label <- if (rv$is_superadmin) "Super Admin" else "Scene Admin"
+    role_label <- switch(rv$admin_user$role,
+      super_admin = "Super Admin",
+      regional_admin = "Regional Admin",
+      "Scene Admin"
+    )
     admin_name <- rv$admin_user$username
 
-    # Get scene name for display
+    # Get scene/region name for display
     scene_display <- "All Scenes"
-    if (!is.null(rv$admin_user$scene_id)) {
+    if (rv$admin_user$role == "regional_admin") {
+      region_rows <- safe_query(db_pool,
+        "SELECT country, state_region FROM admin_regions WHERE user_id = $1",
+        params = list(rv$admin_user$user_id),
+        default = data.frame())
+      if (nrow(region_rows) > 0) {
+        region_names <- apply(region_rows, 1, function(r) {
+          if (is.na(r["state_region"])) r["country"] else paste(r["country"], "-", r["state_region"])
+        })
+        scene_display <- paste(region_names, collapse = ", ")
+      }
+    } else if (!is.null(rv$admin_user$scene_id)) {
       scene_row <- safe_query(db_pool,
         "SELECT display_name FROM scenes WHERE scene_id = $1",
         params = list(rv$admin_user$scene_id),
@@ -954,6 +988,21 @@ observeEvent(input$login_btn, {
       default = data.frame())
     if (nrow(scene_slug) > 0) {
       updateSelectInput(session, "scene_selector", selected = scene_slug$slug[1])
+    }
+  }
+
+  # Force scene for regional admins — select first assigned scene
+  if (rv$admin_user$role == "regional_admin") {
+    first_scene <- safe_query(db_pool,
+      "SELECT s.slug FROM scenes s
+       JOIN admin_regions ar ON ar.country = s.country
+         AND (ar.state_region IS NULL OR ar.state_region = s.state_region)
+       WHERE ar.user_id = $1 AND s.is_active = TRUE AND s.scene_type = 'metro'
+       ORDER BY s.display_name LIMIT 1",
+      params = list(rv$admin_user$user_id),
+      default = data.frame())
+    if (nrow(first_scene) > 0) {
+      updateSelectInput(session, "scene_selector", selected = first_scene$slug[1])
     }
   }
 
