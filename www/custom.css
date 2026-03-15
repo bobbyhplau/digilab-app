@@ -2703,6 +2703,21 @@ body.bslib-gap-spacing, body > .bslib-gap-spacing {
   letter-spacing: 0.3px;
 }
 
+/* Admin table header wrapping — prevent single-word headers from breaking */
+.admin-panel .rt-th {
+  white-space: nowrap;
+}
+
+/* Admin table cells — prevent date/type columns from wrapping */
+.admin-panel .rt-td {
+  white-space: nowrap;
+}
+
+/* Allow name/title columns to wrap when needed */
+.admin-panel .rt-td.rt-col-flex {
+  white-space: normal;
+}
+
 /* =============================================================================
    TABLES
    ============================================================================= */
@@ -8397,6 +8412,51 @@ div.player-match-indicator.new {
 
 [data-bs-theme="dark"] .admin-form-actions {
   border-top-color: rgba(255, 255, 255, 0.06);
+}
+
+/* --- Admin form hint cards --- */
+.admin-form-body .form-text.text-muted,
+.admin-form-body .admin-form-role-hint span,
+.admin-form-body p.text-muted.small {
+  display: block;
+  font-size: 0.76rem;
+  font-style: normal;
+  color: rgba(0, 0, 0, 0.55);
+  background: rgba(15, 76, 129, 0.04);
+  border-left: 2px solid rgba(0, 200, 255, 0.25);
+  border-radius: 0 4px 4px 0;
+  padding: 5px 10px;
+  margin-top: 4px;
+  margin-bottom: 8px;
+  line-height: 1.4;
+}
+
+[data-bs-theme="dark"] .admin-form-body .form-text.text-muted,
+[data-bs-theme="dark"] .admin-form-body .admin-form-role-hint span,
+[data-bs-theme="dark"] .admin-form-body p.text-muted.small {
+  color: rgba(255, 255, 255, 0.5);
+  background: rgba(0, 200, 255, 0.04);
+  border-left-color: rgba(0, 200, 255, 0.2);
+}
+
+/* Keep Discord hint + password hint compact (already have their own layout) */
+.admin-form-discord-group .form-text.text-muted,
+.admin-form-password-group .form-text.text-muted {
+  background: none;
+  border-left: none;
+  border-radius: 0;
+  padding: 0;
+  margin-top: 4px;
+  margin-bottom: 0;
+  font-size: 0.75rem;
+  color: rgba(0, 0, 0, 0.4);
+}
+
+[data-bs-theme="dark"] .admin-form-discord-group .form-text.text-muted,
+[data-bs-theme="dark"] .admin-form-password-group .form-text.text-muted {
+  background: none;
+  border-left: none;
+  color: rgba(255, 255, 255, 0.35);
 }
 
 /* =============================================================================

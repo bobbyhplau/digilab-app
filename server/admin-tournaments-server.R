@@ -176,13 +176,13 @@ output$admin_tournament_list <- renderReactable({
     defaultPageSize = 12,
     columns = list(
       ID = colDef(show = FALSE),
-      Store = colDef(minWidth = 150),
-      Date = colDef(width = 100),
-      Type = colDef(width = 90),
-      Format = colDef(minWidth = 100),
-      Players = colDef(width = 70, align = "center"),
-      Rounds = colDef(width = 65, align = "center"),
-      Results = colDef(width = 70, align = "center")
+      Store = colDef(minWidth = 160, style = list(whiteSpace = "normal")),
+      Date = colDef(width = 105),
+      Type = colDef(width = 95),
+      Format = colDef(width = 80),
+      Players = colDef(name = "Plrs", width = 55, align = "center"),
+      Rounds = colDef(name = "Rnds", width = 55, align = "center"),
+      Results = colDef(name = "Res.", width = 55, align = "center")
     )
   )
 })

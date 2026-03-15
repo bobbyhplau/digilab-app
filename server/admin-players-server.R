@@ -247,16 +247,16 @@ output$player_list <- renderReactable({
     pageSizeOptions = c(10, 20, 50, 100),
     columns = list(
       player_id = colDef(show = FALSE),
-      `Player Name` = colDef(minWidth = 150),
-      competitive_rating = colDef(name = "Rating", maxWidth = 80, align = "right",
+      `Player Name` = colDef(minWidth = 160, style = list(whiteSpace = "normal")),
+      competitive_rating = colDef(name = "Rating", width = 65, align = "right",
         cell = function(value) if (is.na(value)) "\u2014" else as.character(value)
       ),
-      Results = colDef(width = 80),
-      Wins = colDef(width = 60),
-      scenes = colDef(name = "Scene(s)", minWidth = 120,
+      Results = colDef(name = "Res.", width = 55),
+      Wins = colDef(width = 50),
+      scenes = colDef(name = "Scene(s)", minWidth = 100, style = list(whiteSpace = "normal"),
         cell = function(value) if (is.null(value) || is.na(value) || !nzchar(value)) "\u2014" else value
       ),
-      `Last Event` = colDef(width = 100)
+      `Last Event` = colDef(width = 105)
     )
   )
 })

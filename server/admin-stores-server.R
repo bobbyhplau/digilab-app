@@ -553,17 +553,17 @@ output$admin_store_list <- renderReactable({
       store_id = colDef(show = FALSE),
       zip_code = colDef(show = FALSE),
       status = colDef(show = FALSE),
-      Store = colDef(minWidth = 140),
-      City = colDef(minWidth = 80),
-      State = colDef(width = 50),
+      Store = colDef(minWidth = 160, style = list(whiteSpace = "normal")),
+      City = colDef(minWidth = 90, style = list(whiteSpace = "normal")),
+      State = colDef(width = 55),
       is_online = colDef(
         name = "Type",
-        width = 70,
+        width = 75,
         cell = function(value) if (isTRUE(value)) "Online" else "Physical"
       ),
       schedule_count = colDef(
-        name = "Schedules",
-        width = 85,
+        name = "Sched.",
+        width = 70,
         align = "center",
         cell = function(value, index) {
           is_online <- data$is_online[index]

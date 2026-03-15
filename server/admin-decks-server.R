@@ -316,7 +316,7 @@ output$archetype_list <- renderReactable({
     pageSizeOptions = c(10, 20, 50, 100),
     columns = list(
       archetype_id = colDef(show = FALSE),
-      Deck = colDef(minWidth = 120),
+      Deck = colDef(minWidth = 140, style = list(whiteSpace = "normal")),
       primary_color = colDef(
         name = "Color",
         cell = function(value, index) {
