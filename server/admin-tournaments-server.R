@@ -452,10 +452,9 @@ observeEvent(input$view_edit_results, {
     "points"  # fallback for pre-migration tournaments
   }
 
-  # Add blank rows to allow adding more results
-  # Use the tournament's player_count as minimum, plus a few extra for additions
+  # Add a couple of blank rows for late additions
   current_count <- nrow(grid)
-  pad_count <- max(current_count + 4, expected_players)
+  pad_count <- max(current_count + 2, expected_players)
   if (current_count < pad_count) {
     extra <- init_grid_data(pad_count - current_count)
     extra$placement <- seq(current_count + 1, pad_count)
