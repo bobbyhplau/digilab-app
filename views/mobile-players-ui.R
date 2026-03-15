@@ -18,6 +18,7 @@ tagList(
         class = "title-strip-controls",
         div(
           class = "title-strip-search",
+          tags$label(class = "visually-hidden", `for` = "players_search", "Search players"),
           textInput("players_search", NULL, placeholder = "Search...", width = "120px")
         ),
         tags$button(
@@ -30,7 +31,8 @@ tagList(
         actionButton("reset_players_filters", NULL,
                      icon = icon("rotate-right"),
                      class = "btn-title-strip-reset",
-                     title = "Reset filters")
+                     title = "Reset filters",
+                     `aria-label` = "Reset filters")
       )
     )
   ),
@@ -53,8 +55,10 @@ tagList(
         div(
           class = "pill-toggle",
           `data-input-id` = "players_min_events",
-          tags$button("Unranked", class = "pill-option active", `data-value` = "0"),
-          tags$button("Ranked", class = "pill-option", `data-value` = "10")
+          role = "radiogroup",
+          `aria-label` = "Player ranking status",
+          tags$button("Unranked", class = "pill-option active", `data-value` = "0", role = "radio", `aria-checked` = "true"),
+          tags$button("Ranked", class = "pill-option", `data-value` = "10", role = "radio", `aria-checked` = "false")
         )
       ),
       div(class = "advanced-filter-group",

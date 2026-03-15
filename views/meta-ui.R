@@ -18,10 +18,12 @@ tagList(
         class = "title-strip-controls",
         div(
           class = "title-strip-search",
+          tags$label(class = "visually-hidden", `for` = "meta_search", "Search decks"),
           textInput("meta_search", NULL, placeholder = "Search...", width = "120px")
         ),
         div(
           class = "title-strip-select",
+          tags$label(class = "visually-hidden", `for` = "meta_format", "Format"),
           selectInput("meta_format", NULL,
                       choices = format_choices_with_all,
                       selected = "",
@@ -32,13 +34,16 @@ tagList(
         div(
           class = "pill-toggle",
           `data-input-id` = "meta_min_entries",
-          tags$button("Unranked", class = "pill-option active", `data-value` = "0"),
-          tags$button("Ranked", class = "pill-option", `data-value` = "10")
+          role = "radiogroup",
+          `aria-label` = "Deck ranking status",
+          tags$button("Unranked", class = "pill-option active", `data-value` = "0", role = "radio", `aria-checked` = "true"),
+          tags$button("Ranked", class = "pill-option", `data-value` = "10", role = "radio", `aria-checked` = "false")
         ),
         actionButton("reset_meta_filters", NULL,
                      icon = icon("rotate-right"),
                      class = "btn-title-strip-reset",
-                     title = "Reset filters"),
+                     title = "Reset filters",
+                     `aria-label` = "Reset filters"),
         tags$button(
           type = "button",
           class = "btn-title-strip-filters",
