@@ -6,7 +6,7 @@ admin_users_ui <- tagList(
   div(class = "page-help-text",
     div(class = "info-hint-box",
       bsicons::bs_icon("info-circle", class = "info-hint-icon"),
-      "Add, edit, and deactivate admin accounts. Scene admins can only manage data for their assigned scene."
+      "Add, edit, and deactivate admin accounts. Scene admins manage their assigned scene. Regional admins inherit coverage over all scenes in their assigned countries/states."
     )
   ),
   div(
@@ -15,7 +15,7 @@ admin_users_ui <- tagList(
       col_widths = breakpoints(sm = c(12, 12), md = c(7, 5)),
       fill = FALSE,
 
-      # Admin list table
+      # Admin list — scene-centric tree view
       card(
         card_header(
           class = "d-flex justify-content-between align-items-center",
@@ -66,6 +66,7 @@ admin_users_ui <- tagList(
           ),
           selectInput("admin_role", "Role",
                       choices = c("Scene Admin" = "scene_admin",
+                                  "Regional Admin" = "regional_admin",
                                   "Super Admin" = "super_admin"),
                       selected = "scene_admin",
                       selectize = FALSE),
@@ -74,6 +75,10 @@ admin_users_ui <- tagList(
             selectInput("admin_scene", "Assigned Scene",
                         choices = list("Select scene..." = ""),
                         selectize = FALSE)
+          ),
+          conditionalPanel(
+            condition = "input.admin_role == 'regional_admin'",
+            uiOutput("admin_region_selector")
           ),
           div(
             class = "d-flex gap-2 mt-3",
