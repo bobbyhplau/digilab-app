@@ -293,7 +293,7 @@ output$archetype_list <- renderReactable({
   if (nrow(data) == 0) {
     return(reactable(data.frame(Message = "No archetypes yet"), compact = TRUE))
   }
-  reactable(data, compact = TRUE, striped = TRUE, searchable = TRUE,
+  reactable(data, compact = TRUE, striped = FALSE, searchable = TRUE,
     highlight = TRUE,
     onClick = JS("function(rowInfo, column) {
       if (rowInfo) {

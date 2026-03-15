@@ -477,12 +477,12 @@ output$admin_store_list <- renderReactable({
   # Query stores with schedule count
   data <- safe_query(db_pool, sprintf("
     SELECT s.store_id, s.name as \"Store\", s.city as \"City\", s.state as \"State\",
-           s.is_online, s.zip_code,
+           s.country as \"Country\", s.is_online, s.zip_code,
            COUNT(ss.schedule_id) as schedule_count
     FROM stores s
     LEFT JOIN store_schedules ss ON s.store_id = ss.store_id AND ss.is_active = TRUE
     WHERE s.is_active = TRUE %s
-    GROUP BY s.store_id, s.name, s.city, s.state, s.is_online, s.zip_code
+    GROUP BY s.store_id, s.name, s.city, s.state, s.country, s.is_online, s.zip_code
     ORDER BY
       CASE WHEN s.is_online = FALSE AND COUNT(ss.schedule_id) = 0 THEN 0 ELSE 1 END,
       CASE WHEN s.zip_code IS NULL OR s.zip_code = '' THEN 0 ELSE 1 END,
@@ -547,14 +547,11 @@ output$admin_store_list <- renderReactable({
       store_id = colDef(show = FALSE),
       zip_code = colDef(show = FALSE),
       status = colDef(show = FALSE),
-      Store = colDef(minWidth = 180, style = list(whiteSpace = "normal")),
-      City = colDef(minWidth = 100, style = list(whiteSpace = "normal")),
+      Store = colDef(minWidth = 160, style = list(whiteSpace = "normal")),
+      City = colDef(minWidth = 90, style = list(whiteSpace = "normal")),
       State = colDef(show = FALSE),
-      is_online = colDef(
-        name = "Type",
-        width = 75,
-        cell = function(value) if (isTRUE(value)) "Online" else "Physical"
-      ),
+      Country = colDef(width = 80),
+      is_online = colDef(show = FALSE),
       schedule_count = colDef(
         name = "Sched.",
         width = 70,

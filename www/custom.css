@@ -2718,6 +2718,107 @@ body.bslib-gap-spacing, body > .bslib-gap-spacing {
   white-space: normal;
 }
 
+/* --- Admin table pagination --- */
+.admin-panel .rt-pagination {
+  padding: 10px 8px 4px;
+  border-top: 1px solid rgba(15, 76, 129, 0.1);
+  font-size: 0.78rem;
+  gap: 8px;
+}
+
+[data-bs-theme="dark"] .admin-panel .rt-pagination {
+  border-top-color: rgba(0, 200, 255, 0.1);
+}
+
+.admin-panel .rt-page-info {
+  font-size: 0.72rem;
+  color: rgba(0, 0, 0, 0.4);
+  letter-spacing: 0.3px;
+}
+
+[data-bs-theme="dark"] .admin-panel .rt-page-info {
+  color: rgba(255, 255, 255, 0.35);
+}
+
+.admin-panel .rt-page-size-select {
+  font-size: 0.75rem;
+  padding: 2px 4px;
+  border: 1px solid rgba(15, 76, 129, 0.15);
+  border-radius: 4px;
+  background: rgba(15, 76, 129, 0.03);
+  color: inherit;
+}
+
+[data-bs-theme="dark"] .admin-panel .rt-page-size-select {
+  border-color: rgba(0, 200, 255, 0.15);
+  background: rgba(0, 200, 255, 0.05);
+}
+
+.admin-panel .rt-page-button {
+  min-width: 28px;
+  height: 28px;
+  padding: 0 6px;
+  border: 1px solid rgba(15, 76, 129, 0.12);
+  border-radius: 4px;
+  background: transparent;
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: rgba(0, 0, 0, 0.5);
+  transition: all 0.15s ease;
+}
+
+[data-bs-theme="dark"] .admin-panel .rt-page-button {
+  border-color: rgba(0, 200, 255, 0.1);
+  color: rgba(255, 255, 255, 0.45);
+}
+
+.admin-panel .rt-page-button:hover:not(:disabled):not([aria-current="true"]) {
+  background: rgba(15, 76, 129, 0.06);
+  border-color: rgba(15, 76, 129, 0.25);
+  color: rgba(0, 0, 0, 0.7);
+}
+
+[data-bs-theme="dark"] .admin-panel .rt-page-button:hover:not(:disabled):not([aria-current="true"]) {
+  background: rgba(0, 200, 255, 0.08);
+  border-color: rgba(0, 200, 255, 0.2);
+  color: rgba(255, 255, 255, 0.7);
+}
+
+.admin-panel .rt-page-button[aria-current="true"] {
+  background: rgba(15, 76, 129, 0.85);
+  border-color: rgba(15, 76, 129, 0.85);
+  color: #fff;
+}
+
+[data-bs-theme="dark"] .admin-panel .rt-page-button[aria-current="true"] {
+  background: rgba(0, 200, 255, 0.25);
+  border-color: rgba(0, 200, 255, 0.3);
+  color: rgba(255, 255, 255, 0.9);
+}
+
+.admin-panel .rt-page-button:disabled {
+  opacity: 0.3;
+  cursor: default;
+}
+
+/* Previous/Next text buttons */
+.admin-panel .rt-prev-button,
+.admin-panel .rt-next-button {
+  font-size: 0.72rem;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+/* Page size label */
+.admin-panel .rt-page-size {
+  font-size: 0.72rem;
+  color: rgba(0, 0, 0, 0.4);
+}
+
+[data-bs-theme="dark"] .admin-panel .rt-page-size {
+  color: rgba(255, 255, 255, 0.35);
+}
+
 /* =============================================================================
    TABLES
    ============================================================================= */

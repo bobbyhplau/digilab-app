@@ -58,21 +58,19 @@ output$admin_scenes_table <- renderReactable({
     df,
     columns = list(
       scene_id = colDef(show = FALSE),
-      display_name = colDef(name = "Name", minWidth = 130, style = list(whiteSpace = "normal")),
-      slug = colDef(name = "Slug", minWidth = 90),
-      scene_type = colDef(name = "Type", width = 65, cell = function(value) {
-        if (value == "metro") "Metro" else if (value == "online") "Online" else value
-      }),
+      display_name = colDef(name = "Name", minWidth = 120, style = list(whiteSpace = "normal")),
+      slug = colDef(name = "Slug", minWidth = 80),
+      scene_type = colDef(show = FALSE),
       latitude = colDef(show = FALSE),
       longitude = colDef(show = FALSE),
-      is_active = colDef(name = "", width = 40, cell = function(value) {
+      is_active = colDef(name = "Active", width = 55, align = "center", cell = function(value) {
         if (value) "\u2705" else "\u274c"
       }),
-      country = colDef(show = FALSE),
+      country = colDef(name = "Country", width = 85),
       state_region = colDef(show = FALSE),
       created_at = colDef(show = FALSE),
       store_count = colDef(name = "# Stores", width = 75, align = "center"),
-      admin_count = colDef(name = "# Admins", width = 75, align = "center")
+      admin_count = colDef(name = "# Admins", width = 80, align = "center")
     ),
     searchable = TRUE,
     defaultPageSize = 10,
