@@ -2661,86 +2661,35 @@ body.bslib-gap-spacing, body > .bslib-gap-spacing {
   border-color: rgba(15, 76, 129, 0.25);
 }
 
-/* Admin panel reactable table enhancements */
-.admin-panel .rt-th {
-  font-size: 0.72rem;
-  text-transform: uppercase;
-  letter-spacing: 0.5px;
-  color: rgba(0, 0, 0, 0.5);
-  border-bottom: 2px solid rgba(15, 76, 129, 0.15) !important;
-  padding: 8px 6px !important;
-}
-
-[data-bs-theme="dark"] .admin-panel .rt-th {
-  color: rgba(255, 255, 255, 0.45);
-  border-bottom-color: rgba(0, 200, 255, 0.12) !important;
-}
-
-.admin-panel .rt-th .rt-sort-header:hover {
-  color: rgba(0, 200, 255, 0.8);
-}
-
-.admin-panel .rt-td {
-  padding: 6px !important;
-  border-bottom: 1px solid rgba(0, 0, 0, 0.04);
-}
-
-[data-bs-theme="dark"] .admin-panel .rt-td {
-  border-bottom-color: rgba(255, 255, 255, 0.04);
-}
-
-.admin-panel .rt-tr:hover .rt-td {
-  background: rgba(15, 76, 129, 0.04);
-}
-
-[data-bs-theme="dark"] .admin-panel .rt-tr:hover .rt-td {
-  background: rgba(0, 200, 255, 0.04);
-}
-
 /* Admin card header hint text */
 .admin-panel .card-header .small.text-muted {
   font-size: 0.72rem;
   letter-spacing: 0.3px;
 }
 
-/* Admin table header wrapping — prevent single-word headers from breaking */
-.admin-panel .rt-th {
-  white-space: nowrap;
-}
-
-/* Admin table cells — prevent date/type columns from wrapping */
-.admin-panel .rt-td {
-  white-space: nowrap;
-}
-
-/* Allow name/title columns to wrap when needed */
-.admin-panel .rt-td.rt-col-flex {
-  white-space: normal;
-}
-
-/* --- Admin table pagination --- */
-.admin-panel .rt-pagination {
+/* --- Reactable pagination (global — all tabs) --- */
+.rt-pagination {
   padding: 10px 8px 4px;
   border-top: 1px solid rgba(15, 76, 129, 0.1);
   font-size: 0.78rem;
   gap: 8px;
 }
 
-[data-bs-theme="dark"] .admin-panel .rt-pagination {
+[data-bs-theme="dark"] .rt-pagination {
   border-top-color: rgba(0, 200, 255, 0.1);
 }
 
-.admin-panel .rt-page-info {
+.rt-page-info {
   font-size: 0.72rem;
   color: rgba(0, 0, 0, 0.4);
   letter-spacing: 0.3px;
 }
 
-[data-bs-theme="dark"] .admin-panel .rt-page-info {
+[data-bs-theme="dark"] .rt-page-info {
   color: rgba(255, 255, 255, 0.35);
 }
 
-.admin-panel .rt-page-size-select {
+.rt-page-size-select {
   font-size: 0.75rem;
   padding: 2px 4px;
   border: 1px solid rgba(15, 76, 129, 0.15);
@@ -2749,12 +2698,12 @@ body.bslib-gap-spacing, body > .bslib-gap-spacing {
   color: inherit;
 }
 
-[data-bs-theme="dark"] .admin-panel .rt-page-size-select {
+[data-bs-theme="dark"] .rt-page-size-select {
   border-color: rgba(0, 200, 255, 0.15);
   background: rgba(0, 200, 255, 0.05);
 }
 
-.admin-panel .rt-page-button {
+.rt-page-button {
   min-width: 28px;
   height: 28px;
   padding: 0 6px;
@@ -2767,55 +2716,55 @@ body.bslib-gap-spacing, body > .bslib-gap-spacing {
   transition: all 0.15s ease;
 }
 
-[data-bs-theme="dark"] .admin-panel .rt-page-button {
+[data-bs-theme="dark"] .rt-page-button {
   border-color: rgba(0, 200, 255, 0.1);
   color: rgba(255, 255, 255, 0.45);
 }
 
-.admin-panel .rt-page-button:hover:not(:disabled):not([aria-current="true"]) {
+.rt-page-button:hover:not(:disabled):not([aria-current="true"]) {
   background: rgba(15, 76, 129, 0.06);
   border-color: rgba(15, 76, 129, 0.25);
   color: rgba(0, 0, 0, 0.7);
 }
 
-[data-bs-theme="dark"] .admin-panel .rt-page-button:hover:not(:disabled):not([aria-current="true"]) {
+[data-bs-theme="dark"] .rt-page-button:hover:not(:disabled):not([aria-current="true"]) {
   background: rgba(0, 200, 255, 0.08);
   border-color: rgba(0, 200, 255, 0.2);
   color: rgba(255, 255, 255, 0.7);
 }
 
-.admin-panel .rt-page-button[aria-current="true"] {
+.rt-page-button[aria-current="true"] {
   background: rgba(15, 76, 129, 0.85);
   border-color: rgba(15, 76, 129, 0.85);
   color: #fff;
 }
 
-[data-bs-theme="dark"] .admin-panel .rt-page-button[aria-current="true"] {
+[data-bs-theme="dark"] .rt-page-button[aria-current="true"] {
   background: rgba(0, 200, 255, 0.25);
   border-color: rgba(0, 200, 255, 0.3);
   color: rgba(255, 255, 255, 0.9);
 }
 
-.admin-panel .rt-page-button:disabled {
+.rt-page-button:disabled {
   opacity: 0.3;
   cursor: default;
 }
 
 /* Previous/Next text buttons */
-.admin-panel .rt-prev-button,
-.admin-panel .rt-next-button {
+.rt-prev-button,
+.rt-next-button {
   font-size: 0.72rem;
   text-transform: uppercase;
   letter-spacing: 0.5px;
 }
 
 /* Page size label */
-.admin-panel .rt-page-size {
+.rt-page-size {
   font-size: 0.72rem;
   color: rgba(0, 0, 0, 0.4);
 }
 
-[data-bs-theme="dark"] .admin-panel .rt-page-size {
+[data-bs-theme="dark"] .rt-page-size {
   color: rgba(255, 255, 255, 0.35);
 }
 

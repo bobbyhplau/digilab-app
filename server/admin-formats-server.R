@@ -40,7 +40,7 @@ output$admin_format_list <- renderReactable({
       `Set Code` = colDef(width = 90),
       `Set Name` = colDef(minWidth = 120, style = list(whiteSpace = "normal")),
       `Release Date` = colDef(name = "Released", width = 105),
-      Active = colDef(name = "", width = 40, cell = function(value) {
+      Active = colDef(width = 60, align = "center", cell = function(value) {
         if (value) "\u2705" else "\u274c"
       })
     )
