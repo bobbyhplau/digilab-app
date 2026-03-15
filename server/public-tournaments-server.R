@@ -472,32 +472,39 @@ output$tournament_detail_modal <- renderUI({
 
     # Full standings
     if (nrow(results) > 0) {
+      display_results <- data.frame(
+        Place = vapply(results$Place, function(p) {
+          cls <- if (p == 1) "place-1st" else if (p == 2) "place-2nd" else if (p == 3) "place-3rd" else ""
+          as.character(tags$span(class = cls, ordinal(p)))
+        }, character(1)),
+        Player = results$Player,
+        Deck = vapply(seq_len(nrow(results)), function(i) {
+          as.character(deck_name_badge(results$Deck[i], results$color[i], results$secondary_color[i]))
+        }, character(1)),
+        Record = sprintf("%d-%d%s", results$W, results$L,
+          ifelse(results$T > 0, sprintf("-%d", results$T), "")),
+        Decklist = unname(vapply(results$decklist_url, function(u) {
+          tag <- decklist_link_icon(u)
+          if (!is.null(tag)) as.character(tag) else ""
+        }, character(1))),
+        stringsAsFactors = FALSE,
+        row.names = NULL
+      )
+
       tagList(
         h6(class = "modal-section-header", "Final Standings"),
-        tags$table(
-          class = "table table-sm table-striped",
-          tags$thead(
-            tags$tr(
-              tags$th("Place"), tags$th("Player"), tags$th("Deck"),
-              tags$th("Record"), tags$th("")
-            )
-          ),
-          tags$tbody(
-            lapply(1:nrow(results), function(i) {
-              row <- results[i, ]
-              tags$tr(
-                tags$td(
-                  class = if (row$Place == 1) "place-1st" else if (row$Place == 2) "place-2nd" else if (row$Place == 3) "place-3rd" else "",
-                  ordinal(row$Place)
-                ),
-                tags$td(row$Player),
-                tags$td(
-                  deck_name_badge(row$Deck, row$color, row$secondary_color)
-                ),
-                tags$td(sprintf("%d-%d%s", row$W, row$L, if (row$T > 0) sprintf("-%d", row$T) else "")),
-                tags$td(decklist_link_icon(row$decklist_url))
-              )
-            })
+        reactable(
+          display_results,
+          compact = TRUE,
+          striped = TRUE,
+          pagination = TRUE,
+          defaultPageSize = 10,
+          columns = list(
+            Place = colDef(minWidth = 55, align = "center", html = TRUE),
+            Player = colDef(minWidth = 120),
+            Deck = colDef(minWidth = 120, html = TRUE),
+            Record = colDef(minWidth = 60, align = "center"),
+            Decklist = colDef(name = "", minWidth = 40, html = TRUE)
           )
         )
       )
