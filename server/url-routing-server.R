@@ -404,7 +404,7 @@ update_url_for_player <- function(session, player_id, display_name) {
     params$community <- rv$community_filter
   }
 
-  update_browser_url(session, params, replace = FALSE)
+  update_browser_url(session, params, replace = TRUE)
 }
 
 #' Update URL when deck modal opens
@@ -421,7 +421,7 @@ update_url_for_deck <- function(session, archetype_id, slug) {
     params$community <- rv$community_filter
   }
 
-  update_browser_url(session, params, replace = FALSE)
+  update_browser_url(session, params, replace = TRUE)
 }
 
 #' Update URL when store modal opens
@@ -442,7 +442,7 @@ update_url_for_store <- function(session, store_id, slug) {
     params$community <- rv$community_filter
   }
 
-  update_browser_url(session, params, replace = FALSE)
+  update_browser_url(session, params, replace = TRUE)
 }
 
 #' Update URL when tournament modal opens
@@ -463,13 +463,13 @@ update_url_for_tournament <- function(session, tournament_id) {
     params$community <- rv$community_filter
   }
 
-  update_browser_url(session, params, replace = FALSE)
+  update_browser_url(session, params, replace = TRUE)
 }
 
 #' Update URL for community-filtered view
 update_url_for_community <- function(session, store_slug) {
   params <- list(community = store_slug)
-  update_browser_url(session, params, replace = FALSE)
+  update_browser_url(session, params, replace = TRUE)
 }
 
 #' Clear community filter from URL

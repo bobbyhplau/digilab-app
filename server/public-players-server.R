@@ -561,9 +561,9 @@ observeEvent(input$overview_player_clicked, {
 output$player_detail_modal <- renderUI({
   req(rv$selected_player_id)
 
-  # React to advanced filter changes so modal updates
-  input$players_top3_toggle
-  input$players_decklist_toggle
+  # Read advanced filters without triggering re-render on background changes
+  isolate(input$players_top3_toggle)
+  isolate(input$players_decklist_toggle)
 
   player_id <- rv$selected_player_id
 

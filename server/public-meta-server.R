@@ -308,9 +308,9 @@ observeEvent(input$archetype_clicked, {
 output$deck_detail_modal <- renderUI({
   req(rv$selected_archetype_id)
 
-  # React to advanced filter changes so modal updates
-  input$meta_top3_toggle
-  input$meta_decklist_toggle
+  # Read advanced filters without triggering re-render on background changes
+  isolate(input$meta_top3_toggle)
+  isolate(input$meta_decklist_toggle)
 
   archetype_id <- rv$selected_archetype_id
 
