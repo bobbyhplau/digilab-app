@@ -18,6 +18,7 @@ tagList(
         class = "title-strip-controls",
         div(
           class = "title-strip-search",
+          tags$label(class = "visually-hidden", `for` = "tournaments_search", "Search tournaments"),
           textInput("tournaments_search", NULL, placeholder = "Search...", width = "120px")
         ),
         tags$button(
@@ -30,7 +31,8 @@ tagList(
         actionButton("reset_tournaments_filters", NULL,
                      icon = icon("rotate-right"),
                      class = "btn-title-strip-reset",
-                     title = "Reset filters")
+                     title = "Reset filters",
+                     `aria-label` = "Reset filters")
       )
     )
   ),
@@ -83,6 +85,9 @@ tagList(
       )
     )
   ),
+
+  # Skeleton loading state (auto-hidden when cards render)
+  skeleton_cards(n = 3, id_prefix = "mobile_tournaments_cards"),
 
   # Card container rendered by server
   uiOutput("mobile_tournaments_cards"),

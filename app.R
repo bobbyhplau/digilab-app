@@ -28,7 +28,7 @@ library(bcrypt)
 # - httr: Lazy-loaded via namespacing in R/digimoncard_api.R (rarely used, cards cached)
 
 # App version (update with each release)
-APP_VERSION <- "1.7.3"
+APP_VERSION <- "1.7.4"
 
 # Load modules
 source("R/db_connection.R")
@@ -38,7 +38,9 @@ source("R/digimoncard_api.R")
 source("R/ratings.R")
 source("R/geo_utils.R")
 source("R/constants.R")
+source("R/ui_helpers.R")
 source("R/discord_webhook.R")
+source("R/ui_helpers.R")
 
 # Load environment variables
 if (file.exists(".env")) {
@@ -515,6 +517,10 @@ ui <- page_fillable(
     tags$script(src = "scene-selector.js"),
     # Pill toggle segmented controls
     tags$script(src = "pill-toggle.js"),
+    # Skeleton loader auto-hide
+    tags$script(src = "skeleton-loader.js"),
+    # Scroll fade indicators for overflow containers
+    tags$script(src = "scroll-indicator.js"),
     # PWA service worker registration
     tags$script(HTML("if('serviceWorker' in navigator){navigator.serviceWorker.register('sw.js');}")),
     # JavaScript to handle active nav state and loading screen
@@ -896,6 +902,14 @@ ui <- page_fillable(
                      class = "nav-link-sidebar")
         ),
 
+        # Manage Admins (superadmin + regional admin)
+        conditionalPanel(
+          condition = "output.can_manage_admins",
+          actionLink("nav_admin_users",
+                     tagList(bsicons::bs_icon("person-gear"), " Manage Admins"),
+                     class = "nav-link-sidebar")
+        ),
+
         # Super Admin Section (superadmin only)
         conditionalPanel(
           condition = "output.is_superadmin",
@@ -905,9 +919,6 @@ ui <- page_fillable(
                      class = "nav-link-sidebar"),
           actionLink("nav_admin_formats",
                      tagList(bsicons::bs_icon("calendar3"), " Edit Formats"),
-                     class = "nav-link-sidebar"),
-          actionLink("nav_admin_users",
-                     tagList(bsicons::bs_icon("person-gear"), " Manage Admins"),
                      class = "nav-link-sidebar"),
           actionLink("nav_admin_scenes",
                      tagList(bsicons::bs_icon("globe2"), " Manage Scenes"),
@@ -1093,12 +1104,21 @@ server <- function(input, output, session) {
 
     # === REFRESH TRIGGERS ===
     # Pattern: {scope}_refresh - increment to trigger reactive invalidation
-    data_refresh = 0,
+    data_refresh = 0,          # Global refresh (scene selection changes only)
     results_refresh = 0,
     format_refresh = 0,
     tournament_refresh = 0,
     schedules_refresh = 0,
     requests_refresh = 0,
+
+    # Domain-specific refresh triggers (admin writes)
+    refresh_tournaments = 0,
+    refresh_players = 0,
+    refresh_stores = 0,
+    refresh_decks = 0,
+    refresh_formats = 0,
+    refresh_scenes = 0,
+    refresh_users = 0,
 
     # === STORE FORM STATE ===
     pending_schedules = list(),  # Schedules to add when creating new store
@@ -1191,7 +1211,9 @@ server <- function(input, output, session) {
 
   # Reactive: Get cached competitive ratings for all players
   player_competitive_ratings <- reactive({
-    rv$data_refresh  # Invalidate when cache is refreshed
+    rv$data_refresh  # Invalidate on scene change (global)
+    rv$refresh_tournaments  # Invalidate when results change (triggers rating recalc)
+    rv$refresh_players  # Invalidate when players change
     safe_query(db_pool,
       "SELECT player_id, competitive_rating FROM player_ratings_cache",
       default = data.frame(player_id = integer(), competitive_rating = numeric()))
@@ -1200,6 +1222,8 @@ server <- function(input, output, session) {
   # Reactive: Get cached achievement scores for all players
   player_achievement_scores <- reactive({
     rv$data_refresh
+    rv$refresh_tournaments
+    rv$refresh_players
     safe_query(db_pool,
       "SELECT player_id, achievement_score FROM player_ratings_cache",
       default = data.frame(player_id = integer(), achievement_score = numeric()))
@@ -1208,6 +1232,8 @@ server <- function(input, output, session) {
   # Reactive: Get cached average player rating per store
   store_avg_ratings <- reactive({
     rv$data_refresh
+    rv$refresh_tournaments
+    rv$refresh_stores
     safe_query(db_pool,
       "SELECT store_id, avg_player_rating FROM store_ratings_cache",
       default = data.frame(store_id = integer(), avg_player_rating = numeric()))

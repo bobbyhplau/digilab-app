@@ -35,17 +35,12 @@ admin_decks_ui <- tagList(
         card_body(
           class = "admin-form-body",
           # Hidden field for edit mode
-          textInput("editing_archetype_id", NULL, value = ""),
-          tags$script("document.getElementById('editing_archetype_id').parentElement.style.display = 'none';"),
+          hidden_edit_field("editing_archetype_id"),
 
           # --- Identity section ---
-          div(class = "admin-form-section",
-            div(class = "admin-form-section-label",
-              bsicons::bs_icon("palette-fill"),
-              "Identity"
-            ),
-            textInput("deck_name", "Archetype Name", placeholder = "e.g., Fenriloogamon"),
-            selectInput("deck_primary_color", "Primary Color",
+          admin_section("palette-fill", "Identity",
+            textInput("deck_name", tags$span("Archetype Name", tags$span(class = "required-indicator", "*")), placeholder = "e.g., Fenriloogamon"),
+            selectInput("deck_primary_color", tags$span("Primary Color", tags$span(class = "required-indicator", "*")),
                         choices = c("Red", "Blue", "Yellow", "Green", "Purple", "Black", "White")),
             selectInput("deck_secondary_color", "Secondary Color",
                         choices = c("None" = "", "Red", "Blue", "Yellow", "Green", "Purple", "Black", "White")),
@@ -55,11 +50,7 @@ admin_decks_ui <- tagList(
           ),
 
           # --- Display Card section ---
-          div(class = "admin-form-section",
-            div(class = "admin-form-section-label",
-              bsicons::bs_icon("image"),
-              "Display Card"
-            ),
+          admin_section("image", "Display Card",
             layout_columns(
               col_widths = breakpoints(sm = c(12, 12), md = c(4, 8)),
               # Card preview on left
@@ -99,7 +90,7 @@ admin_decks_ui <- tagList(
             ),
             # Search results in dedicated box below
             div(
-              class = "card-search-results-container p-2 mt-2 card-search-results-min",
+              class = "card-search-results-container scroll-fade p-2 mt-2 card-search-results-min",
               tags$label(class = "form-label small text-muted", "Search Results"),
               uiOutput("card_search_results")
             )

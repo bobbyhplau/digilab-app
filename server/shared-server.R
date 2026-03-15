@@ -13,6 +13,54 @@ current_admin_username <- function(rv) {
 }
 
 # ---------------------------------------------------------------------------
+# Shared Helper: Slug Generation
+# ---------------------------------------------------------------------------
+
+#' Generate URL-friendly slug from text
+#' @param text String to slugify
+#' @return Lowercase string with special chars replaced by hyphens, or NA
+generate_slug <- function(text) {
+  if (is.null(text) || !nzchar(trimws(text))) return(NA_character_)
+  text |> trimws() |> tolower() |>
+    gsub("[^a-z0-9]+", "-", x = _) |>
+    gsub("^-|-$", "", x = _)
+}
+
+#' Generate unique player slug, appending suffix if needed
+#' @param db_pool Database connection pool
+#' @param text Display name to slugify
+#' @param exclude_player_id Player ID to exclude from uniqueness check (for updates)
+#' @return Unique slug string, or NA if text is empty
+generate_unique_slug <- function(db_pool, text, exclude_player_id = NULL) {
+  base_slug <- generate_slug(text)
+  if (is.na(base_slug)) return(NA_character_)
+
+  # Check for existing slug
+  if (!is.null(exclude_player_id)) {
+    existing <- safe_query(db_pool,
+      "SELECT COUNT(*) as n FROM players WHERE slug = $1 AND is_active = TRUE AND player_id != $2",
+      params = list(base_slug, exclude_player_id), default = data.frame(n = 0))
+  } else {
+    existing <- safe_query(db_pool,
+      "SELECT COUNT(*) as n FROM players WHERE slug = $1 AND is_active = TRUE",
+      params = list(base_slug), default = data.frame(n = 0))
+  }
+
+  if (existing$n[1] == 0) return(base_slug)
+
+  # Append suffix for uniqueness
+  for (i in 2:100) {
+    candidate <- paste0(base_slug, "-", i)
+    check <- safe_query(db_pool,
+      "SELECT COUNT(*) as n FROM players WHERE slug = $1 AND is_active = TRUE",
+      params = list(candidate), default = data.frame(n = 0))
+    if (check$n[1] == 0) return(candidate)
+  }
+
+  return(paste0(base_slug, "-", as.integer(Sys.time())))
+}
+
+# ---------------------------------------------------------------------------
 # Shared Helper: Fuzzy Match Check (pg_trgm)
 # ---------------------------------------------------------------------------
 
@@ -764,6 +812,11 @@ outputOptions(output, "is_admin", suspendWhenHidden = FALSE)
 output$is_superadmin <- reactive({ rv$is_superadmin })
 outputOptions(output, "is_superadmin", suspendWhenHidden = FALSE)
 
+output$can_manage_admins <- reactive({
+  isTRUE(rv$is_superadmin) || isTRUE(rv$admin_user$role == "regional_admin")
+})
+outputOptions(output, "can_manage_admins", suspendWhenHidden = FALSE)
+
 output$has_active_tournament <- reactive({ !is.null(rv$active_tournament_id) })
 outputOptions(output, "has_active_tournament", suspendWhenHidden = FALSE)
 
@@ -1079,7 +1132,7 @@ observeEvent(input$bootstrap_btn, {
 observe({
   rv$current_nav
   req(rv$current_nav == "admin_results")
-  rv$data_refresh
+  rv$refresh_stores
   req(rv$is_admin)
 
   # Check if UI has rendered yet (tournament_date is a sibling input that's always visible)
@@ -1153,11 +1206,6 @@ observeEvent(input$change_password_btn, {
   }
 
   # Update password
-  old <- safe_query(db_pool,
-    "SELECT * FROM admin_users WHERE user_id = $1",
-    params = list(rv$admin_user$user_id),
-    default = data.frame())
-
   new_hash <- bcrypt::hashpw(new_pw)
   safe_execute(db_pool,
     "UPDATE admin_users SET password_hash = $1 WHERE user_id = $2",
@@ -1237,8 +1285,66 @@ get_archetype_choices <- function(pool) {
   return(choices)
 }
 
-get_player_choices <- function(pool) {
-  players <- safe_query(pool, "SELECT player_id, display_name FROM players WHERE is_active = TRUE ORDER BY display_name", default = data.frame())
+# ---------------------------------------------------------------------------
+# Admin Scope Helpers: Scene access by permission tier
+# ---------------------------------------------------------------------------
+
+#' Get scene IDs an admin can manage based on their role
+#' @param pool Database connection pool
+#' @param admin_user The admin_user reactive list (must have $role, $user_id)
+#' @return Integer vector of scene_ids, or NULL for super_admin (meaning "all")
+get_admin_accessible_scene_ids <- function(pool, admin_user) {
+  if (is.null(admin_user) || is.null(admin_user$role)) return(integer(0))
+
+  if (admin_user$role == "super_admin") return(NULL)
+
+  if (admin_user$role == "regional_admin") {
+    scenes <- safe_query(pool, "
+      SELECT DISTINCT s.scene_id
+      FROM scenes s
+      JOIN admin_regions ar ON ar.country = s.country
+        AND (ar.state_region IS NULL OR ar.state_region = s.state_region)
+      WHERE ar.user_id = $1 AND s.is_active = TRUE
+    ", params = list(admin_user$user_id), default = data.frame())
+    return(if (nrow(scenes) > 0) scenes$scene_id else integer(0))
+  }
+
+  if (admin_user$role == "scene_admin") {
+    scenes <- safe_query(pool, "
+      SELECT scene_id FROM admin_user_scenes WHERE user_id = $1
+    ", params = list(admin_user$user_id), default = data.frame())
+    return(if (nrow(scenes) > 0) scenes$scene_id else integer(0))
+  }
+
+  integer(0)
+}
+
+#' Get admin's assigned regions
+#' @param pool Database connection pool
+#' @param user_id Admin user ID
+#' @return data.frame with country, state_region columns
+get_admin_regions <- function(pool, user_id) {
+  safe_query(pool, "
+    SELECT country, state_region FROM admin_regions WHERE user_id = $1
+  ", params = list(user_id), default = data.frame(country = character(), state_region = character()))
+}
+
+get_player_choices <- function(pool, scene_ids = NULL) {
+  if (is.null(scene_ids)) {
+    players <- safe_query(pool, "SELECT player_id, display_name FROM players WHERE is_active = TRUE ORDER BY display_name", default = data.frame())
+  } else {
+    players <- safe_query(pool, "
+      SELECT player_id, display_name FROM players p
+      WHERE is_active = TRUE
+        AND EXISTS (
+          SELECT 1 FROM results r
+          JOIN tournaments t ON r.tournament_id = t.tournament_id
+          JOIN stores s ON t.store_id = s.store_id
+          WHERE r.player_id = p.player_id AND s.scene_id = ANY($1::int[])
+        )
+      ORDER BY display_name
+    ", params = list(as.integer(scene_ids)), default = data.frame())
+  }
   choices <- setNames(players$player_id, players$display_name)
   return(choices)
 }
@@ -1299,7 +1405,7 @@ get_latest_format_id <- reactive({
     "SELECT format_id FROM formats WHERE is_active = TRUE ORDER BY release_date DESC NULLS LAST LIMIT 1",
     default = data.frame(format_id = character()))
   if (nrow(result) > 0) result$format_id[1] else NULL
-}) |> bindCache(rv$data_refresh)
+}) |> bindCache(rv$refresh_formats)
 
 # =============================================================================
 # Community Filter Banner
@@ -1619,7 +1725,12 @@ mv_views_exist <- function(pool) {
 
 # Auto-refresh materialized views when data changes
 observe({
-  rv$data_refresh
-  req(rv$data_refresh > 0)  # Skip initial value
+  rv$refresh_tournaments
+  rv$refresh_players
+  rv$refresh_stores
+  rv$refresh_decks
+  rv$refresh_formats
+  rv$refresh_scenes
+  req(rv$refresh_tournaments > 0 || rv$refresh_players > 0 || rv$refresh_stores > 0 || rv$refresh_decks > 0)  # Skip initial value
   refresh_materialized_views(db_pool)
 })

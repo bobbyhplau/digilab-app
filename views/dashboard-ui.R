@@ -20,6 +20,7 @@ tagList(
         class = "title-strip-controls",
         div(
           class = "title-strip-select",
+          tags$label(class = "visually-hidden", `for` = "dashboard_format", "Format"),
           selectInput("dashboard_format", NULL,
                       choices = format_choices_with_all,
                       selected = "",
@@ -28,6 +29,7 @@ tagList(
         ),
         div(
           class = "title-strip-select",
+          tags$label(class = "visually-hidden", `for` = "dashboard_event_type", "Event type"),
           selectInput("dashboard_event_type", NULL,
                       choices = list(
                         "All Events" = "",
@@ -40,7 +42,8 @@ tagList(
         actionButton("reset_dashboard_filters", NULL,
                      icon = icon("rotate-right"),
                      class = "btn-title-strip-reset",
-                     title = "Reset filters")
+                     title = "Reset filters",
+                     `aria-label` = "Reset filters")
       )
     )
   ),

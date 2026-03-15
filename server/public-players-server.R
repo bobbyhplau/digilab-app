@@ -96,38 +96,20 @@ observeEvent(input$reset_players_filters, {
 # Update store filter choices when scene changes or tab is first visited
 observe({
   req("players" %in% visited_tabs())
-  rv$data_refresh
-  scene <- rv$current_scene
-  continent <- rv$current_continent
-  scene_sql <- ""
-  scene_params <- NULL
-
-  if (!is.null(scene) && scene != "all" && scene != "online" && !startsWith(scene, "country:") && !startsWith(scene, "state:")) {
-    scene_sql <- "AND s.scene_id IN (SELECT scene_id FROM scenes WHERE slug = $1)"
-    scene_params <- list(scene)
-  } else if (!is.null(scene) && startsWith(scene, "country:")) {
-    scene_sql <- "AND s.scene_id IN (SELECT scene_id FROM scenes WHERE country = $1)"
-    scene_params <- list(sub("^country:", "", scene))
-  } else if (!is.null(scene) && startsWith(scene, "state:")) {
-    scene_sql <- "AND s.scene_id IN (SELECT scene_id FROM scenes WHERE country = 'United States' AND state_region = $1)"
-    scene_params <- list(sub("^state:", "", scene))
-  } else if (!is.null(scene) && scene == "online") {
-    scene_sql <- "AND s.is_online = TRUE"
-  } else if (!is.null(continent) && continent != "all" && continent != "") {
-    if (continent == "online") {
-      scene_sql <- "AND s.is_online = TRUE"
-    } else {
-      scene_sql <- "AND s.scene_id IN (SELECT scene_id FROM scenes WHERE continent = $1)"
-      scene_params <- list(continent)
-    }
-  }
+  rv$refresh_players; rv$refresh_tournaments
+  scene_filters <- build_filters_param(
+    table_alias = "s",
+    scene = rv$current_scene,
+    continent = rv$current_continent,
+    store_alias = "s"
+  )
 
   stores <- safe_query(db_pool, sprintf(
     "SELECT DISTINCT s.slug, s.name FROM stores s
      JOIN tournaments t ON s.store_id = t.store_id
      WHERE s.is_active = TRUE %s
-     ORDER BY s.name", scene_sql),
-  params = scene_params,
+     ORDER BY s.name", scene_filters$sql),
+  params = scene_filters$params,
   default = data.frame(slug = character(), name = character()))
 
   store_choices <- list("All" = "")
@@ -157,7 +139,7 @@ output$historical_rating_badge <- renderUI({
 # ---------------------------------------------------------------------------
 players_data <- reactive({
   req("players" %in% visited_tabs())  # Lazy load: skip until tab visited
-  rv$data_refresh  # Trigger refresh on admin changes
+  rv$refresh_players; rv$refresh_tournaments  # Trigger refresh on admin changes
 
   # Build MV filters
   filters <- build_mv_filters(
@@ -285,7 +267,7 @@ players_data <- reactive({
   rv$current_scene,
   rv$current_continent,
   rv$community_filter,
-  rv$data_refresh
+  rv$refresh_players, rv$refresh_tournaments
 )
 
 # ---------------------------------------------------------------------------

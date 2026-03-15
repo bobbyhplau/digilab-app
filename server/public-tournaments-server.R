@@ -30,38 +30,20 @@ observeEvent(input$reset_tournaments_filters, {
 # Update store filter choices when scene changes or tab is first visited
 observe({
   req("tournaments" %in% visited_tabs())
-  rv$data_refresh
-  scene <- rv$current_scene
-  continent <- rv$current_continent
-  scene_sql <- ""
-  scene_params <- NULL
-
-  if (!is.null(scene) && scene != "all" && scene != "online" && !startsWith(scene, "country:") && !startsWith(scene, "state:")) {
-    scene_sql <- "AND s.scene_id IN (SELECT scene_id FROM scenes WHERE slug = $1)"
-    scene_params <- list(scene)
-  } else if (!is.null(scene) && startsWith(scene, "country:")) {
-    scene_sql <- "AND s.scene_id IN (SELECT scene_id FROM scenes WHERE country = $1)"
-    scene_params <- list(sub("^country:", "", scene))
-  } else if (!is.null(scene) && startsWith(scene, "state:")) {
-    scene_sql <- "AND s.scene_id IN (SELECT scene_id FROM scenes WHERE country = 'United States' AND state_region = $1)"
-    scene_params <- list(sub("^state:", "", scene))
-  } else if (!is.null(scene) && scene == "online") {
-    scene_sql <- "AND s.is_online = TRUE"
-  } else if (!is.null(continent) && continent != "all" && continent != "") {
-    if (continent == "online") {
-      scene_sql <- "AND s.is_online = TRUE"
-    } else {
-      scene_sql <- "AND s.scene_id IN (SELECT scene_id FROM scenes WHERE continent = $1)"
-      scene_params <- list(continent)
-    }
-  }
+  rv$refresh_tournaments
+  scene_filters <- build_filters_param(
+    table_alias = "s",
+    scene = rv$current_scene,
+    continent = rv$current_continent,
+    store_alias = "s"
+  )
 
   stores <- safe_query(db_pool, sprintf(
     "SELECT DISTINCT s.slug, s.name FROM stores s
      JOIN tournaments t ON s.store_id = t.store_id
      WHERE s.is_active = TRUE %s
-     ORDER BY s.name", scene_sql),
-  params = scene_params,
+     ORDER BY s.name", scene_filters$sql),
+  params = scene_filters$params,
   default = data.frame(slug = character(), name = character()))
 
   store_choices <- list("All" = "")
@@ -83,7 +65,7 @@ tournaments_search_debounced <- reactive(input$tournaments_search) |> debounce(3
 # ---------------------------------------------------------------------------
 tournaments_data <- reactive({
   req("tournaments" %in% visited_tabs())  # Lazy load: skip until tab visited
-  rv$data_refresh  # Trigger refresh on admin changes
+  rv$refresh_tournaments  # Trigger refresh on admin changes
 
   filters <- build_mv_filters(
     format = input$tournaments_format,
@@ -155,7 +137,7 @@ tournaments_data <- reactive({
   rv$current_scene,
   rv$current_continent,
   rv$community_filter,
-  rv$data_refresh
+  rv$refresh_tournaments
 )
 
 # ---------------------------------------------------------------------------
@@ -472,32 +454,39 @@ output$tournament_detail_modal <- renderUI({
 
     # Full standings
     if (nrow(results) > 0) {
+      display_results <- data.frame(
+        Place = vapply(results$Place, function(p) {
+          cls <- if (p == 1) "place-1st" else if (p == 2) "place-2nd" else if (p == 3) "place-3rd" else ""
+          as.character(tags$span(class = cls, ordinal(p)))
+        }, character(1)),
+        Player = results$Player,
+        Deck = vapply(seq_len(nrow(results)), function(i) {
+          as.character(deck_name_badge(results$Deck[i], results$color[i], results$secondary_color[i]))
+        }, character(1)),
+        Record = sprintf("%d-%d%s", results$W, results$L,
+          ifelse(results$T > 0, sprintf("-%d", results$T), "")),
+        Decklist = unname(vapply(results$decklist_url, function(u) {
+          tag <- decklist_link_icon(u)
+          if (!is.null(tag)) as.character(tag) else ""
+        }, character(1))),
+        stringsAsFactors = FALSE,
+        row.names = NULL
+      )
+
       tagList(
         h6(class = "modal-section-header", "Final Standings"),
-        tags$table(
-          class = "table table-sm table-striped",
-          tags$thead(
-            tags$tr(
-              tags$th("Place"), tags$th("Player"), tags$th("Deck"),
-              tags$th("Record"), tags$th("")
-            )
-          ),
-          tags$tbody(
-            lapply(1:nrow(results), function(i) {
-              row <- results[i, ]
-              tags$tr(
-                tags$td(
-                  class = if (row$Place == 1) "place-1st" else if (row$Place == 2) "place-2nd" else if (row$Place == 3) "place-3rd" else "",
-                  ordinal(row$Place)
-                ),
-                tags$td(row$Player),
-                tags$td(
-                  deck_name_badge(row$Deck, row$color, row$secondary_color)
-                ),
-                tags$td(sprintf("%d-%d%s", row$W, row$L, if (row$T > 0) sprintf("-%d", row$T) else "")),
-                tags$td(decklist_link_icon(row$decklist_url))
-              )
-            })
+        reactable(
+          display_results,
+          compact = TRUE,
+          striped = TRUE,
+          pagination = TRUE,
+          defaultPageSize = 10,
+          columns = list(
+            Place = colDef(minWidth = 55, align = "center", html = TRUE),
+            Player = colDef(minWidth = 120),
+            Deck = colDef(minWidth = 120, html = TRUE),
+            Record = colDef(minWidth = 60, align = "center"),
+            Decklist = colDef(name = "", minWidth = 40, html = TRUE)
           )
         )
       )

@@ -18,6 +18,7 @@ tagList(
         class = "title-strip-controls",
         div(
           class = "title-strip-search",
+          tags$label(class = "visually-hidden", `for` = "meta_search", "Search decks"),
           textInput("meta_search", NULL, placeholder = "Search...", width = "120px")
         ),
         tags$button(
@@ -30,7 +31,8 @@ tagList(
         actionButton("reset_meta_filters", NULL,
                      icon = icon("rotate-right"),
                      class = "btn-title-strip-reset",
-                     title = "Reset filters")
+                     title = "Reset filters",
+                     `aria-label` = "Reset filters")
       )
     )
   ),
@@ -53,8 +55,10 @@ tagList(
         div(
           class = "pill-toggle",
           `data-input-id` = "meta_min_entries",
-          tags$button("Unranked", class = "pill-option active", `data-value` = "0"),
-          tags$button("Ranked", class = "pill-option", `data-value` = "10")
+          role = "radiogroup",
+          `aria-label` = "Deck ranking status",
+          tags$button("Unranked", class = "pill-option active", `data-value` = "0", role = "radio", `aria-checked` = "true"),
+          tags$button("Ranked", class = "pill-option", `data-value` = "10", role = "radio", `aria-checked` = "false")
         )
       ),
       div(class = "advanced-filter-group",
@@ -66,22 +70,7 @@ tagList(
     ),
     div(class = "advanced-filter-group mobile-filter-full",
       tags$label("Color", class = "advanced-filter-label"),
-      div(id = "meta_color_pills", class = "color-filter-pills",
-        tags$span(class = "color-pill", `data-color` = "Red",
-          tags$span(class = "color-dot"), "Red"),
-        tags$span(class = "color-pill", `data-color` = "Blue",
-          tags$span(class = "color-dot"), "Blue"),
-        tags$span(class = "color-pill", `data-color` = "Yellow",
-          tags$span(class = "color-dot"), "Yellow"),
-        tags$span(class = "color-pill", `data-color` = "Green",
-          tags$span(class = "color-dot"), "Green"),
-        tags$span(class = "color-pill", `data-color` = "Black",
-          tags$span(class = "color-dot"), "Black"),
-        tags$span(class = "color-pill", `data-color` = "Purple",
-          tags$span(class = "color-dot"), "Purple"),
-        tags$span(class = "color-pill", `data-color` = "White",
-          tags$span(class = "color-dot"), "White")
-      )
+      color_filter_pills()
     ),
     div(class = "mobile-filter-checkbox-row",
       span(class = "mobile-filter-note", "These filters also apply to deck detail cards"),
@@ -103,6 +92,9 @@ tagList(
       "Deck performance across all tournaments. Tap a deck for its full profile."
     )
   ),
+
+  # Skeleton loading state (auto-hidden when cards render)
+  skeleton_cards(n = 3, id_prefix = "mobile_meta_cards"),
 
   # -- Mobile card container --------------------------------------------------
   uiOutput("mobile_meta_cards"),

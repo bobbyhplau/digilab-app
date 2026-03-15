@@ -10,8 +10,8 @@
     var value = $el.data('value');
 
     // Update active state
-    $group.find('.pill-option').removeClass('active');
-    $el.addClass('active');
+    $group.find('.pill-option').removeClass('active').attr('aria-checked', 'false');
+    $el.addClass('active').attr('aria-checked', 'true');
 
     // Send to Shiny
     Shiny.setInputValue(inputId, String(value), {priority: 'event'});
@@ -31,8 +31,8 @@
     // Handle reset from server
     Shiny.addCustomMessageHandler('resetPillToggle', function(message) {
       var $group = $('.pill-toggle[data-input-id="' + message.inputId + '"]');
-      $group.find('.pill-option').removeClass('active');
-      $group.find('.pill-option[data-value="' + message.value + '"]').addClass('active');
+      $group.find('.pill-option').removeClass('active').attr('aria-checked', 'false');
+      $group.find('.pill-option[data-value="' + message.value + '"]').addClass('active').attr('aria-checked', 'true');
       Shiny.setInputValue(message.inputId, String(message.value), {priority: 'event'});
     });
 

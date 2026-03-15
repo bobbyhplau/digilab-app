@@ -36,33 +36,24 @@ admin_tournaments_ui <- tagList(
         card_body(
           class = "admin-form-body",
           # Hidden field for edit mode
-          textInput("editing_tournament_id", NULL, value = ""),
-          tags$script("document.getElementById('editing_tournament_id').parentElement.style.display = 'none';"),
+          hidden_edit_field("editing_tournament_id"),
 
           p(class = "text-muted small", "Select a tournament from the list to edit or delete."),
 
           # --- Event Details section ---
-          div(class = "admin-form-section",
-            div(class = "admin-form-section-label",
-              bsicons::bs_icon("calendar-event"),
-              "Event Details"
-            ),
-            selectInput("edit_tournament_store", "Store", choices = NULL),
-            dateInput("edit_tournament_date", "Date", value = Sys.Date()),
+          admin_section("calendar-event", "Event Details",
+            selectInput("edit_tournament_store", tags$span("Store", tags$span(class = "required-indicator", "*")), choices = NULL),
+            dateInput("edit_tournament_date", tags$span("Date", tags$span(class = "required-indicator", "*")), value = Sys.Date()),
             layout_columns(
               col_widths = breakpoints(sm = c(12, 12), md = c(6, 6)),
               selectInput("edit_tournament_type", "Event Type",
                           choices = c("Select event type..." = "", EVENT_TYPES)),
-              selectInput("edit_tournament_format", "Format/Set", choices = list("Loading..." = ""))
+              selectInput("edit_tournament_format", tags$span("Format/Set", tags$span(class = "required-indicator", "*")), choices = list("Loading..." = ""))
             )
           ),
 
           # --- Size section ---
-          div(class = "admin-form-section",
-            div(class = "admin-form-section-label",
-              bsicons::bs_icon("people-fill"),
-              "Size"
-            ),
+          admin_section("people-fill", "Size",
             layout_columns(
               col_widths = breakpoints(sm = c(12, 12), md = c(6, 6)),
               numericInput("edit_tournament_players", "Number of Players", value = 8, min = 2),
@@ -71,11 +62,7 @@ admin_tournaments_ui <- tagList(
           ),
 
           # --- Stats section ---
-          div(class = "admin-form-section",
-            div(class = "admin-form-section-label",
-              bsicons::bs_icon("bar-chart-fill"),
-              "Stats"
-            ),
+          admin_section("bar-chart-fill", "Stats",
             uiOutput("tournament_stats_info"),
             # View/Edit Results button (only shown when tournament selected)
             shinyjs::hidden(
