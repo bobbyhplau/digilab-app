@@ -85,7 +85,7 @@ output$admin_users_grouped <- renderUI({
 
   # Split into groups
   supers <- df[df$role == "super_admin", ]
-  scene_admins <- df[df$role == "scene_admin", ]
+  scene_admins <- df[df$role == "scene_admin" & !is.na(df$scene_name), ]
   covered_scene_ids <- unique(scene_admins$scene_id)
   uncovered <- if (nrow(all_scenes) > 0) {
     all_scenes[!all_scenes$scene_id %in% covered_scene_ids, ]
