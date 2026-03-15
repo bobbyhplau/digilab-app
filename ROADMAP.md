@@ -1,41 +1,22 @@
 ---
-currentVersion: "1.7.2"
-lastUpdated: "2026-03-14"
+currentVersion: "1.7.3"
+lastUpdated: "2026-03-15"
 
 inProgress: []
 
 planned:
 
-  # v1.7.1+ — Deferred from v1.7.0
-  - id: scene-slug-standardization
-    title: "Scene Slug & Name Standardization"
-    description: "Standardize slugs to city names (e.g., dfw → dallas-fort-worth). Update display_name to remove country prefix right before go-live (e.g., 'Brazil (São Paulo)' → 'São Paulo')."
-    tags: [data, ux]
-    targetVersion: "v1.7.1"
-
   - id: player-anonymization
     title: "Player Anonymization Toggle"
     description: "Add is_anonymized flag to players table with toggle in Edit Players. Anonymized players show as 'Anonymous' in tournament results and are excluded from leaderboards, search, and profiles. Deck archetype data still counts toward meta stats. Reversible by admin."
     tags: [privacy, admin, feature]
-    targetVersion: "v1.7.1"
+    targetVersion: "v1.7.4"
 
-  # v1.8.0 — Discord Restructure & Datamon Bot
+  # v1.8.0 — Datamon Bot
   - id: datamon-bot
     title: "Datamon Bot Launch"
     description: "Discord bot (discord.py) on DigitalOcean droplet. Role sync for Scene Admin/Regional Admin roles, slash commands (/admins, /roster, /scene), react-to-resolve, auto-archive stale threads, welcome DM delivery."
     tags: [integration, community, scaling]
-    targetVersion: "v1.8.0"
-
-  - id: webhook-refactor
-    title: "Webhook Refactor & Discord Restructure"
-    description: "Repurpose #scene-coordination from per-scene threads to per-action-item threads with @mentions from junction table. Archive existing 70 threads. Add discord_thread_id to admin_requests for bidirectional sync."
-    tags: [integration, admin]
-    targetVersion: "v1.8.0"
-
-  - id: welcome-dm-automation
-    title: "Automated Welcome DM"
-    description: "Replace manual copy-paste credential delivery with bot-sent DM on admin creation. Eliminates captcha friction. Fallback to clipboard if user has DMs disabled."
-    tags: [admin, integration]
     targetVersion: "v1.8.0"
 
   # v1.9.0 — Results Redesign & Data Entry
@@ -141,6 +122,35 @@ planned:
     targetVersion: "Future"
 
 completed:
+  # v1.7.3 — Discord Restructure & Admin UI Design Pass
+  - id: discord-restructure
+    title: "Discord Restructure & App-Side Changes"
+    description: "DB migration (discord_thread_id, admin_regions). Webhook refactor: per-action threads with @mentions. Thread ID capture + resolution sync. Regional admin role with country/state assignments and scene-centric tree view. Scene naming standardization (stripped prefixes, city slugs). All app-side prerequisites for Datamon bot."
+    tags: [integration, admin, scaling]
+    date: "2026-03"
+    version: "v1.7.3"
+
+  - id: admin-ui-design-pass
+    title: "Admin UI Design Pass"
+    description: "Sectioned form layouts with icons across all admin tabs + public Submit. Info-hint-box styled helper text. Global pagination styling. Admin tables aligned to public table styling. Table column cleanup (remove clutter, fix clipping, add missing columns)."
+    tags: [ux, admin, style]
+    date: "2026-03"
+    version: "v1.7.3"
+
+  - id: scene-slug-standardization
+    title: "Scene Slug & Name Standardization"
+    description: "Standardized slugs to city names (dfw → dallas-fort-worth). Stripped country prefixes from display_name (e.g., 'Brazil (São Paulo)' → 'São Paulo'). Slug redirect map for stale localStorage values."
+    tags: [data, ux]
+    date: "2026-03"
+    version: "v1.7.3"
+
+  - id: webhook-refactor
+    title: "Webhook Refactor & Discord Restructure"
+    description: "Repurposed #scene-coordination from per-scene threads to per-action-item threads with @mentions from junction table. Added discord_thread_id to admin_requests for bidirectional sync. Welcome DM automation with clipboard fallback."
+    tags: [integration, admin]
+    date: "2026-03"
+    version: "v1.7.3"
+
   # v1.6.0 — Player Identity & Disambiguation
   - id: player-identity-disambiguation
     title: "Player Identity & Disambiguation"
