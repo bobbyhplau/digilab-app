@@ -578,9 +578,9 @@ body {
   }
 
   .header-scene-selector select {
-    font-size: 0.8rem;
-    padding: 0.3rem 0.4rem;
-    padding-right: 1.3rem;
+    font-size: 0.96rem;
+    padding: 0.35rem 0.5rem;
+    padding-right: 1.4rem;
   }
 
   /* Scene dropdown fills remaining space on mobile */
@@ -1404,6 +1404,15 @@ body.bslib-gap-spacing, body > .bslib-gap-spacing {
     width: 100% !important;
     max-width: 100% !important;
     box-sizing: border-box;
+  }
+
+  /* Event type gets more space than size */
+  .mobile-filter-pair.event-type-pair .advanced-filter-group:first-child {
+    flex: 3 1 0;
+  }
+
+  .mobile-filter-pair.event-type-pair .advanced-filter-group:last-child {
+    flex: 2 1 0;
   }
 
   /* Date range pair: centered labels */

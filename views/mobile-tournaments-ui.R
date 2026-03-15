@@ -47,7 +47,7 @@ tagList(
                   width = "100%",
                   selectize = FALSE)
     ),
-    div(class = "mobile-filter-pair",
+    div(class = "mobile-filter-pair event-type-pair",
       div(class = "advanced-filter-group",
         tags$label("Event Type", class = "advanced-filter-label"),
         selectInput("tournaments_event_type", NULL,
@@ -60,7 +60,7 @@ tagList(
                     selectize = FALSE)
       ),
       div(class = "advanced-filter-group",
-        tags$label("Size", class = "advanced-filter-label"),
+        tags$label("Event Size", class = "advanced-filter-label"),
         selectInput("tournaments_size_filter", NULL,
           choices = list("Any" = "0", "8+" = "8", "16+" = "16", "32+" = "32", "64+" = "64", "128+" = "128"),
           width = "100%", selectize = FALSE)
