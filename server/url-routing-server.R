@@ -7,15 +7,13 @@
 # Helper Functions
 # -----------------------------------------------------------------------------
 
-#' Generate URL-friendly slug from text
+#' Generate URL-friendly slug from text (wrapper around shared generate_slug)
 #' @param text String to slugify
 #' @return Lowercase string with special chars replaced by hyphens
 slugify <- function(text) {
   if (is.null(text) || is.na(text) || text == "") return("")
-  text |>
-    tolower() |>
-    gsub("[^a-z0-9]+", "-", x = _) |>
-    gsub("^-|-$", "", x = _)
+  result <- generate_slug(text)
+  if (is.na(result)) "" else result
 }
 
 #' Parse query string into named list

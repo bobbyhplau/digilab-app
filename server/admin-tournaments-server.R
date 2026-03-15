@@ -1144,10 +1144,11 @@ observeEvent(input$edit_grid_save, {
           ", params = list(row$result_id))
           if (nrow(original) > 0) {
             player_id <- original$player_id[1]
-            # Update the player's display_name if it changed
+            # Update the player's display_name and slug if it changed
+            updated_slug <- generate_unique_slug(db_pool, name, exclude_player_id = player_id)
             DBI::dbExecute(conn, "
-              UPDATE players SET display_name = $1, updated_at = CURRENT_TIMESTAMP, updated_by = $2 WHERE player_id = $3
-            ", params = list(name, current_admin_username(rv), player_id))
+              UPDATE players SET display_name = $1, slug = $2, updated_at = CURRENT_TIMESTAMP, updated_by = $3 WHERE player_id = $4
+            ", params = list(name, updated_slug, current_admin_username(rv), player_id))
           }
         }
 
@@ -1165,10 +1166,10 @@ observeEvent(input$edit_grid_save, {
               has_real_id <- nchar(member_num) > 0 && !grepl("^GUEST", member_num, ignore.case = TRUE)
               identity_status <- if (has_real_id) "verified" else "unverified"
               clean_member <- if (has_real_id) member_num else NA_character_
-              new_slug <- tolower(gsub("[^a-zA-Z0-9]+", "-", trimws(name)))
+              player_slug <- generate_unique_slug(db_pool, name)
               new_player <- DBI::dbGetQuery(conn,
                 "INSERT INTO players (display_name, slug, member_number, identity_status, home_scene_id) VALUES ($1, $2, $3, $4, $5) RETURNING player_id",
-                params = list(name, new_slug, clean_member, identity_status, scene_id))
+                params = list(name, player_slug, clean_member, identity_status, scene_id))
               player_id <- new_player$player_id[1]
             }
           }
