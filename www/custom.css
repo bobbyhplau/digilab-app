@@ -18,6 +18,33 @@
   --dl-gradient: linear-gradient(135deg, var(--dl-navy), var(--dl-blue));
 }
 
+/* =============================================================================
+   Scroll Fade Indicators
+   Add .scroll-fade to any overflow-y container. JS sets data-scroll-pos
+   to show inset shadows indicating more content above/below.
+   ============================================================================= */
+.scroll-fade[data-scroll-pos="top"] {
+  box-shadow: inset 0 -12px 10px -10px rgba(0, 0, 0, 0.12);
+}
+.scroll-fade[data-scroll-pos="bottom"] {
+  box-shadow: inset 0 12px 10px -10px rgba(0, 0, 0, 0.12);
+}
+.scroll-fade[data-scroll-pos="middle"] {
+  box-shadow: inset 0 12px 10px -10px rgba(0, 0, 0, 0.12),
+              inset 0 -12px 10px -10px rgba(0, 0, 0, 0.12);
+}
+
+[data-bs-theme="dark"] .scroll-fade[data-scroll-pos="top"] {
+  box-shadow: inset 0 -12px 10px -10px rgba(0, 0, 0, 0.35);
+}
+[data-bs-theme="dark"] .scroll-fade[data-scroll-pos="bottom"] {
+  box-shadow: inset 0 12px 10px -10px rgba(0, 0, 0, 0.35);
+}
+[data-bs-theme="dark"] .scroll-fade[data-scroll-pos="middle"] {
+  box-shadow: inset 0 12px 10px -10px rgba(0, 0, 0, 0.35),
+              inset 0 -12px 10px -10px rgba(0, 0, 0, 0.35);
+}
+
 /* MOBILE OVERRIDE INDEX:
  * Line numbers approximate -- search for the section header if moved.
  *

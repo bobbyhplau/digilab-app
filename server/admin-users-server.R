@@ -569,7 +569,7 @@ output$admin_users_grouped <- renderUI({
     return(div(class = "text-muted text-center py-3", "No admins match this filter"))
   }
 
-  div(class = "admin-users-scroll", sections)
+  div(class = "admin-users-scroll scroll-fade", sections)
 })
 
 # --- Row Click: Populate edit form ---
@@ -1017,7 +1017,7 @@ output$welcome_dm_area <- renderUI({
     tags$p(class = "text-muted small mb-2",
       "Copy and send this via Discord DM to the new admin:"
     ),
-    tags$pre(class = "welcome-dm-text", rv$welcome_dm_text),
+    tags$pre(class = "welcome-dm-text scroll-fade", rv$welcome_dm_text),
     actionButton("copy_welcome_dm",
                  tagList(bsicons::bs_icon("clipboard"), " Copy to Clipboard"),
                  class = "btn-primary btn-sm")

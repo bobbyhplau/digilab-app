@@ -292,7 +292,7 @@ output$pending_store_requests <- renderUI({
   reqs <- get_pending_requests(db_pool, "store_request", scene_id, rv$is_superadmin)
   if (nrow(reqs) == 0) return(NULL)
 
-  div(class = "pending-requests-panel",
+  div(class = "pending-requests-panel scroll-fade",
     h4(class = "pending-requests-title",
       bsicons::bs_icon("inbox-fill", class = "me-2"),
       paste0("Pending Store Requests (", nrow(reqs), ")")
@@ -313,7 +313,7 @@ output$pending_scene_requests <- renderUI({
   reqs <- get_pending_requests(db_pool, "scene_request")
   if (nrow(reqs) == 0) return(NULL)
 
-  div(class = "pending-requests-panel",
+  div(class = "pending-requests-panel scroll-fade",
     h4(class = "pending-requests-title",
       bsicons::bs_icon("inbox-fill", class = "me-2"),
       paste0("Pending Scene Requests (", nrow(reqs), ")")
@@ -340,7 +340,7 @@ output$pending_data_errors <- renderUI({
   reqs <- get_pending_requests(db_pool, "data_error", scene_id, rv$is_superadmin)
   if (nrow(reqs) == 0) return(NULL)
 
-  div(class = "pending-requests-panel",
+  div(class = "pending-requests-panel scroll-fade",
     h4(class = "pending-requests-title",
       bsicons::bs_icon("inbox-fill", class = "me-2"),
       paste0("Pending Data Errors (", nrow(reqs), ")")

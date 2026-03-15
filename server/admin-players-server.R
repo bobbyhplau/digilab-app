@@ -79,7 +79,9 @@ output$suggested_merges_section <- renderUI({
       bsicons::bs_icon("info-circle", class = "info-hint-icon"),
       "These online (Limitless) players match a local player by name. Merging combines their tournament history."
     ),
-    cards
+    div(class = "scroll-fade", style = "max-height: 320px; overflow-y: auto; padding-right: 4px;",
+      cards
+    )
   )
 })
 

@@ -587,7 +587,8 @@ output$deck_requests_section <- renderUI({
       tags$small(class = "text-muted", "Review and approve new deck submissions")
     ),
     card_body(
-      class = "p-2",
+      class = "p-2 scroll-fade",
+      style = "max-height: 400px; overflow-y: auto;",
       lapply(seq_len(nrow(pending)), function(i) {
         req <- pending[i, ]
         color_display <- if (!is.na(req$secondary_color) && req$secondary_color != "") {

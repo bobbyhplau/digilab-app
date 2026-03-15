@@ -519,6 +519,8 @@ ui <- page_fillable(
     tags$script(src = "pill-toggle.js"),
     # Skeleton loader auto-hide
     tags$script(src = "skeleton-loader.js"),
+    # Scroll fade indicators for overflow containers
+    tags$script(src = "scroll-indicator.js"),
     # PWA service worker registration
     tags$script(HTML("if('serviceWorker' in navigator){navigator.serviceWorker.register('sw.js');}")),
     # JavaScript to handle active nav state and loading screen

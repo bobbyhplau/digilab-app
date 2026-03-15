@@ -90,7 +90,7 @@ admin_decks_ui <- tagList(
             ),
             # Search results in dedicated box below
             div(
-              class = "card-search-results-container p-2 mt-2 card-search-results-min",
+              class = "card-search-results-container scroll-fade p-2 mt-2 card-search-results-min",
               tags$label(class = "form-label small text-muted", "Search Results"),
               uiOutput("card_search_results")
             )
