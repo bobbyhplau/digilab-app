@@ -7,15 +7,13 @@
 # Helper Functions
 # -----------------------------------------------------------------------------
 
-#' Generate URL-friendly slug from text
+#' Generate URL-friendly slug from text (wrapper around shared generate_slug)
 #' @param text String to slugify
 #' @return Lowercase string with special chars replaced by hyphens
 slugify <- function(text) {
   if (is.null(text) || is.na(text) || text == "") return("")
-  text |>
-    tolower() |>
-    gsub("[^a-z0-9]+", "-", x = _) |>
-    gsub("^-|-$", "", x = _)
+  result <- generate_slug(text)
+  if (is.na(result)) "" else result
 }
 
 #' Parse query string into named list
@@ -346,11 +344,18 @@ resolve_entity_slug <- function(entity_type, slug) {
 
   result <- switch(entity_type,
     "player" = {
-      # Players use display_name (slugified for comparison)
-      players <- safe_query(db_pool, "SELECT player_id, display_name FROM players WHERE is_active = TRUE",
-                            default = data.frame(player_id = integer(), display_name = character()))
-      match_idx <- which(sapply(players$display_name, slugify) == slug)
-      if (length(match_idx) == 1) players$player_id[match_idx] else NULL
+      # Players have a slug column for direct lookup
+      player <- safe_query(db_pool, "SELECT player_id FROM players WHERE slug = $1 AND is_active = TRUE",
+                           params = list(slug), default = data.frame(player_id = integer()))
+      if (nrow(player) == 1) {
+        player$player_id
+      } else {
+        # Fallback: slugify display_name for players without slug column populated
+        players <- safe_query(db_pool, "SELECT player_id, display_name FROM players WHERE is_active = TRUE AND slug IS NULL",
+                              default = data.frame(player_id = integer(), display_name = character()))
+        match_idx <- which(sapply(players$display_name, slugify) == slug)
+        if (length(match_idx) == 1) players$player_id[match_idx] else NULL
+      }
     },
     "deck" = {
       # Decks have a slug column
@@ -469,7 +474,7 @@ update_url_for_tournament <- function(session, tournament_id) {
 #' Update URL for community-filtered view
 update_url_for_community <- function(session, store_slug) {
   params <- list(community = store_slug)
-  update_browser_url(session, params, replace = FALSE)
+  update_browser_url(session, params, replace = TRUE)
 }
 
 #' Clear community filter from URL
