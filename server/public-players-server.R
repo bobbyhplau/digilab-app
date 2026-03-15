@@ -152,10 +152,12 @@ output$historical_rating_badge <- renderUI({
   }
 })
 
-output$player_standings <- renderReactable({
+# ---------------------------------------------------------------------------
+# Shared reactive: filtered player data (consumed by desktop + mobile)
+# ---------------------------------------------------------------------------
+players_data <- reactive({
   req("players" %in% visited_tabs())  # Lazy load: skip until tab visited
   rv$data_refresh  # Trigger refresh on admin changes
-
 
   # Build MV filters
   filters <- build_mv_filters(
@@ -183,8 +185,6 @@ output$player_standings <- renderReactable({
   having_idx <- filters$next_idx
 
   # Single query: player stats + main deck from MV, ratings from cache
-  # Both CTEs share the same filter params ($1..N for filters, $N+1 for HAVING)
-  # The deck_ranked CTE reuses the same $1..N placeholders (same filter values)
   result <- safe_query(db_pool, sprintf("
     WITH player_agg AS (
       SELECT player_id, display_name as \"Player\",
@@ -249,24 +249,7 @@ output$player_standings <- renderReactable({
     result <- result[result$player_id %in% decklist_player_ids$player_id, ]
   }
 
-  if (nrow(result) == 0) {
-    has_filters <- nchar(trimws(players_search_debounced() %||% "")) > 0 ||
-                   nchar(trimws(input$players_format %||% "")) > 0
-    if (has_filters) {
-      return(digital_empty_state(
-        title = "No players match your filters",
-        subtitle = "// try adjusting search or format",
-        icon = "funnel"
-      ))
-    } else {
-      return(digital_empty_state(
-        title = "No players recorded",
-        subtitle = "// player data pending",
-        icon = "people",
-        mascot = "agumon"
-      ))
-    }
-  }
+  if (nrow(result) == 0) return(result)
 
   # Determine rating source: historical snapshot or live cache
   snapshot <- historical_snapshot_data()
@@ -286,6 +269,47 @@ output$player_standings <- renderReactable({
   if (!"achievement_score" %in% names(result)) result$achievement_score <- NA
   result$competitive_rating[is.na(result$competitive_rating)] <- 1500
   result$achievement_score[is.na(result$achievement_score)] <- 0
+
+  # Sort by competitive rating
+  result[order(-result$competitive_rating), ]
+}) |> bindCache(
+  input$players_format,
+  players_search_debounced(),
+  input$players_min_events,
+  input$players_store_filter,
+  input$players_win_pct_filter,
+  input$players_top3_toggle,
+  input$players_decklist_toggle,
+  rv$current_scene,
+  rv$current_continent,
+  rv$community_filter,
+  rv$data_refresh
+)
+
+# ---------------------------------------------------------------------------
+# Desktop: Reactable output
+# ---------------------------------------------------------------------------
+output$player_standings <- renderReactable({
+  result <- players_data()
+
+  if (nrow(result) == 0) {
+    has_filters <- nchar(trimws(players_search_debounced() %||% "")) > 0 ||
+                   nchar(trimws(input$players_format %||% "")) > 0
+    if (has_filters) {
+      return(digital_empty_state(
+        title = "No players match your filters",
+        subtitle = "// try adjusting search or format",
+        icon = "funnel"
+      ))
+    } else {
+      return(digital_empty_state(
+        title = "No players recorded",
+        subtitle = "// player data pending",
+        icon = "people",
+        mascot = "agumon"
+      ))
+    }
+  }
 
   # Create Record column as HTML (W-L-T with colors)
   result$Record <- sapply(1:nrow(result), function(i) {
@@ -322,9 +346,6 @@ output$player_standings <- renderReactable({
     sprintf("<span class='desktop-rating-badge %s'>%s</span>",
             tier_class, as.integer(r))
   })
-
-  # Sort by competitive rating
-  result <- result[order(-result$competitive_rating), ]
 
   reactable(
     result,
@@ -397,27 +418,17 @@ output$player_standings <- renderReactable({
       )
     )
   )
-}) |> bindCache(
-  input$players_format,
-  players_search_debounced(),
-  input$players_min_events,
-  input$players_store_filter,
-  input$players_win_pct_filter,
-  input$players_top3_toggle,
-  input$players_decklist_toggle,
-  rv$current_scene,
-  rv$current_continent,
-  rv$community_filter,
-  rv$data_refresh
-)
+})
 
 # ---------------------------------------------------------------------------
 # Mobile Players — stacked card list replacing reactable
 # ---------------------------------------------------------------------------
 mobile_players_limit <- reactiveVal(20)
 
-# Reset limit when filters change
-observeEvent(list(input$players_format, input$players_search, input$players_min_events), {
+# Reset limit when any filter changes
+observeEvent(list(input$players_format, input$players_search, input$players_min_events,
+                  input$players_store_filter, input$players_win_pct_filter,
+                  input$players_top3_toggle, input$players_decklist_toggle), {
   mobile_players_limit(20)
 }, ignoreInit = TRUE)
 
@@ -428,54 +439,7 @@ observeEvent(input$mobile_players_load_more, {
 
 output$mobile_players_cards <- renderUI({
   req(is_mobile())
-  req("players" %in% visited_tabs())  # Lazy load: skip until tab visited
-  rv$data_refresh
-
-  # -- Build MV filters (same pattern as desktop) ------------------------------
-  filters <- build_mv_filters(
-    format = input$players_format,
-    scene = rv$current_scene,
-    continent = rv$current_continent,
-    community_store = rv$community_filter,
-    search = players_search_debounced(),
-    search_column = "display_name",
-    start_idx = 1
-  )
-
-  min_events <- as.numeric(input$players_min_events %||% 0)
-  if (length(min_events) == 0 || is.na(min_events)) min_events <- 0
-  having_idx <- filters$next_idx
-
-  # Single query: player stats + main deck from MV
-  result <- safe_query(db_pool, sprintf("
-    WITH player_agg AS (
-      SELECT player_id, display_name as \"Player\",
-             SUM(events)::int as \"Events\",
-             SUM(wins)::int as \"W\", SUM(losses)::int as \"L\", SUM(ties)::int as \"T\",
-             ROUND(SUM(wins) * 100.0 / NULLIF(SUM(wins) + SUM(losses), 0), 1) as \"Win %%\",
-             SUM(firsts)::int as \"1sts\",
-             SUM(top3s)::int as \"Top 3s\"
-      FROM mv_player_store_stats
-      WHERE NOT is_anonymized %s
-      GROUP BY player_id, display_name
-      HAVING SUM(events) >= $%d
-    ),
-    deck_ranked AS (
-      SELECT player_id, archetype_name as main_deck, primary_color as main_deck_color,
-             ROW_NUMBER() OVER (PARTITION BY player_id ORDER BY SUM(times_played) DESC) as rn
-      FROM mv_player_store_stats
-      WHERE NOT is_anonymized %s
-        AND archetype_name IS NOT NULL AND archetype_name != 'UNKNOWN'
-      GROUP BY player_id, archetype_name, primary_color
-    )
-    SELECT pa.*,
-           COALESCE(dr.main_deck, '') as main_deck,
-           COALESCE(dr.main_deck_color, '') as main_deck_color
-    FROM player_agg pa
-    LEFT JOIN deck_ranked dr ON pa.player_id = dr.player_id AND dr.rn = 1
-  ", filters$sql, having_idx, filters$sql),
-  params = c(filters$params, list(as.integer(min_events))),
-  default = data.frame())
+  result <- players_data()
 
   if (nrow(result) == 0) {
     has_filters <- nchar(trimws(players_search_debounced() %||% "")) > 0 ||
@@ -495,29 +459,6 @@ output$mobile_players_cards <- renderUI({
       ))
     }
   }
-
-  # Determine rating source: historical snapshot or live cache
-  snapshot <- historical_snapshot_data()
-  if (!is.null(snapshot) && nrow(snapshot) > 0) {
-    result <- merge(result, snapshot, by = "player_id", all.x = TRUE)
-  } else {
-    comp_ratings <- player_competitive_ratings()
-    if (nrow(comp_ratings) > 0) {
-      result <- merge(result, comp_ratings, by = "player_id", all.x = TRUE)
-    }
-    ach_scores <- player_achievement_scores()
-    if (nrow(ach_scores) > 0) {
-      result <- merge(result, ach_scores, by = "player_id", all.x = TRUE)
-    }
-  }
-  if (!"competitive_rating" %in% names(result)) result$competitive_rating <- NA
-  if (!"achievement_score" %in% names(result)) result$achievement_score <- NA
-  result$competitive_rating[is.na(result$competitive_rating)] <- 1500
-  result$achievement_score[is.na(result$achievement_score)] <- 0
-
-  # Sort by competitive rating descending
-
-  result <- result[order(-result$competitive_rating), ]
 
   total_rows <- nrow(result)
   limit <- min(mobile_players_limit(), total_rows)
@@ -607,17 +548,7 @@ output$mobile_players_cards <- renderUI({
   } else {
     card_list
   }
-}) |> bindCache(
-  is_mobile(),
-  input$players_format,
-  players_search_debounced(),
-  input$players_min_events,
-  rv$current_scene,
-  rv$current_continent,
-  rv$community_filter,
-  rv$data_refresh,
-  mobile_players_limit()
-)
+})
 
 # Handle player row click - open detail modal
 observeEvent(input$player_clicked, {

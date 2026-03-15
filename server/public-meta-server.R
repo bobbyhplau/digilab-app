@@ -487,7 +487,7 @@ output$deck_detail_modal <- renderUI({
           class = "table table-sm table-striped",
           tags$thead(
             tags$tr(
-              tags$th("Player"), tags$th("Times Played"), tags$th("Wins"), tags$th("Win %")
+              tags$th("Player"), tags$th("Times Played"), tags$th("1sts"), tags$th("Win %")
             )
           ),
           tags$tbody(
