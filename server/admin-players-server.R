@@ -382,14 +382,17 @@ observeEvent(input$update_player, {
   new_member <- trimws(input$player_member_number)
   if (nchar(new_member) == 0) new_member <- NA_character_
 
+  # Generate slug from display name
+  new_slug <- tolower(gsub("[^a-zA-Z0-9]+", "-", trimws(new_name)))
+
   tryCatch({
     safe_execute(db_pool, "
       UPDATE players
       SET display_name = $1, member_number = $2, is_anonymized = $3,
-          updated_at = CURRENT_TIMESTAMP, updated_by = $4
-      WHERE player_id = $5
+          slug = $4, updated_at = CURRENT_TIMESTAMP, updated_by = $5
+      WHERE player_id = $6
     ", params = list(new_name, new_member, isTRUE(input$player_is_anonymized),
-                     current_admin_username(rv), player_id))
+                     new_slug, current_admin_username(rv), player_id))
 
     notify(sprintf("Updated player: %s", new_name), type = "message")
 

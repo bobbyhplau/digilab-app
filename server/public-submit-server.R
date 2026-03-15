@@ -1514,11 +1514,12 @@ observeEvent(input$submit_tournament, {
           }
         } else {
           identity_status <- if (has_real_id) "verified" else "unverified"
+          new_slug <- tolower(gsub("[^a-zA-Z0-9]+", "-", trimws(username)))
           new_player <- DBI::dbGetQuery(conn, "
-            INSERT INTO players (display_name, member_number, identity_status, home_scene_id)
-            VALUES ($1, $2, $3, $4)
+            INSERT INTO players (display_name, slug, member_number, identity_status, home_scene_id)
+            VALUES ($1, $2, $3, $4, $5)
             RETURNING player_id
-          ", params = list(username, clean_member, identity_status, scene_id))
+          ", params = list(username, new_slug, clean_member, identity_status, scene_id))
           player_id <- new_player$player_id[1]
         }
       }
@@ -2112,11 +2113,12 @@ observeEvent(input$match_submit, {
       }
     } else {
       identity_status <- if (submitter_has_real_id) "verified" else "unverified"
+      new_slug <- tolower(gsub("[^a-zA-Z0-9]+", "-", trimws(submitter_username)))
       new_player <- DBI::dbGetQuery(conn, "
-        INSERT INTO players (display_name, member_number, identity_status, home_scene_id)
-        VALUES ($1, $2, $3, $4)
+        INSERT INTO players (display_name, slug, member_number, identity_status, home_scene_id)
+        VALUES ($1, $2, $3, $4, $5)
         RETURNING player_id
-      ", params = list(submitter_username, clean_submitter_member, identity_status, match_scene_id))
+      ", params = list(submitter_username, new_slug, clean_submitter_member, identity_status, match_scene_id))
       player_id <- new_player$player_id[1]
     }
 
@@ -2171,11 +2173,12 @@ observeEvent(input$match_submit, {
         }
       } else {
         opp_identity <- if (opp_has_real_id) "verified" else "unverified"
+        opp_slug <- tolower(gsub("[^a-zA-Z0-9]+", "-", trimws(opponent_username)))
         new_opponent <- DBI::dbGetQuery(conn, "
-          INSERT INTO players (display_name, member_number, identity_status, home_scene_id)
-          VALUES ($1, $2, $3, $4)
+          INSERT INTO players (display_name, slug, member_number, identity_status, home_scene_id)
+          VALUES ($1, $2, $3, $4, $5)
           RETURNING player_id
-        ", params = list(opponent_username, clean_opp_member, opp_identity, match_scene_id))
+        ", params = list(opponent_username, opp_slug, clean_opp_member, opp_identity, match_scene_id))
         opponent_id <- new_opponent$player_id[1]
       }
 

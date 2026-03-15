@@ -1165,9 +1165,10 @@ observeEvent(input$edit_grid_save, {
               has_real_id <- nchar(member_num) > 0 && !grepl("^GUEST", member_num, ignore.case = TRUE)
               identity_status <- if (has_real_id) "verified" else "unverified"
               clean_member <- if (has_real_id) member_num else NA_character_
+              new_slug <- tolower(gsub("[^a-zA-Z0-9]+", "-", trimws(name)))
               new_player <- DBI::dbGetQuery(conn,
-                "INSERT INTO players (display_name, member_number, identity_status, home_scene_id) VALUES ($1, $2, $3, $4) RETURNING player_id",
-                params = list(name, clean_member, identity_status, scene_id))
+                "INSERT INTO players (display_name, slug, member_number, identity_status, home_scene_id) VALUES ($1, $2, $3, $4, $5) RETURNING player_id",
+                params = list(name, new_slug, clean_member, identity_status, scene_id))
               player_id <- new_player$player_id[1]
             }
           }

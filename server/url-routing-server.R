@@ -346,11 +346,18 @@ resolve_entity_slug <- function(entity_type, slug) {
 
   result <- switch(entity_type,
     "player" = {
-      # Players use display_name (slugified for comparison)
-      players <- safe_query(db_pool, "SELECT player_id, display_name FROM players WHERE is_active = TRUE",
-                            default = data.frame(player_id = integer(), display_name = character()))
-      match_idx <- which(sapply(players$display_name, slugify) == slug)
-      if (length(match_idx) == 1) players$player_id[match_idx] else NULL
+      # Players use slug column for efficient lookup
+      player <- safe_query(db_pool, "SELECT player_id FROM players WHERE slug = $1 AND is_active = TRUE",
+                           params = list(slug), default = data.frame(player_id = integer()))
+      if (nrow(player) == 1) {
+        player$player_id
+      } else {
+        # Fallback: slugify display_name for players without slug column populated
+        players <- safe_query(db_pool, "SELECT player_id, display_name FROM players WHERE is_active = TRUE AND slug IS NULL",
+                              default = data.frame(player_id = integer(), display_name = character()))
+        match_idx <- which(sapply(players$display_name, slugify) == slug)
+        if (length(match_idx) == 1) players$player_id[match_idx] else NULL
+      }
     },
     "deck" = {
       # Decks have a slug column
