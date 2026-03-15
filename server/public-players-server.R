@@ -492,8 +492,8 @@ output$mobile_players_cards <- renderUI({
       if (!is.na(row$T) && row$T > 0) tagList("-", span(style = "color: #f97316;", as.integer(row$T)))
     )
 
-    # Main deck badge (unchanged logic)
-    deck_tag <- if (nchar(row$main_deck) > 0) {
+    # Main deck badge
+    deck_tag <- if (nchar(row$main_deck) > 0 && row$main_deck != "-") {
       color_class <- if (nchar(row$main_deck_color) > 0) {
         paste0("deck-badge deck-badge-", tolower(row$main_deck_color))
       } else {
