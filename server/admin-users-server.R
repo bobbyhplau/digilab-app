@@ -476,10 +476,11 @@ output$admin_users_grouped <- renderUI({
 
     # Online scenes (no country)
     online_scenes <- all_scenes[is.na(all_scenes$country), ]
-    if (nrow(online_scenes) > 0 && is.null(filter_scene_id)) {
+    if (nrow(online_scenes) > 0 && (is.null(filter_scene_id) || filter_scene_id %in% online_scenes$scene_id)) {
       online_content <- tagList()
       for (si in seq_len(nrow(online_scenes))) {
         sid <- online_scenes$scene_id[si]
+        if (!is.null(filter_scene_id) && sid != filter_scene_id) next
         scene_name <- online_scenes$display_name[si]
         admins <- scene_admins_map[[as.character(sid)]]
 
@@ -617,6 +618,25 @@ observeEvent(input$admin_user_clicked, {
   shinyjs::html("admin_form_title", "Edit Admin")
 })
 
+# Helper: clear all region checkboxes
+clear_region_checkboxes <- function(session, db_pool) {
+  regions <- safe_query(db_pool,
+    "SELECT DISTINCT country, state_region FROM scenes
+     WHERE is_active = TRUE AND country IS NOT NULL",
+    default = data.frame())
+  if (nrow(regions) == 0) return()
+
+  for (cty in unique(regions$country)) {
+    cty_id <- paste0("region_country_", gsub("[^a-zA-Z0-9]", "_", cty))
+    updateCheckboxInput(session, cty_id, value = FALSE)
+    cty_states <- regions$state_region[regions$country == cty & !is.na(regions$state_region)]
+    for (st in unique(cty_states)) {
+      st_id <- paste0("region_state_", gsub("[^a-zA-Z0-9]", "_", cty), "_", gsub("[^a-zA-Z0-9]", "_", st))
+      updateCheckboxInput(session, st_id, value = FALSE)
+    }
+  }
+}
+
 # --- Clear Form ---
 observeEvent(input$clear_admin_form_btn, {
   editing_admin_id(NULL)
@@ -625,6 +645,7 @@ observeEvent(input$clear_admin_form_btn, {
   updateTextInput(session, "admin_password", value = "")
   updateSelectInput(session, "admin_role", selected = "scene_admin")
   updateSelectInput(session, "admin_scene", selected = "")
+  clear_region_checkboxes(session, db_pool)
   shinyjs::html("admin_form_title", "Add Admin")
 })
 
@@ -722,7 +743,7 @@ observeEvent(input$save_admin_btn, {
           safe_execute(db_pool,
             "INSERT INTO admin_regions (user_id, country, state_region, assigned_by)
              VALUES ($1, $2, $3, $4)
-             ON CONFLICT (user_id, country, state_region) DO NOTHING",
+             ON CONFLICT (user_id, country, COALESCE(state_region, '')) DO NOTHING",
             params = list(new_uid, selected_regions$country[i],
                           if (is.na(selected_regions$state_region[i])) NA_character_ else selected_regions$state_region[i],
                           admin_name))

@@ -3,6 +3,17 @@
 # Handles scene selection, onboarding modal, and localStorage sync
 # =============================================================================
 
+# Slug redirect map for stale localStorage values after scene renames (Phase 5)
+# Add entries here when renaming scene slugs, remove after sufficient time has passed
+SLUG_REDIRECTS <- c(
+  "dfw" = "dallas-fort-worth"
+)
+
+# Helper: apply slug redirect if stale value found
+apply_slug_redirect <- function(slug) {
+  if (slug %in% names(SLUG_REDIRECTS)) SLUG_REDIRECTS[[slug]] else slug
+}
+
 # -----------------------------------------------------------------------------
 # Scene Choices Helper
 # -----------------------------------------------------------------------------
@@ -205,7 +216,7 @@ observeEvent(db_pool, {
       continent <- stored$continent
     }
     if (!is.null(stored$scene) && stored$scene != "") {
-      scene_selected <- stored$scene
+      scene_selected <- apply_slug_redirect(stored$scene)
     }
   }
 
@@ -266,14 +277,7 @@ observeEvent(input$scene_from_storage, {
 
   # If there's a stored scene preference, apply it
   if (!is.null(stored$scene) && stored$scene != "") {
-    # Slug redirect map for stale localStorage values after scene renames
-    slug_redirects <- c(
-      "dfw" = "dallas-fort-worth"
-    )
-    scene_slug <- stored$scene
-    if (scene_slug %in% names(slug_redirects)) {
-      scene_slug <- slug_redirects[[scene_slug]]
-    }
+    scene_slug <- apply_slug_redirect(stored$scene)
 
     continent <- stored$continent %||% "all"
     rv$current_continent <- continent
@@ -284,6 +288,13 @@ observeEvent(input$scene_from_storage, {
     if (scene_slug %in% unlist(choices)) {
       rv$current_scene <- scene_slug
       updateSelectInput(session, "scene_selector", choices = choices, selected = scene_slug)
+      # Persist corrected slug to localStorage if it was redirected
+      if (scene_slug != stored$scene) {
+        session$sendCustomMessage("saveScenePreference", list(
+          scene = scene_slug,
+          continent = continent
+        ))
+      }
       shinyjs::delay(200, {
         session$sendCustomMessage("resetPillToggle", list(inputId = "players_min_events", value = "0"))
         session$sendCustomMessage("resetPillToggle", list(inputId = "meta_min_entries", value = "0"))

@@ -13,8 +13,10 @@ CREATE TABLE IF NOT EXISTS admin_regions (
     country TEXT NOT NULL,
     state_region TEXT,              -- NULL = whole country, set = specific state/province
     assigned_at TIMESTAMPTZ DEFAULT NOW(),
-    assigned_by TEXT,
-    UNIQUE (user_id, country, state_region)
+    assigned_by TEXT
 );
+-- Use COALESCE for unique constraint since NULL != NULL in PostgreSQL
+CREATE UNIQUE INDEX IF NOT EXISTS idx_admin_regions_unique
+  ON admin_regions(user_id, country, COALESCE(state_region, ''));
 CREATE INDEX IF NOT EXISTS idx_admin_regions_user ON admin_regions(user_id);
 CREATE INDEX IF NOT EXISTS idx_admin_regions_country ON admin_regions(country);

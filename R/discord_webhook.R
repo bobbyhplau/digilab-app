@@ -5,24 +5,30 @@
 # Base helper — sends a webhook POST to Discord
 # Returns TRUE on success, FALSE on failure
 discord_send <- function(webhook_url, body, thread_id = NULL) {
-  if (is.null(webhook_url) || nchar(webhook_url) == 0) {
+  if (is.null(webhook_url) || is.na(webhook_url) || nchar(webhook_url) == 0) {
     warning("Discord webhook URL not configured")
     return(invisible(FALSE))
   }
 
   tryCatch({
     url <- webhook_url
-    if (!is.null(thread_id) && nchar(thread_id) > 0) {
+    if (!is.null(thread_id) && !is.na(thread_id) && nchar(thread_id) > 0) {
       url <- paste0(url, "?thread_id=", thread_id)
     }
 
-    httr2::request(url) |>
+    resp <- httr2::request(url) |>
       httr2::req_body_json(body) |>
       httr2::req_timeout(10) |>
       httr2::req_error(is_error = function(resp) FALSE) |>
       httr2::req_perform()
 
-    invisible(TRUE)
+    status <- httr2::resp_status(resp)
+    if (status >= 200 && status < 300) {
+      invisible(TRUE)
+    } else {
+      warning(paste("Discord webhook returned status:", status))
+      invisible(FALSE)
+    }
   }, error = function(e) {
     warning(paste("Discord webhook error:", e$message))
     if (exists("sentry_capture_exception", mode = "function")) {
@@ -368,7 +374,7 @@ discord_create_scene_thread <- function(scene_name, message_content, lat = NULL,
 # No-ops gracefully if DISCORD_BOT_TOKEN is not set.
 discord_resolve_thread <- function(thread_id, resolved_by, action = "resolved") {
   bot_token <- Sys.getenv("DISCORD_BOT_TOKEN", "")
-  if (nchar(bot_token) == 0 || is.null(thread_id) || nchar(thread_id) == 0) {
+  if (nchar(bot_token) == 0 || is.null(thread_id) || is.na(thread_id) || nchar(thread_id) == 0) {
     return(invisible(FALSE))
   }
 
@@ -437,8 +443,8 @@ discord_resolve_thread <- function(thread_id, resolved_by, action = "resolved") 
 # Returns TRUE on success, FALSE on failure. No-ops if no bot token.
 discord_send_welcome_dm <- function(discord_user_id, message) {
   bot_token <- Sys.getenv("DISCORD_BOT_TOKEN", "")
-  if (nchar(bot_token) == 0 || is.null(discord_user_id) || nchar(discord_user_id) == 0) {
-    return(FALSE)
+  if (nchar(bot_token) == 0 || is.null(discord_user_id) || is.na(discord_user_id) || nchar(discord_user_id) == 0) {
+    return(invisible(FALSE))
   }
 
   tryCatch({

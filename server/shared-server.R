@@ -778,9 +778,20 @@ observeEvent(input$admin_login_link, {
     )
     admin_name <- rv$admin_user$username
 
-    # Get scene name for display
+    # Get scene/region name for display
     scene_display <- "All Scenes"
-    if (!is.null(rv$admin_user$scene_id)) {
+    if (rv$admin_user$role == "regional_admin") {
+      region_rows <- safe_query(db_pool,
+        "SELECT country, state_region FROM admin_regions WHERE user_id = $1",
+        params = list(rv$admin_user$user_id),
+        default = data.frame())
+      if (nrow(region_rows) > 0) {
+        region_names <- apply(region_rows, 1, function(r) {
+          if (is.na(r["state_region"])) r["country"] else paste(r["country"], "-", r["state_region"])
+        })
+        scene_display <- paste(region_names, collapse = ", ")
+      }
+    } else if (!is.null(rv$admin_user$scene_id)) {
       scene_row <- safe_query(db_pool,
         "SELECT display_name FROM scenes WHERE scene_id = $1",
         params = list(rv$admin_user$scene_id),
