@@ -95,9 +95,9 @@ The architecture doc contains:
 
 ## Current Work
 
-### Latest Release: v1.7.4 - Admin Permission Tier Scoping
+### Latest Release: v1.7.5 - Discord Webhook Embeds
 
-Regional admins can now access Manage Admins to create/edit/deactivate scene admins in their region. Suggested merges, merge modal, and scene requests scoped by admin tier. Server-side privilege escalation prevention. Fixed regional admin notification counts. See `CHANGELOG.md` for full details.
+All Discord webhook messages converted from plain text to structured embeds with color-coded sidebars, request IDs in footers, and ISO timestamps. Super admin @mentions added to scene requests and bug reports. Scene update announcements auto-fire on scene creation. See `CHANGELOG.md` for full details.
 
 See `ROADMAP.md` for the full version plan.
 
@@ -105,6 +105,7 @@ See `ROADMAP.md` for the full version plan.
 
 | Version | Focus |
 |---------|-------|
+| v1.7.5 | Discord Webhook Embeds |
 | v1.7.4 | Admin Permission Tier Scoping |
 | v1.7.3 | Discord Restructure & Admin UI Design Pass |
 | v1.7.2 | Dual-Color Badges, Rating Snapshots & Bug Fixes |
@@ -381,6 +382,6 @@ See `ARCHITECTURE.md` > CSS Architecture for full documentation.
 
 ## Current Version
 
-**v1.7.4** - Admin Permission Tier Scoping
+**v1.7.5** - Discord Webhook Embeds
 
 See `CHANGELOG.md` for full version history and `ROADMAP.md` for upcoming features.

@@ -5,6 +5,22 @@ All notable changes to DigiLab will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.7.5] - 2026-03-16 - Discord Webhook Embeds
+
+### Changed
+- **All Discord webhooks converted to embeds**: Store requests (blue), scene requests (purple), data errors (orange), bug reports (red), resolutions (green/grey), and scene updates (green) now use structured Discord embeds with color-coded sidebars, field layouts, and ISO timestamps instead of plain markdown text.
+- **`discord_create_action_thread()` supports embeds**: New `embeds` parameter alongside optional `message_content` for @mentions. Fully backward-compatible.
+- **`discord_post_scene_update()` enhanced**: Now accepts `country`, `state_region`, and `continent` parameters for location fields in the embed.
+
+### Added
+- **`get_super_admin_mentions()` helper**: Queries active super admins with Discord IDs for @mention strings. Used by scene requests, bug reports, and data error fallbacks.
+- **Super admin mentions on scene requests and bug reports**: Scene requests and bug reports now ping super admins for triage (previously nobody was pinged).
+- **Request IDs in embed footers**: All webhook embeds include `Request #N` in the footer for cross-referencing with the admin request queue.
+- **Automatic scene update announcements**: `discord_post_scene_update()` now fires automatically when a new scene is created via admin panel (previously unused function).
+
+### Fixed
+- **Empty context field in bug report embeds**: Discord rejects empty embed field values with 400. Context field now conditionally included only when non-empty, preventing silent notification failures on data error fallback path.
+
 ## [1.7.4] - 2026-03-15 - Admin Permission Tier Scoping
 
 ### Added

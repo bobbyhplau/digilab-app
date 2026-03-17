@@ -4,6 +4,24 @@ This log tracks development decisions, blockers, and technical notes for DigiLab
 
 ---
 
+## 2026-03-16: v1.7.5 — Discord Webhook Embeds
+
+### Embed Conversion
+Converted all 7 Discord webhook functions from plain markdown `content` to structured Discord embeds. Each request type gets a color-coded sidebar (store=blue, scene=purple, data error=orange, bug=red, scene update=green, resolved=green, rejected=grey). Embeds use structured fields (Store, Location, Scene, etc.), ISO timestamps (Discord renders in viewer's local timezone), and request IDs in footers for cross-referencing.
+
+Key Discord API behavior: @mentions inside embeds don't trigger notifications. All mentions moved to top-level `content` field alongside the embed so pings actually fire.
+
+### Super Admin Mentions
+Added `get_super_admin_mentions()` helper querying `admin_users WHERE role = 'super_admin'`. Wired into scene requests, bug reports, and data error fallback (no-scene path). Previously these request types had no @mentions at all.
+
+### Scene Update Auto-Fire
+`discord_post_scene_update()` was defined but never called. Now fires automatically after `INSERT INTO scenes` succeeds in `execute_scene_save()` (create branch only, not update). Enhanced with `country`/`state_region`/`continent` parameters for location fields.
+
+### Code Review Fix
+Discord API rejects embed field values that are empty strings (400 error). The bug report embed always included a Context field even when context was `""` (e.g., data error fallback path). Fixed by conditionally including Context only when non-empty. Also added `substr(description, 1, 1024)` truncation to respect Discord's 1024-char field value limit.
+
+---
+
 ## 2026-03-15: v1.7.3 — Discord Restructure & Admin UI Design Pass
 
 ### Discord Restructure (Phases 1–5)
