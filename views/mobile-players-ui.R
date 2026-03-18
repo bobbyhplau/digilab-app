@@ -72,7 +72,7 @@ tagList(
       tags$label("Store", class = "advanced-filter-label"),
       selectInput("players_store_filter", NULL,
         choices = list("All" = ""),
-        width = "100%")
+        width = "100%", selectize = FALSE)
     ),
     div(class = "mobile-filter-checkbox-row",
       span(class = "mobile-filter-note", "These filters also apply to player detail cards"),

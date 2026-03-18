@@ -72,7 +72,7 @@ tagList(
       tags$label("Store", class = "advanced-filter-label"),
       selectInput("tournaments_store_filter", NULL,
         choices = list("All" = ""),
-        width = "100%")
+        width = "100%", selectize = FALSE)
     ),
     div(class = "mobile-filter-pair date-range-pair",
       div(class = "advanced-filter-group",

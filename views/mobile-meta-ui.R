@@ -72,6 +72,12 @@ tagList(
       tags$label("Color", class = "advanced-filter-label"),
       color_filter_pills()
     ),
+    div(class = "advanced-filter-group mobile-filter-full",
+      tags$label("Store", class = "advanced-filter-label"),
+      selectInput("meta_store_filter", NULL,
+        choices = list("All" = ""),
+        width = "100%", selectize = FALSE)
+    ),
     div(class = "mobile-filter-checkbox-row",
       span(class = "mobile-filter-note", "These filters also apply to deck detail cards"),
       div(class = "advanced-filter-group",
