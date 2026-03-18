@@ -358,7 +358,8 @@ output$pending_store_requests <- renderUI({
   )
 })
 
-output$pending_scene_requests <- renderUI({
+# Shared render function for scene requests (used by two outputs)
+render_pending_scene_requests <- function() {
   req(isTRUE(rv$is_superadmin) || isTRUE(rv$admin_user$role == "regional_admin"))
   rv$requests_refresh
 
@@ -381,7 +382,11 @@ output$pending_scene_requests <- renderUI({
     lapply(seq_len(nrow(reqs)), function(i) render_request_card(reqs[i, ])),
     tags$hr()
   )
-})
+}
+
+# Separate output IDs so each tab gets its own binding
+output$pending_scene_requests <- renderUI({ render_pending_scene_requests() })
+output$pending_scene_requests_scenes <- renderUI({ render_pending_scene_requests() })
 
 output$pending_data_errors <- renderUI({
   req(rv$is_admin)

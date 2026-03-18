@@ -50,7 +50,7 @@ admin_results_ui <- tagList(
             div(
               class = "row g-3 mb-3",
               div(class = "col-12 col-md-4",
-                  selectInput("tournament_scene", tags$span("Scene", tags$span(class = "required-indicator", "*")), choices = c("Loading..." = ""))),
+                  selectInput("tournament_scene", tags$span("Scene", tags$span(class = "required-indicator", "*")), choices = c("Loading..." = ""), selectize = FALSE)),
               div(class = "col-12 col-md-4",
                   selectInput("tournament_store", tags$span("Store", tags$span(class = "required-indicator", "*")), choices = c("Select scene first..." = ""))),
               div(class = "col-12 col-md-4",

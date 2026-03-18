@@ -34,6 +34,27 @@ apply_slug_redirect <- function(slug) {
 }
 
 # -----------------------------------------------------------------------------
+# Shared Constants
+# -----------------------------------------------------------------------------
+
+# US state abbreviation map (used by get_scene_choices and get_grouped_scene_choices)
+US_STATE_ABBREV <- c(
+  "Alabama" = "AL", "Alaska" = "AK", "Arizona" = "AZ", "Arkansas" = "AR",
+  "California" = "CA", "Colorado" = "CO", "Connecticut" = "CT", "Delaware" = "DE",
+  "District of Columbia" = "DC", "Florida" = "FL", "Georgia" = "GA", "Hawaii" = "HI",
+  "Idaho" = "ID", "Illinois" = "IL", "Indiana" = "IN", "Iowa" = "IA",
+  "Kansas" = "KS", "Kentucky" = "KY", "Louisiana" = "LA", "Maine" = "ME",
+  "Maryland" = "MD", "Massachusetts" = "MA", "Michigan" = "MI", "Minnesota" = "MN",
+  "Mississippi" = "MS", "Missouri" = "MO", "Montana" = "MT", "Nebraska" = "NE",
+  "Nevada" = "NV", "New Hampshire" = "NH", "New Jersey" = "NJ", "New Mexico" = "NM",
+  "New York" = "NY", "North Carolina" = "NC", "North Dakota" = "ND", "Ohio" = "OH",
+  "Oklahoma" = "OK", "Oregon" = "OR", "Pennsylvania" = "PA", "Rhode Island" = "RI",
+  "South Carolina" = "SC", "South Dakota" = "SD", "Tennessee" = "TN", "Texas" = "TX",
+  "Utah" = "UT", "Vermont" = "VT", "Virginia" = "VA", "Washington" = "WA",
+  "West Virginia" = "WV", "Wisconsin" = "WI", "Wyoming" = "WY"
+)
+
+# -----------------------------------------------------------------------------
 # Scene Choices Helper
 # -----------------------------------------------------------------------------
 
@@ -114,24 +135,8 @@ get_scene_choices <- function(db_con, continent = "all") {
     if (length(m) > 0 && nchar(m) > 0) gsub("^\\(|\\)$", "", m) else display_name
   }
 
-  # --- US state abbreviation map ---
-  state_abbrev <- c(
-    "Alabama" = "AL", "Alaska" = "AK", "Arizona" = "AZ", "Arkansas" = "AR",
-    "California" = "CA", "Colorado" = "CO", "Connecticut" = "CT", "Delaware" = "DE",
-    "District of Columbia" = "DC", "Florida" = "FL", "Georgia" = "GA", "Hawaii" = "HI",
-    "Idaho" = "ID", "Illinois" = "IL", "Indiana" = "IN", "Iowa" = "IA",
-    "Kansas" = "KS", "Kentucky" = "KY", "Louisiana" = "LA", "Maine" = "ME",
-    "Maryland" = "MD", "Massachusetts" = "MA", "Michigan" = "MI", "Minnesota" = "MN",
-    "Mississippi" = "MS", "Missouri" = "MO", "Montana" = "MT", "Nebraska" = "NE",
-    "Nevada" = "NV", "New Hampshire" = "NH", "New Jersey" = "NJ", "New Mexico" = "NM",
-    "New York" = "NY", "North Carolina" = "NC", "North Dakota" = "ND", "Ohio" = "OH",
-    "Oklahoma" = "OK", "Oregon" = "OR", "Pennsylvania" = "PA", "Rhode Island" = "RI",
-    "South Carolina" = "SC", "South Dakota" = "SD", "Tennessee" = "TN", "Texas" = "TX",
-    "Utah" = "UT", "Vermont" = "VT", "Virginia" = "VA", "Washington" = "WA",
-    "West Virginia" = "WV", "Wisconsin" = "WI", "Wyoming" = "WY"
-  )
   get_state_abbrev <- function(state) {
-    ab <- state_abbrev[state]
+    ab <- US_STATE_ABBREV[state]
     if (is.na(ab)) substr(state, 1, 2) else ab
   }
 
@@ -200,6 +205,123 @@ get_scene_choices <- function(db_con, continent = "all") {
   # Online option
   if (continent == "all") {
     choices[["Online / Webcam"]] <- "online"
+  }
+
+  choices
+}
+
+#' Get scene choices grouped by country for admin dropdowns
+#' Returns optgroup-structured list like the navbar scene selector.
+#' @param db_con Database connection
+#' @param key_by "id" for scene_id values, "slug" for slug values
+#' @param include_online Whether to include Online / Webcam option.
+#'   Note: returns the scene's actual scene_id (or slug), NOT the string "online".
+#'   Dropdowns that check == "online" downstream should add the option manually instead.
+#' @param scene_ids Optional integer vector to filter to specific scene IDs
+#' @return Named list with optgroups by country
+get_grouped_scene_choices <- function(db_con, key_by = "id", include_online = FALSE, scene_ids = NULL) {
+  scenes <- safe_query(db_con,
+    "SELECT scene_id, slug, display_name, scene_type, country, state_region
+     FROM scenes
+     WHERE is_active = TRUE AND scene_type IN ('metro', 'online')
+     ORDER BY country, state_region, display_name",
+    default = data.frame(scene_id = integer(), slug = character(),
+                         display_name = character(), scene_type = character(),
+                         country = character(), state_region = character()))
+
+  if (nrow(scenes) == 0) return(list())
+
+  # Filter to specific scene IDs if provided
+  if (!is.null(scene_ids)) {
+    scenes <- scenes[scenes$scene_id %in% scene_ids, ]
+    if (nrow(scenes) == 0) return(list())
+  }
+
+  # Value accessor based on key_by
+  get_val <- if (key_by == "slug") {
+    function(row) row$slug
+  } else {
+    function(row) as.character(row$scene_id)
+  }
+
+  # Extract metro name (handles legacy "Country (Metro)" format)
+  extract_metro <- function(display_name) {
+    m <- regmatches(display_name, regexpr("\\(([^)]+)\\)", display_name))
+    if (length(m) > 0 && nchar(m) > 0) gsub("^\\(|\\)$", "", m) else display_name
+  }
+
+  get_state_abbrev <- function(state) {
+    ab <- US_STATE_ABBREV[state]
+    if (is.na(ab)) substr(state, 1, 2) else ab
+  }
+
+  # Separate metros by country
+  metros <- scenes[scenes$scene_type == "metro", ]
+  us_metros <- metros[!is.na(metros$country) & metros$country == "United States", ]
+  other_metros <- metros[is.na(metros$country) | metros$country != "United States", ]
+
+  choices <- list()
+
+  # Non-US countries (with known country)
+  countries <- unique(other_metros$country[!is.na(other_metros$country)])
+  countries <- sort(countries)
+
+  for (cty in countries) {
+    cty_metros <- other_metros[!is.na(other_metros$country) & other_metros$country == cty, ]
+    if (nrow(cty_metros) == 0) next
+
+    group <- list()
+    for (i in seq_len(nrow(cty_metros))) {
+      metro_name <- extract_metro(cty_metros$display_name[i])
+      group[[metro_name]] <- get_val(cty_metros[i, ])
+    }
+    choices[[cty]] <- group
+  }
+
+  # Non-US scenes with NULL country — fallback "Other" group
+  null_country <- other_metros[is.na(other_metros$country), ]
+  if (nrow(null_country) > 0) {
+    group <- list()
+    for (i in seq_len(nrow(null_country))) {
+      group[[null_country$display_name[i]]] <- get_val(null_country[i, ])
+    }
+    choices[["Other"]] <- group
+  }
+
+  # US scenes grouped by state
+  if (nrow(us_metros) > 0) {
+    us_group <- list()
+    states <- unique(us_metros$state_region[!is.na(us_metros$state_region)])
+    states <- sort(states)
+
+    for (st in states) {
+      state_metros <- us_metros[us_metros$state_region == st, ]
+      if (nrow(state_metros) == 0) next
+      ab <- get_state_abbrev(st)
+
+      for (i in seq_len(nrow(state_metros))) {
+        metro_name <- extract_metro(state_metros$display_name[i])
+        us_group[[paste0(ab, " \u00B7 ", metro_name)]] <- get_val(state_metros[i, ])
+      }
+    }
+
+    # US scenes with NULL state_region — add without abbreviation prefix
+    null_state <- us_metros[is.na(us_metros$state_region), ]
+    if (nrow(null_state) > 0) {
+      for (i in seq_len(nrow(null_state))) {
+        us_group[[null_state$display_name[i]]] <- get_val(null_state[i, ])
+      }
+    }
+
+    choices[["United States"]] <- us_group
+  }
+
+  # Online option
+  if (include_online) {
+    online_row <- scenes[scenes$scene_type == "online", ]
+    if (nrow(online_row) > 0) {
+      choices[["Online / Webcam"]] <- get_val(online_row[1, ])
+    }
   }
 
   choices

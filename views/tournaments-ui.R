@@ -65,7 +65,7 @@ tagList(
       tags$label("Store", class = "advanced-filter-label", `for` = "tournaments_store_filter"),
       selectInput("tournaments_store_filter", NULL,
         choices = list("All" = ""),
-        width = "160px")
+        width = "160px", selectize = FALSE)
     ),
     div(class = "advanced-filter-group date-range-group",
       tags$label("From", class = "advanced-filter-label"),

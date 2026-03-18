@@ -23,6 +23,46 @@ observeEvent(input$reset_meta_filters, {
   updateCheckboxInput(session, "meta_decklist_toggle", value = FALSE)
   session$sendCustomMessage("clearColorPills", TRUE)
   updateSelectInput(session, "meta_conversion_filter", selected = "0")
+  updateSelectInput(session, "meta_store_filter", selected = "")
+})
+
+# Populate store filter dropdown
+observe({
+  req("meta" %in% visited_tabs())
+  rv$refresh_tournaments
+
+  # Wait for advanced filter UI to render (isolate to avoid re-firing on selection change)
+  if (is.null(isolate(input$meta_store_filter))) {
+    invalidateLater(200)
+    return()
+  }
+
+  scene_filters <- build_filters_param(
+    table_alias = "s",
+    scene = rv$current_scene,
+    continent = rv$current_continent,
+    store_alias = "s"
+  )
+
+  stores <- safe_query(db_pool, sprintf(
+    "SELECT DISTINCT s.slug, s.name FROM stores s
+     JOIN tournaments t ON s.store_id = t.store_id
+     WHERE s.is_active = TRUE %s
+     ORDER BY s.name", scene_filters$sql),
+  params = scene_filters$params,
+  default = data.frame(slug = character(), name = character()))
+
+  store_choices <- list("All" = "")
+  if (nrow(stores) > 0) {
+    for (i in seq_len(nrow(stores))) {
+      nm <- stores$name[i]
+      if (is.na(nm) || nm == "") next
+      store_choices[[nm]] <- stores$slug[i]
+    }
+  }
+  current <- isolate(input$meta_store_filter)
+  selected <- if (!is.null(current) && current %in% unlist(store_choices)) current else ""
+  updateSelectInput(session, "meta_store_filter", choices = store_choices, selected = selected)
 })
 
 # Debounce search input (300ms)
@@ -44,6 +84,15 @@ meta_archetype_data <- reactive({
     search_column = "archetype_name",
     start_idx = 1
   )
+
+  # Advanced filter: store
+  store_filter <- input$meta_store_filter %||% ""
+  if (nchar(store_filter) > 0) {
+    store_idx <- filters$next_idx
+    filters$sql <- paste0(filters$sql, sprintf(" AND slug = $%d", store_idx))
+    filters$params <- c(filters$params, list(store_filter))
+    filters$next_idx <- store_idx + 1
+  }
 
   min_entries <- as.numeric(input$meta_min_entries %||% 0)
   if (length(min_entries) == 0 || is.na(min_entries)) min_entries <- 0
@@ -90,6 +139,13 @@ meta_archetype_data <- reactive({
       store_alias = "s",
       start_idx = 1
     )
+    # Apply store filter to decklist check too
+    dl_store <- input$meta_store_filter %||% ""
+    if (nchar(dl_store) > 0) {
+      dl_idx <- dl_filters$next_idx
+      dl_filters$sql <- paste0(dl_filters$sql, sprintf(" AND s.slug = $%d", dl_idx))
+      dl_filters$params <- c(dl_filters$params, list(dl_store))
+    }
     decklist_arch_ids <- safe_query(db_pool, sprintf(
       "SELECT DISTINCT r.archetype_id FROM results r
        JOIN tournaments t ON r.tournament_id = t.tournament_id
@@ -125,6 +181,7 @@ meta_archetype_data <- reactive({
   input$meta_top3_toggle,
   input$meta_decklist_toggle,
   input$meta_conversion_filter,
+  input$meta_store_filter,
   rv$current_scene,
   rv$current_continent,
   rv$community_filter,
@@ -311,6 +368,7 @@ output$deck_detail_modal <- renderUI({
   # React to advanced filter changes so modal updates
   input$meta_top3_toggle
   input$meta_decklist_toggle
+  input$meta_store_filter
 
   archetype_id <- rv$selected_archetype_id
 
@@ -333,6 +391,15 @@ output$deck_detail_modal <- renderUI({
     community_store = rv$community_filter,
     start_idx = 2
   )
+
+  # Apply store filter to modal queries
+  modal_store <- input$meta_store_filter %||% ""
+  if (nchar(modal_store) > 0) {
+    sf_idx <- scene_filters$next_idx
+    scene_filters$sql <- paste0(scene_filters$sql, sprintf(" AND s.slug = $%d", sf_idx))
+    scene_filters$params <- c(scene_filters$params, list(modal_store))
+    scene_filters$next_idx <- sf_idx + 1
+  }
 
   # Get overall stats with meta share and conversion rate
   stats <- safe_query(db_pool, sprintf("

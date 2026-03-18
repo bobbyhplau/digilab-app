@@ -94,20 +94,18 @@ color:
 typography:
   # 1. Define the fonts and their sources
   fonts:
-    - family: "Poppins"
+    - family: "Righteous"
       source: google
     - family: "Inter"
       source: google
     - family: "Fira Code"
-      source: google
-    - family: "Righteous"
       source: google
 
   # 2. Apply the fonts to the default HTML elements
   base:
     family: Inter
   headings:
-    family: Poppins
+    family: Righteous
   monospace:
     family: Fira Code
 

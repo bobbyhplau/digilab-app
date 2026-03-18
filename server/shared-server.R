@@ -128,14 +128,7 @@ show_fuzzy_match_modal <- function(matches_ui, original_action_id, title, icon) 
 # ---------------------------------------------------------------------------
 
 show_store_request_modal <- function(prefill = NULL) {
-  scenes <- safe_query(db_pool,
-    "SELECT scene_id, display_name FROM scenes WHERE is_active = TRUE ORDER BY display_name",
-    default = data.frame())
-
-  scene_choices <- list()
-  if (nrow(scenes) > 0) {
-    scene_choices <- setNames(as.character(scenes$scene_id), scenes$display_name)
-  }
+  scene_choices <- get_grouped_scene_choices(db_pool, key_by = "id", include_online = FALSE)
 
   # Pre-select: use prefill if returning from fuzzy check, else current scene
   selected_scene <- prefill$scene_id
@@ -1066,9 +1059,8 @@ observeEvent(input$login_btn, {
     }
   }
 
-  # Update dropdowns with data
-  updateSelectInput(session, "tournament_store",
-                    choices = get_store_choices(db_pool, include_none = TRUE))
+  # Note: tournament_store and tournament_scene are populated by their own
+  # tab-guarded observers when the Enter Results tab is visited.
 })
 
 # Handle bootstrap (first super admin creation)
@@ -1126,41 +1118,26 @@ observeEvent(input$bootstrap_btn, {
     removeModal()
     notify(paste0("Super admin account created. Welcome, ", username, "!"), type = "message")
 
-    # Update dropdowns with data
-    updateSelectInput(session, "tournament_store",
-                      choices = get_store_choices(db_pool, include_none = TRUE))
+    # Note: tournament_store and tournament_scene are populated by their own
+    # tab-guarded observers when the Enter Results tab is visited.
   } else {
     notify("Failed to create account. Please try again.", type = "error")
   }
 })
 
-# Keep store dropdown populated for Enter Results wizard
-# Only fires when on admin_results tab (prevents race condition with lazy-loaded UI)
+# Refresh tournament_store when stores are added/updated (only if a scene is selected)
+# The primary population is handled by observeEvent(input$tournament_scene) in admin-stores-server.R
 observe({
-  rv$current_nav
-  req(rv$current_nav == "admin_results")
   rv$refresh_stores
-  req(rv$is_admin)
+  req(rv$is_admin, rv$current_nav == "admin_results")
 
-  # Check if UI has rendered yet (tournament_date is a sibling input that's always visible)
-  if (is.null(input$tournament_date)) {
-    # UI not ready yet, retry shortly
-    invalidateLater(100)
-    return()
-  }
+  # Only refresh if a scene is already selected (don't pre-populate with all stores)
+  scene_val <- isolate(input$tournament_scene)
+  if (is.null(scene_val) || scene_val == "") return()
 
-  # Preserve current selection when repopulating choices
-  current_selection <- isolate(input$tournament_store)
-  store_choices <- get_store_choices(db_pool, include_none = TRUE)
-
-  # If store choices came back empty (likely prepared stmt collision), retry
-  if (length(store_choices) <= 1) {
-    invalidateLater(500)
-  }
-
-  updateSelectInput(session, "tournament_store",
-                    choices = store_choices,
-                    selected = current_selection)
+  # Re-trigger the scene-based store filtering by bumping the scene input
+  # This causes the observeEvent(input$tournament_scene) handler to re-fire
+  updateSelectInput(session, "tournament_scene", selected = scene_val)
 })
 
 # Handle logout

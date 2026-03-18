@@ -59,6 +59,7 @@ output$admin_scenes_table <- renderReactable({
     columns = list(
       scene_id = colDef(show = FALSE),
       display_name = colDef(name = "Name", minWidth = 120, style = list(whiteSpace = "normal")),
+      country = colDef(name = "Country", width = 85),
       slug = colDef(name = "Slug", minWidth = 80),
       scene_type = colDef(show = FALSE),
       latitude = colDef(show = FALSE),
@@ -66,7 +67,6 @@ output$admin_scenes_table <- renderReactable({
       is_active = colDef(name = "Active", width = 55, align = "center", cell = function(value) {
         if (value) "\u2705" else "\u274c"
       }),
-      country = colDef(name = "Country", width = 85),
       state_region = colDef(show = FALSE),
       created_at = colDef(show = FALSE),
       store_count = colDef(name = "# Stores", width = 75, align = "center"),

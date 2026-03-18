@@ -69,6 +69,12 @@ tagList(
         choices = list("Any" = "0", "5%+" = "5", "10%+" = "10", "20%+" = "20", "30%+" = "30"),
         width = "80px", selectize = FALSE)
     ),
+    div(class = "advanced-filter-group",
+      tags$label("Store", class = "advanced-filter-label", `for` = "meta_store_filter"),
+      selectInput("meta_store_filter", NULL,
+        choices = list("All" = ""),
+        width = "160px", selectize = FALSE)
+    ),
     # Row 2: filters that also apply to deck profile modal
     div(class = "advanced-filter-row-2",
       span(class = "advanced-filter-hint", "Also filters deck profile modal:"),

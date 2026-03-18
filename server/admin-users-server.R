@@ -25,20 +25,14 @@ observe({
 
   is_regional <- isTRUE(rv$admin_user$role == "regional_admin")
 
-  scenes <- safe_query(db_pool,
-    "SELECT scene_id, display_name FROM scenes
-     WHERE scene_type IN ('metro', 'online') AND is_active = TRUE
-     ORDER BY display_name",
-    default = data.frame())
-  if (nrow(scenes) == 0) { invalidateLater(500); return() }
-
   # Regional admins: filter to their accessible scenes only
-  if (is_regional) {
-    admin_scene_ids <- get_admin_accessible_scene_ids(db_pool, rv$admin_user)
-    scenes <- scenes[scenes$scene_id %in% admin_scene_ids, ]
-  }
+  regional_ids <- if (is_regional) get_admin_accessible_scene_ids(db_pool, rv$admin_user) else NULL
 
-  choices <- setNames(as.character(scenes$scene_id), scenes$display_name)
+  choices <- get_grouped_scene_choices(db_pool, key_by = "id",
+                                       include_online = TRUE,
+                                       scene_ids = regional_ids)
+  if (length(choices) == 0) { invalidateLater(500); return() }
+
   # Preserve current selection when repopulating choices
   current_selection <- isolate(input$admin_scene)
   updateSelectInput(session, "admin_scene",
@@ -58,23 +52,18 @@ observe({
 
   is_regional <- isTRUE(rv$admin_user$role == "regional_admin")
 
-  scenes <- safe_query(db_pool,
-    "SELECT scene_id, display_name FROM scenes WHERE is_active = TRUE ORDER BY display_name",
-    default = data.frame())
-  if (nrow(scenes) == 0) { invalidateLater(500); return() }
+  regional_ids <- if (is_regional) get_admin_accessible_scene_ids(db_pool, rv$admin_user) else NULL
 
-  # Regional admins: filter to their region's scenes, no Super/Uncovered filters
+  scene_choices <- get_grouped_scene_choices(db_pool, key_by = "id",
+                                              include_online = TRUE,
+                                              scene_ids = regional_ids)
+  if (length(scene_choices) == 0) { invalidateLater(500); return() }
+
+  # Prepend filter-only options
   if (is_regional) {
-    admin_scene_ids <- get_admin_accessible_scene_ids(db_pool, rv$admin_user)
-    scenes <- scenes[scenes$scene_id %in% admin_scene_ids, ]
-    choices <- c("All Scenes" = "all",
-                 "No Admin" = "uncovered",
-                 setNames(as.character(scenes$scene_id), scenes$display_name))
+    choices <- c(list("All Scenes" = "all", "No Admin" = "uncovered"), scene_choices)
   } else {
-    choices <- c("All Scenes" = "all",
-                 "Super Admins" = "super",
-                 "No Admin" = "uncovered",
-                 setNames(as.character(scenes$scene_id), scenes$display_name))
+    choices <- c(list("All Scenes" = "all", "Super Admins" = "super", "No Admin" = "uncovered"), scene_choices)
   }
 
   current <- isolate(input$admin_users_scene_filter)

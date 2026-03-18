@@ -142,19 +142,14 @@ observe({
     return()
   }
 
-  scenes <- safe_query(db_pool,
-    "SELECT scene_id, display_name FROM scenes
-     WHERE is_active = TRUE
-     ORDER BY scene_type, display_name",
-    default = data.frame(scene_id = integer(), display_name = character()))
+  choices <- get_grouped_scene_choices(db_pool, key_by = "id", include_online = TRUE)
 
-  # If scenes came back empty (likely prepared stmt collision), retry
-  if (nrow(scenes) == 0) {
+  # If choices came back empty (likely prepared stmt collision), retry
+  if (length(choices) == 0) {
     invalidateLater(500)
     return()
   }
 
-  choices <- setNames(as.character(scenes$scene_id), scenes$display_name)
   # Preserve current selection when repopulating choices
   # Use editing_store_id to detect if admin is mid-edit; if so, keep their selection stable
   current_selection <- isolate(input$store_scene)
@@ -181,12 +176,9 @@ observe({
     invalidateLater(100)
     return()
   }
-  scenes <- safe_query(db_pool,
-    "SELECT slug, display_name FROM scenes WHERE is_active = TRUE ORDER BY display_name",
-    default = data.frame())
-  if (nrow(scenes) == 0) { invalidateLater(500); return() }
-  choices <- c("Current Scene" = "current", "All Scenes" = "all",
-               setNames(scenes$slug, scenes$display_name))
+  scene_choices <- get_grouped_scene_choices(db_pool, key_by = "slug", include_online = TRUE)
+  if (length(scene_choices) == 0) { invalidateLater(500); return() }
+  choices <- c(list("Current Scene" = "current", "All Scenes" = "all"), scene_choices)
   current <- isolate(input$admin_stores_scene_filter)
   updateSelectInput(session, "admin_stores_scene_filter",
                     choices = choices, selected = current %||% "current")
@@ -195,28 +187,37 @@ observe({
 # --- Populate scene dropdown for Enter Results (default to current scene) ---
 observe({
   rv$refresh_scenes
+  rv$current_nav
   req(db_pool, rv$is_admin)
 
-  scenes <- safe_query(db_pool, "
-    SELECT scene_id, display_name FROM scenes
-    WHERE scene_type = 'metro' AND is_active = TRUE
-    ORDER BY display_name
-  ", default = data.frame())
-  if (nrow(scenes) == 0) return()
+  # Wait for Enter Results tab UI to render
+  if (is.null(input$tournament_scene)) {
+    invalidateLater(200)
+    return()
+  }
 
-  choices <- c(setNames(scenes$scene_id, scenes$display_name),
-               "Online / Webcam" = "online")
+  choices <- get_grouped_scene_choices(db_pool, key_by = "id", include_online = FALSE)
+  if (length(choices) == 0) return()
 
-  # Default to current scene
-  current <- rv$current_scene
-  selected <- ""
-  if (!is.null(current) && current != "all") {
-    scene_row <- safe_query(db_pool, "SELECT scene_id FROM scenes WHERE slug = $1",
-                            params = list(current), default = data.frame())
-    if (nrow(scene_row) > 0 && as.character(scene_row$scene_id[1]) %in% choices) {
-      selected <- as.character(scene_row$scene_id[1])
-    } else if (current == "online") {
-      selected <- "online"
+  # Add Online as a separate string value (downstream code checks == "online")
+  choices[["Online / Webcam"]] <- "online"
+
+  # Preserve current selection if already set; otherwise default to current scene
+  current_selection <- isolate(input$tournament_scene)
+  all_vals <- unlist(choices)
+  if (!is.null(current_selection) && current_selection != "" && current_selection %in% all_vals) {
+    selected <- current_selection
+  } else {
+    selected <- ""
+    current <- rv$current_scene
+    if (!is.null(current) && current != "all") {
+      scene_row <- safe_query(db_pool, "SELECT scene_id FROM scenes WHERE slug = $1",
+                              params = list(current), default = data.frame())
+      if (nrow(scene_row) > 0 && as.character(scene_row$scene_id[1]) %in% all_vals) {
+        selected <- as.character(scene_row$scene_id[1])
+      } else if (current == "online") {
+        selected <- "online"
+      }
     }
   }
 
@@ -626,10 +627,7 @@ observeEvent(input$admin_store_list__reactable__selected, {
   updateTextInput(session, "store_website", value = if (is.na(store$website)) "" else store$website)
   # Set scene choices + selection together to avoid race condition where
   # choices haven't loaded yet and selected value gets silently dropped
-  scene_rows <- safe_query(db_pool,
-    "SELECT scene_id, display_name FROM scenes WHERE is_active = TRUE ORDER BY scene_type, display_name",
-    default = data.frame(scene_id = integer(), display_name = character()))
-  scene_choices <- if (nrow(scene_rows) > 0) setNames(as.character(scene_rows$scene_id), scene_rows$display_name) else character()
+  scene_choices <- get_grouped_scene_choices(db_pool, key_by = "id", include_online = TRUE)
   updateSelectInput(session, "store_scene",
                     choices = c("Select scene..." = "", scene_choices),
                     selected = if (is.na(store$scene_id)) "" else as.character(store$scene_id))

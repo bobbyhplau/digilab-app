@@ -97,6 +97,13 @@ observeEvent(input$reset_players_filters, {
 observe({
   req("players" %in% visited_tabs())
   rv$refresh_players; rv$refresh_tournaments
+
+  # Wait for advanced filter UI to render (isolate to avoid re-firing on selection change)
+  if (is.null(isolate(input$players_store_filter))) {
+    invalidateLater(200)
+    return()
+  }
+
   scene_filters <- build_filters_param(
     table_alias = "s",
     scene = rv$current_scene,
@@ -120,7 +127,9 @@ observe({
       store_choices[[nm]] <- stores$slug[i]
     }
   }
-  updateSelectInput(session, "players_store_filter", choices = store_choices, selected = "")
+  current <- isolate(input$players_store_filter)
+  selected <- if (!is.null(current) && current %in% unlist(store_choices)) current else ""
+  updateSelectInput(session, "players_store_filter", choices = store_choices, selected = selected)
 })
 
 # Historical rating indicator

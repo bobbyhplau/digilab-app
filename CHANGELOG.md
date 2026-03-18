@@ -5,6 +5,27 @@ All notable changes to DigiLab will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.7.6] - 2026-03-17 - Country-Grouped Scene Dropdowns & Store Filters
+
+### Added
+- **Country-grouped scene dropdowns**: All admin scene dropdowns (Manage Admins, Edit Stores, Enter Results, Public Submit, Request a Store modal) now show scenes grouped by country with optgroups, matching the navbar scene selector style. US scenes show state abbreviations (e.g., "TX · Dallas-Fort Worth").
+- **Shared `get_grouped_scene_choices()` helper**: Centralized scene dropdown builder in scene-server.R supporting `key_by` (id/slug), `include_online`, and `scene_ids` filtering. Replaces 8 separate flat dropdown implementations.
+- **`US_STATE_ABBREV` constant**: Deduplicated state abbreviation map shared between `get_scene_choices()` and `get_grouped_scene_choices()`.
+- **Store filter on Meta tab**: New "Store" advanced filter on the Deck Meta tab filters archetype stats, conversion rates, and deck detail modal (stats, top pilots, tournament history) to a specific store.
+
+### Fixed
+- **Notification cards not clearing on Manage Scenes tab**: `pending_scene_requests` output ID was shared between Manage Scenes and Manage Admins tabs. Shiny can only bind one DOM element per output ID, so the Manage Scenes instance went stale after resolving. Split into separate output IDs with shared render function.
+- **Enter Results scene dropdown not loading**: Observer fired before tab UI rendered. Added `rv$current_nav` dependency and UI readiness check with `invalidateLater`.
+- **Enter Results store dropdown showing all stores on login**: Removed premature `updateSelectInput("tournament_store")` from login handler in shared-server.R. Store population now solely handled by scene-filtered observer.
+- **Enter Results scene selection resetting**: Observer repopulated choices without preserving current selection. Now uses `isolate(input$tournament_scene)` to maintain user's pick.
+- **Store filter dropdowns not populating on first tab visit** (Players, Tournaments, Meta): `selectize = TRUE` inputs inside hidden advanced filter panels failed to update. Switched to `selectize = FALSE` and added UI readiness checks with `isolate` to prevent re-fire on selection change.
+- **Store filter selections resetting on all public tabs**: Populate observers took reactive dependency on input value via null check. Wrapped in `isolate()` and added selection preservation logic.
+- **JaviGR66 tournament record**: Corrected result at Micelion Games (2026-03-13) from 1-2-0 to 0-0-3 (3 ties, not 1 win + 2 losses). Points-mode auto-derivation was ambiguous.
+
+### Changed
+- **Manage Scenes table**: Country column moved to right of Name column for better visibility.
+- **Enter Results scene dropdown**: Changed to `selectize = FALSE` for consistent optgroup rendering.
+
 ## [1.7.5] - 2026-03-16 - Discord Webhook Embeds
 
 ### Changed

@@ -1,6 +1,6 @@
 ---
-currentVersion: "1.7.5"
-lastUpdated: "2026-03-16"
+currentVersion: "1.7.6"
+lastUpdated: "2026-03-17"
 
 inProgress: []
 
@@ -24,6 +24,12 @@ planned:
     title: "Unified Upload Tab & Results Redesign"
     description: "Consolidate all result entry into a single Upload tab with 4 entry-point cards: Bandai Screenshot (OCR), Bandai Export (CSV/paste), Manual Entry (grid), and Match-by-Match. Public users see Screenshot and Match-by-Match; admin login unlocks Export and Manual Entry. Replace current split between public Submit and admin Enter Results tabs. Touch-friendly grids, camera upload flow, mobile optimization, tournament data quality checks."
     tags: [admin, ux, mobile]
+    targetVersion: "v1.9.0"
+
+  - id: edit-grid-record-format-switch
+    title: "Edit Grid: Allow W/L/T Override for Points-Mode Tournaments"
+    description: "When editing a tournament entered in points mode, the edit grid only shows the Points column — organizers cannot correct the auto-derived W/L/T record. Add ability to switch between points and W/L/T mode in the edit grid, or always show W/L/T fields so organizers can fix ambiguous derivations (e.g., 3 points could be 1W-2L or 0W-0L-3T). Reported by Madrid scene organizer."
+    tags: [enhancement, admin, ux]
     targetVersion: "v1.9.0"
 
   - id: grid-ux-improvements

@@ -95,9 +95,9 @@ The architecture doc contains:
 
 ## Current Work
 
-### Latest Release: v1.7.5 - Discord Webhook Embeds
+### Latest Release: v1.7.6 - Country-Grouped Scene Dropdowns & Store Filters
 
-All Discord webhook messages converted from plain text to structured embeds with color-coded sidebars, request IDs in footers, and ISO timestamps. Super admin @mentions added to scene requests and bug reports. Scene update announcements auto-fire on scene creation. See `CHANGELOG.md` for full details.
+All admin scene dropdowns now show scenes grouped by country with optgroups (matching navbar style). Store filter added to Meta tab. Multiple notification and dropdown bugs fixed. See `CHANGELOG.md` for full details.
 
 See `ROADMAP.md` for the full version plan.
 
@@ -105,6 +105,7 @@ See `ROADMAP.md` for the full version plan.
 
 | Version | Focus |
 |---------|-------|
+| v1.7.6 | Country-Grouped Scene Dropdowns & Store Filters |
 | v1.7.5 | Discord Webhook Embeds |
 | v1.7.4 | Admin Permission Tier Scoping |
 | v1.7.3 | Discord Restructure & Admin UI Design Pass |
@@ -382,6 +383,6 @@ See `ARCHITECTURE.md` > CSS Architecture for full documentation.
 
 ## Current Version
 
-**v1.7.5** - Discord Webhook Embeds
+**v1.7.6** - Country-Grouped Scene Dropdowns & Store Filters
 
 See `CHANGELOG.md` for full version history and `ROADMAP.md` for upcoming features.
