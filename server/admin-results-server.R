@@ -1112,7 +1112,7 @@ observeEvent(input$admin_submit_results, {
         name <- trimws(row$player_name)
 
         # 1. Resolve player - use pre-matched player_id if available
-        member_num <- if (!is.na(row$member_number)) trimws(row$member_number) else ""
+        member_num <- normalize_member_number(row$member_number) %||% ""
 
         if (!is.na(row$matched_player_id)) {
           player_id <- row$matched_player_id

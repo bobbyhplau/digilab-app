@@ -5,6 +5,26 @@
 # =============================================================================
 
 # -----------------------------------------------------------------------------
+# normalize_member_number: Standardize Bandai TCG+ IDs to 10-digit zero-padded
+# Strips #, trims whitespace, left-pads with zeros. Passes through GUEST IDs.
+# -----------------------------------------------------------------------------
+normalize_member_number <- function(mn) {
+  if (is.null(mn) || is.na(mn)) return(NA_character_)
+  mn <- trimws(mn)
+  mn <- sub("^#", "", mn)
+  mn <- trimws(mn)
+  if (nchar(mn) == 0) return(NA_character_)
+  if (grepl("^GUEST", mn, ignore.case = TRUE)) return(mn)
+  # Strip non-digit characters
+  mn <- gsub("[^0-9]", "", mn)
+  if (nchar(mn) == 0) return(NA_character_)
+  # Don't truncate IDs already longer than 10 digits
+  if (nchar(mn) >= 10) return(mn)
+  # Left-pad to 10 digits
+  paste0(strrep("0", 10 - nchar(mn)), mn)
+}
+
+# -----------------------------------------------------------------------------
 # get_store_scene_id: Get the scene_id for a given store
 # Used for scene-scoped player matching
 # -----------------------------------------------------------------------------
@@ -595,8 +615,8 @@ build_deck_choices <- function(con) {
 match_player <- function(name, con, member_number = NULL, scene_id = NULL) {
   # Step 1: Bandai ID match (global, definitive) — skip GUEST IDs
   if (!is.null(member_number) && !is.na(member_number) && nchar(trimws(member_number)) > 0) {
-    mn <- trimws(member_number)
-    if (!grepl("^GUEST", mn, ignore.case = TRUE)) {
+    mn <- normalize_member_number(member_number)
+    if (!is.na(mn) && !grepl("^GUEST", mn, ignore.case = TRUE)) {
       member_match <- safe_query_impl(con, "
         SELECT player_id, display_name, member_number
         FROM players WHERE member_number = $1 AND is_active IS NOT FALSE

@@ -259,10 +259,9 @@ parse_tcgplus_csv <- function(file_path, total_rounds = 4) {
   result$losses <- ifelse(!is.na(result$wins) & !is.na(result$ties),
     as.integer(total_rounds) - result$wins - result$ties, NA_integer_)
 
-  # Clean member numbers (remove leading zeros display issues)
+  # Normalize member numbers to 10-digit zero-padded format
   if (!is.na(member_col)) {
-    result$member_number <- gsub("^0+", "", result$member_number)
-    result$member_number <- ifelse(result$member_number == "", NA_character_, result$member_number)
+    result$member_number <- vapply(result$member_number, normalize_member_number, character(1), USE.NAMES = FALSE)
   }
 
   message(sprintf("[CSV] Parsed %d players from CSV", nrow(result)))
@@ -1454,11 +1453,7 @@ observeEvent(input$submit_tournament, {
 
       # Get values from synced results (grid sync already applied above)
       username <- if (!is.null(row$username) && row$username != "") row$username else ""
-      member_number <- if (!is.na(row$member_number) && trimws(row$member_number) != "") {
-        trimws(row$member_number)
-      } else {
-        NA_character_
-      }
+      member_number <- normalize_member_number(row$member_number)
 
       pts <- if (!is.na(row$points)) as.integer(row$points) else 0L
       wins <- pts %/% 3
@@ -2077,7 +2072,7 @@ observeEvent(input$match_submit, {
   results <- rv$match_ocr_results
   tournament_id <- as.integer(input$match_tournament)
   submitter_username <- trimws(input$match_player_username)
-  submitter_member <- trimws(input$match_player_member)
+  submitter_member <- normalize_member_number(input$match_player_member) %||% ""
 
   tryCatch({
     # Check out a dedicated connection for the transaction
@@ -2128,11 +2123,7 @@ observeEvent(input$match_submit, {
       if (is.null(opponent_username) || opponent_username == "") opponent_username <- row$opponent_username
 
       opponent_member_input <- input[[paste0("match_member_", i)]]
-      opponent_member <- if (!is.null(opponent_member_input) && trimws(opponent_member_input) != "") {
-        trimws(opponent_member_input)
-      } else {
-        NA_character_
-      }
+      opponent_member <- normalize_member_number(opponent_member_input)
 
       # Parse games W-L-T from input
       games_input <- input[[paste0("match_games_", i)]]

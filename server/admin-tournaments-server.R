@@ -1153,7 +1153,7 @@ observeEvent(input$edit_grid_save, {
         }
 
         # If no existing result, use pre-matched player_id or match by name/member_number
-        member_num <- if (!is.na(row$member_number)) trimws(row$member_number) else ""
+        member_num <- normalize_member_number(row$member_number) %||% ""
 
         if (is.null(player_id)) {
           if (!is.na(row$matched_player_id)) {
