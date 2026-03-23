@@ -3986,100 +3986,142 @@ body.bslib-gap-spacing, body > .bslib-gap-spacing {
 
 .onboarding-stat-card {
   position: relative;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  padding: 0.85rem 0.5rem 0.7rem;
-  border-radius: 10px;
-  border: 1px solid rgba(0, 200, 255, 0.2);
-  background-image:
-    repeating-linear-gradient(0deg, rgba(15, 76, 129, 0.03) 0px, transparent 1px, transparent 18px),
-    repeating-linear-gradient(90deg, rgba(15, 76, 129, 0.03) 0px, transparent 1px, transparent 18px),
-    linear-gradient(135deg, #f8f9fa 0%, #ffffff 100%);
-  text-align: center;
-  box-shadow: 0 2px 8px rgba(0, 200, 255, 0.04);
-  transition: all 0.2s;
+  overflow: hidden;
+  min-height: 80px;
+  border-radius: 12px;
+  background: linear-gradient(135deg, var(--dl-navy) 0%, var(--dl-blue) 100%);
+  transition: all 0.2s ease;
 }
+
+/* Color-coded left borders — matches dashboard value boxes */
+.ob-stat-tournaments { border-left: 4px solid var(--dl-orange); }
+.ob-stat-players { border-left: 4px solid #2D7DD2; }
+.ob-stat-trending { border-left: 4px solid #E5383B; }
+.ob-stat-rising { border-left: 4px solid #38A169; }
 
 .onboarding-stat-card:hover {
-  border-color: rgba(0, 200, 255, 0.35);
-  box-shadow: 0 4px 16px rgba(0, 200, 255, 0.08);
-  transform: translateY(-1px);
+  transform: translateY(-2px);
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.25);
 }
 
-/* Corner accent on stat cards */
-.onboarding-stat-card::before {
-  content: '';
-  position: absolute;
-  top: 5px;
-  left: 5px;
-  width: 10px;
-  height: 2px;
-  background: linear-gradient(90deg, rgba(0, 200, 255, 0.4), transparent);
+.onboarding-stat-card:hover .ob-stat-grid::after {
+  box-shadow: 0 0 12px rgba(0, 200, 255, 0.8);
 }
 
-.onboarding-stat-card::after {
+/* Grid pattern overlay — same as .vb-digital-grid */
+.ob-stat-grid {
+  position: absolute;
+  top: 0; left: 0; right: 0; bottom: 0;
+  background:
+    repeating-linear-gradient(0deg, rgba(255,255,255,0.06) 0px, transparent 1px, transparent 20px),
+    repeating-linear-gradient(90deg, rgba(255,255,255,0.06) 0px, transparent 1px, transparent 20px);
+  pointer-events: none;
+  z-index: 1;
+}
+
+/* Circuit accent — diagonal line */
+.ob-stat-grid::before {
   content: '';
   position: absolute;
-  top: 5px;
-  left: 5px;
-  width: 2px;
-  height: 10px;
-  background: linear-gradient(180deg, rgba(0, 200, 255, 0.4), transparent);
+  top: 0; right: 0;
+  width: 50px; height: 50px;
+  background: linear-gradient(135deg, transparent 45%, rgba(0, 200, 255, 0.15) 50%, transparent 55%);
+  pointer-events: none;
+}
+
+/* Circuit accent — corner node */
+.ob-stat-grid::after {
+  content: '';
+  position: absolute;
+  top: 8px; right: 8px;
+  width: 5px; height: 5px;
+  background: rgba(0, 200, 255, 0.4);
+  border-radius: 50%;
+  box-shadow: 0 0 8px rgba(0, 200, 255, 0.6);
+  pointer-events: none;
+}
+
+/* Content container */
+.ob-stat-content {
+  position: relative;
+  z-index: 2;
+  padding: 0.65rem 0.75rem;
+  color: #FFFFFF;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+}
+
+/* Label with inline icon — matches .vb-label */
+.ob-stat-label {
+  font-size: 0.6rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  opacity: 0.8;
+  margin-bottom: 0.2rem;
+  display: flex;
+  align-items: center;
+  gap: 0.3rem;
+}
+
+.ob-stat-label-icon {
+  font-size: 0.7rem;
+  color: var(--dl-orange);
+}
+
+/* Value — matches .vb-value */
+.ob-stat-value {
+  font-size: clamp(1.25rem, 3vw, 1.75rem);
+  font-weight: 700;
+  line-height: 1.1;
+  white-space: nowrap;
+}
+
+.ob-stat-value-deck {
+  font-size: 0.95rem !important;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 100%;
+}
+
+/* Content with card image — matches .vb-content-with-image */
+.ob-stat-content-with-image {
+  position: relative;
+  z-index: 2;
+  padding: 0.4rem;
+  color: #FFFFFF;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+}
+
+.ob-stat-content-with-image .ob-stat-content {
+  padding: 0;
+}
+
+.ob-stat-image {
+  flex-shrink: 0;
+}
+
+.ob-stat-image img {
+  max-height: 64px;
+  width: auto;
+  border-radius: 6px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
 }
 
 [data-bs-theme="dark"] .onboarding-stat-card {
-  background-image:
-    repeating-linear-gradient(0deg, rgba(0, 200, 255, 0.03) 0px, transparent 1px, transparent 18px),
-    repeating-linear-gradient(90deg, rgba(0, 200, 255, 0.03) 0px, transparent 1px, transparent 18px),
-    linear-gradient(135deg, var(--dl-dark) 0%, var(--dl-slate) 100%);
-  border-color: rgba(0, 200, 255, 0.25);
-  box-shadow: 0 2px 12px rgba(0, 200, 255, 0.06);
+  background: linear-gradient(135deg, var(--dl-dark) 0%, var(--dl-slate) 100%);
 }
 
-[data-bs-theme="dark"] .onboarding-stat-card:hover {
-  border-color: rgba(0, 200, 255, 0.45);
-  box-shadow: 0 4px 20px rgba(0, 200, 255, 0.12);
-}
-
-.onboarding-stat-icon {
-  width: 32px;
-  height: 32px;
-  border-radius: 8px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 0.9rem;
-  margin-bottom: 0.4rem;
-  color: #FFFFFF;
-}
-
-.stat-icon-cal { background: linear-gradient(135deg, #3B82F6, #2563EB); }
-.stat-icon-ppl { background: linear-gradient(135deg, #10B981, #059669); }
-.stat-icon-fire { background: linear-gradient(135deg, var(--dl-orange), #FF6B35); }
-.stat-icon-star { background: linear-gradient(135deg, #8B5CF6, #7C3AED); }
-
-.onboarding-stat-value {
-  font-size: 1.25rem;
-  font-weight: 700;
-  color: var(--dl-blue);
-  line-height: 1.2;
-}
-
-[data-bs-theme="dark"] .onboarding-stat-value {
-  color: rgba(0, 200, 255, 0.9);
-}
-
-.onboarding-stat-label {
-  font-size: 0.7rem;
-  color: #A0AEC0;
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
-  margin-top: 0.15rem;
-}
-
-[data-bs-theme="dark"] .onboarding-stat-label {
-  color: rgba(255, 255, 255, 0.4);
+[data-bs-theme="dark"] .ob-stat-grid {
+  background:
+    repeating-linear-gradient(0deg, rgba(255,255,255,0.04) 0px, transparent 1px, transparent 20px),
+    repeating-linear-gradient(90deg, rgba(255,255,255,0.04) 0px, transparent 1px, transparent 20px);
 }
 
 /* Rank banner — scanner pattern */
@@ -4253,8 +4295,8 @@ body.bslib-gap-spacing, body > .bslib-gap-spacing {
     gap: 0.4rem;
   }
 
-  .onboarding-stat-card {
-    padding: 0.5rem 0.35rem;
+  .onboarding-stat-card .ob-stat-content {
+    padding: 0.5rem 0.6rem;
   }
 }
 

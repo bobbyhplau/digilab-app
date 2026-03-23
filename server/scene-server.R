@@ -993,7 +993,7 @@ output$onboarding_stats_grid <- renderUI({
     scene_params <- list(scene)
   }
 
-  # Single query for all stats (CTE avoids repeating the join chain)
+  # Single CTE: last 30 days for all stats
   combined_query <- sprintf(
     "WITH recent AS (
        SELECT t.tournament_id, r.player_id, r.placement, r.archetype_id
@@ -1011,19 +1011,26 @@ output$onboarding_stats_grid <- renderUI({
         JOIN deck_archetypes da ON rc.archetype_id = da.archetype_id
         WHERE LOWER(da.archetype_name) != 'unknown'
         GROUP BY da.archetype_name ORDER BY COUNT(*) DESC LIMIT 1) AS trending_deck,
+       (SELECT da.display_card_id FROM recent rc
+        JOIN deck_archetypes da ON rc.archetype_id = da.archetype_id
+        WHERE LOWER(da.archetype_name) != 'unknown'
+        GROUP BY da.archetype_name, da.display_card_id ORDER BY COUNT(*) DESC LIMIT 1) AS trending_card_id,
        (SELECT p.display_name FROM recent rc
         JOIN players p ON rc.player_id = p.player_id
         WHERE rc.placement = 1
         GROUP BY p.display_name ORDER BY COUNT(*) DESC LIMIT 1) AS rising_star",
     scene_filter)
 
-  stats <- safe_query(db_pool, combined_query, params = scene_params,
+  stats <- safe_query(db_pool, combined_query,
+                      params = scene_params,
                       default = data.frame(tournaments = 0, active_players = 0,
-                                           trending_deck = NA, rising_star = NA))
+                                           trending_deck = NA, trending_card_id = NA,
+                                           rising_star = NA))
 
   tournament_count <- if (nrow(stats) > 0) stats$tournaments[1] %||% 0 else 0
   player_count <- if (nrow(stats) > 0) stats$active_players[1] %||% 0 else 0
   trending_deck <- if (nrow(stats) > 0 && !is.na(stats$trending_deck[1])) stats$trending_deck[1] else "\u2014"
+  trending_card_id <- if (nrow(stats) > 0 && !is.na(stats$trending_card_id[1])) stats$trending_card_id[1] else NULL
   rising_star <- if (nrow(stats) > 0 && !is.na(stats$rising_star[1])) stats$rising_star[1] else "\u2014"
 
   # Empty scene check
@@ -1035,27 +1042,50 @@ output$onboarding_stats_grid <- renderUI({
     ))
   }
 
-  # Build 2x2 grid
+  # Build 2x2 grid — matches value-box-digital pattern from dashboard
   div(class = "onboarding-stats-grid",
-    div(class = "onboarding-stat-card",
-      div(class = "onboarding-stat-icon stat-icon-cal", bsicons::bs_icon("calendar-event")),
-      div(class = "onboarding-stat-value", tournament_count),
-      div(class = "onboarding-stat-label", "Tournaments")
+    div(class = "onboarding-stat-card ob-stat-tournaments",
+      div(class = "ob-stat-grid"),
+      div(class = "ob-stat-content",
+        div(class = "ob-stat-label", bsicons::bs_icon("calendar-event", class = "ob-stat-label-icon"), "TOURNAMENTS"),
+        div(class = "ob-stat-value", tournament_count)
+      )
     ),
-    div(class = "onboarding-stat-card",
-      div(class = "onboarding-stat-icon stat-icon-ppl", bsicons::bs_icon("people")),
-      div(class = "onboarding-stat-value", player_count),
-      div(class = "onboarding-stat-label", "Active Players")
+    div(class = "onboarding-stat-card ob-stat-players",
+      div(class = "ob-stat-grid"),
+      div(class = "ob-stat-content",
+        div(class = "ob-stat-label", bsicons::bs_icon("people", class = "ob-stat-label-icon"), "ACTIVE PLAYERS"),
+        div(class = "ob-stat-value", player_count)
+      )
     ),
-    div(class = "onboarding-stat-card",
-      div(class = "onboarding-stat-icon stat-icon-fire", bsicons::bs_icon("fire")),
-      div(class = "onboarding-stat-value", trending_deck),
-      div(class = "onboarding-stat-label", "Trending Deck")
+    div(class = "onboarding-stat-card ob-stat-trending",
+      div(class = "ob-stat-grid"),
+      if (!is.null(trending_card_id)) {
+        div(class = "ob-stat-content-with-image",
+          div(class = "ob-stat-image",
+            tags$img(
+              src = sprintf("https://images.digimoncard.io/images/cards/%s.jpg", trending_card_id),
+              alt = trending_deck
+            )
+          ),
+          div(class = "ob-stat-content",
+            div(class = "ob-stat-label", bsicons::bs_icon("fire", class = "ob-stat-label-icon"), "TRENDING DECK"),
+            div(class = "ob-stat-value ob-stat-value-deck", trending_deck)
+          )
+        )
+      } else {
+        div(class = "ob-stat-content",
+          div(class = "ob-stat-label", bsicons::bs_icon("fire", class = "ob-stat-label-icon"), "TRENDING DECK"),
+          div(class = "ob-stat-value ob-stat-value-deck", trending_deck)
+        )
+      }
     ),
-    div(class = "onboarding-stat-card",
-      div(class = "onboarding-stat-icon stat-icon-star", bsicons::bs_icon("star")),
-      div(class = "onboarding-stat-value", rising_star),
-      div(class = "onboarding-stat-label", "Rising Star")
+    div(class = "onboarding-stat-card ob-stat-rising",
+      div(class = "ob-stat-grid"),
+      div(class = "ob-stat-content",
+        div(class = "ob-stat-label", bsicons::bs_icon("star", class = "ob-stat-label-icon"), "RISING STAR"),
+        div(class = "ob-stat-value ob-stat-value-deck", rising_star)
+      )
     )
   )
 })

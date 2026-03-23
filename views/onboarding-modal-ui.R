@@ -140,7 +140,7 @@ onboarding_ui <- function() {
         # Dynamic scene title
         h2(class = "onboarding-title", textOutput("onboarding_scene_title", inline = TRUE)),
         p(class = "onboarding-subtitle",
-          HTML("Here&rsquo;s what&rsquo;s happening in your scene")
+          HTML("Here&rsquo;s what&rsquo;s been happening in your scene over the <strong>last 30 days</strong>")
         ),
 
         # Stats grid (dynamic)
