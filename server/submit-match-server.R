@@ -35,8 +35,9 @@ sr_autofill_from_participants <- function(parsed_matches, tournament_id, pool) {
   if (nrow(participants) == 0) return(parsed_matches)
 
   for (i in seq_len(nrow(parsed_matches))) {
-    opp_name <- parsed_matches$opponent_username[i]
+    opp_name <- parsed_matches$opponent_username[i] %||% ""
     opp_member <- parsed_matches$opponent_member_number[i]
+    if (is.na(opp_name)) opp_name <- ""
     if (nchar(opp_name) == 0 && (is.na(opp_member) || nchar(opp_member) == 0)) next
 
     # Priority 1: Exact member number match
@@ -142,12 +143,13 @@ sr_enrich_with_match_player <- function(parsed_matches, tournament_id, pool) {
     # Skip already matched rows
     if (!is.na(parsed_matches$opponent_player_id[i])) next
 
-    name <- parsed_matches$opponent_username[i]
+    name <- parsed_matches$opponent_username[i] %||% ""
+    if (is.na(name)) name <- ""
     member <- parsed_matches$opponent_member_number[i]
     if (nchar(name) == 0) next
 
     clean_member <- NULL
-    if (!is.na(member) && nchar(member) > 0 && !grepl("^GUEST", member, ignore.case = TRUE)) {
+    if (!is.na(member) && nchar(member) > 0 && !is_guest_member(member)) {
       clean_member <- normalize_member_number(member)
     }
 
@@ -421,6 +423,7 @@ output$sr_match_screenshot_preview <- renderUI({
 observeEvent(input$sr_match_process_ocr, {
   req(rv$sr_match_uploaded_file)
   req(rv$sr_match_selected_tournament)
+  req(rv$sr_match_player)
 
   selected <- rv$sr_match_selected_tournament
 
@@ -733,8 +736,11 @@ observeEvent(input$sr_match_submit, {
                          !is_guest_member(opponent_member)
       clean_opp_member <- if (opp_has_real_id) opponent_member else NA_character_
 
-      # Use pre-matched player ID from auto-fill if available
-      pre_matched_id <- if ("opponent_player_id" %in% names(row) && !is.na(row$opponent_player_id)) {
+      # Use pre-matched player ID from auto-fill if available —
+      # but only if the user hasn't edited the opponent name
+      name_changed <- !is.null(opponent_username) && nchar(opponent_username) > 0 &&
+                      tolower(trimws(opponent_username)) != tolower(trimws(row$opponent_username %||% ""))
+      pre_matched_id <- if (!name_changed && "opponent_player_id" %in% names(row) && !is.na(row$opponent_player_id)) {
         as.integer(row$opponent_player_id)
       } else {
         NULL
@@ -762,7 +768,7 @@ observeEvent(input$sr_match_submit, {
           }
         } else {
           opp_identity <- if (opp_has_real_id) "verified" else "unverified"
-          opp_slug <- generate_unique_slug(db_pool, opponent_username)
+          opp_slug <- generate_unique_slug(conn, opponent_username)
           new_opponent <- DBI::dbGetQuery(conn, "
             INSERT INTO players (display_name, slug, member_number, identity_status, home_scene_id)
             VALUES ($1, $2, $3, $4, $5)

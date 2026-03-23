@@ -142,6 +142,12 @@ sr_back_to_picker <- function() {
   rv$sr_match_parsed_count <- 0
   rv$sr_match_total_rounds <- 0
   rv$sr_match_candidates <- list()
+
+  # Clear standalone decklist state
+  rv$sr_decklist_standalone_player <- NULL
+  rv$sr_decklist_standalone_tournaments <- NULL
+  rv$sr_decklist_standalone_selected <- NULL
+  rv$sr_decklist_standalone_results <- NULL
 }
 
 observeEvent(input$sr_back_to_picker, { sr_back_to_picker() })
