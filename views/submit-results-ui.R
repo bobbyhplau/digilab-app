@@ -299,49 +299,73 @@ submit_results_ui <- tagList(
                      class = "btn-sm btn-outline-secondary")
       ),
 
-      card(
-        card_header(
-          class = "d-flex align-items-center gap-2",
-          bsicons::bs_icon("list-ol"),
-          "Match-by-Match Results"
+      # Wizard step indicator (2 steps)
+      div(
+        class = "wizard-steps d-flex gap-3 mb-4",
+        div(
+          id = "sr_match_step1_indicator",
+          class = "wizard-step active",
+          span(class = "step-number", "1"),
+          span(class = "step-label", "Upload Screenshot")
         ),
-        card_body(
-          class = "admin-form-body",
-
-          # --- Bandai ID lookup ---
-          div(class = "admin-form-section",
-            div(class = "admin-form-section-label",
-              bsicons::bs_icon("person-badge"),
-              "Player Lookup"
-            ),
-            div(
-              class = "sr-lookup-row",
-              textInput("sr_match_member_id", NULL,
-                        placeholder = "e.g., 0000123456"),
-              actionButton("sr_match_lookup", "Look Up",
-                           class = "btn-primary",
-                           icon = icon("search"))
-            ),
-            tags$small(class = "sr-form-hint",
-                       "Enter your Bandai TCG+ Member Number to find your tournaments")
-          ),
-
-          # --- Player info (rendered after lookup) ---
-          uiOutput("sr_match_player_info"),
-
-          # --- Tournament history (rendered after lookup) ---
-          uiOutput("sr_match_tournament_history"),
-
-          # --- Screenshot upload (rendered after tournament selection) ---
-          uiOutput("sr_match_upload_form")
+        div(
+          id = "sr_match_step2_indicator",
+          class = "wizard-step",
+          span(class = "step-number", "2"),
+          span(class = "step-label", "Review & Submit")
         )
       ),
 
-      # Match History Preview (shown after OCR)
-      uiOutput("sr_match_results_preview"),
+      # Step 1: Player lookup → tournament selection → screenshot upload
+      div(
+        id = "sr_match_step1",
+        card(
+          card_header(
+            class = "d-flex align-items-center gap-2",
+            bsicons::bs_icon("list-ol"),
+            "Match-by-Match Results"
+          ),
+          card_body(
+            class = "admin-form-body",
 
-      # Submit Button (shown after OCR)
-      uiOutput("sr_match_final_button")
+            # --- Bandai ID lookup ---
+            div(class = "admin-form-section",
+              div(class = "admin-form-section-label",
+                bsicons::bs_icon("person-badge"),
+                "Player Lookup"
+              ),
+              div(
+                class = "sr-lookup-row",
+                textInput("sr_match_member_id", NULL,
+                          placeholder = "e.g., 0000123456"),
+                actionButton("sr_match_lookup", "Look Up",
+                             class = "btn-primary",
+                             icon = icon("search"))
+              ),
+              tags$small(class = "sr-form-hint",
+                         "Enter your Bandai TCG+ Member Number to find your tournaments")
+            ),
+
+            # --- Player info (rendered after lookup) ---
+            uiOutput("sr_match_player_info"),
+
+            # --- Tournament history (rendered after lookup) ---
+            uiOutput("sr_match_tournament_history"),
+
+            # --- Screenshot upload (rendered after tournament selection) ---
+            uiOutput("sr_match_upload_form")
+          )
+        )
+      ),
+
+      # Step 2: Review & submit (hidden initially)
+      shinyjs::hidden(
+        div(
+          id = "sr_match_step2",
+          uiOutput("sr_match_results_preview"),
+          uiOutput("sr_match_final_button")
+        )
+      )
     )
   ),
 

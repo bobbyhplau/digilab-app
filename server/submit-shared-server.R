@@ -151,7 +151,13 @@ sr_back_to_picker <- function() {
 }
 
 observeEvent(input$sr_back_to_picker, { sr_back_to_picker() })
-observeEvent(input$sr_match_back_to_picker, { sr_back_to_picker() })
+observeEvent(input$sr_match_back_to_picker, {
+  # Reset match wizard steps to initial state
+  shinyjs::show("sr_match_step1")
+  shinyjs::hide("sr_match_step2")
+  shinyjs::runjs("$('#sr_match_step1_indicator').addClass('active').removeClass('completed'); $('#sr_match_step2_indicator').removeClass('active completed');")
+  sr_back_to_picker()
+})
 observeEvent(input$sr_decklist_back_to_picker, { sr_back_to_picker() })
 
 # =============================================================================

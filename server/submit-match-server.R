@@ -73,21 +73,7 @@ sr_autofill_from_participants <- function(parsed_matches, tournament_id, pool) {
       }
     }
 
-    # Priority 3: Fuzzy name match against participants (local, no DB call)
-    if (nchar(opp_name) >= 3) {
-      sims <- stringdist::stringsim(tolower(opp_name), tolower(participants$display_name), method = "jw")
-      best_idx <- which.max(sims)
-      if (length(best_idx) > 0 && sims[best_idx] > 0.85) {
-        parsed_matches$opponent_player_id[i] <- participants$player_id[best_idx]
-        parsed_matches$match_status[i] <- "matched"
-        parsed_matches$autofill_source[i] <- "participant_fuzzy"
-        parsed_matches$opponent_username[i] <- participants$display_name[best_idx]  # correct OCR name
-        if (!is.na(participants$member_number[best_idx]) && nchar(participants$member_number[best_idx]) > 0) {
-          parsed_matches$opponent_member_number[i] <- participants$member_number[best_idx]
-        }
-        next
-      }
-    }
+    # No local fuzzy match — Layer 3 (match_player with pg_trgm) handles fuzzy matching
   }
 
   parsed_matches
@@ -553,6 +539,11 @@ observeEvent(input$sr_match_process_ocr, {
     msg_type <- if (parsed_count == total_rounds && matched_count > 0) "message" else "warning"
     notify(paste(parts, collapse = " — "), type = msg_type, duration = 8)
   }
+
+  # Transition to Step 2 (review)
+  shinyjs::hide("sr_match_step1")
+  shinyjs::show("sr_match_step2")
+  shinyjs::runjs("$('#sr_match_step1_indicator').removeClass('active').addClass('completed'); $('#sr_match_step2_indicator').addClass('active');")
 })
 
 # =============================================================================
@@ -561,44 +552,86 @@ observeEvent(input$sr_match_process_ocr, {
 
 output$sr_match_results_preview <- renderUI({
   req(rv$sr_match_ocr_results)
+  req(rv$sr_match_selected_tournament)
 
   results <- rv$sr_match_ocr_results
   parsed_count <- rv$sr_match_parsed_count
   total_rounds <- rv$sr_match_total_rounds
+  selected <- rv$sr_match_selected_tournament
 
+  # --- Tournament summary bar (matches upload grid pattern) ---
+  summary_bar <- div(
+    class = "tournament-summary-bar mb-3",
+    div(
+      class = "summary-bar-content",
+      div(class = "summary-item", bsicons::bs_icon("shop"), span(selected$store_name)),
+      div(class = "summary-item", bsicons::bs_icon("calendar"),
+          span(format(as.Date(selected$event_date), "%b %d, %Y"))),
+      div(class = "summary-item", bsicons::bs_icon("controller"), span(selected$event_type)),
+      if (!is.na(selected$format_name))
+        div(class = "summary-item", bsicons::bs_icon("tag"), span(selected$format_name)),
+      div(class = "summary-item", bsicons::bs_icon("flag"),
+          span(if (!is.na(selected$rounds)) paste0(selected$rounds, " rounds") else ""))
+    )
+  )
+
+  # --- Match summary badges (matches upload grid pattern) ---
+  matched_count <- sum(results$match_status == "matched", na.rm = TRUE)
+  similar_count <- sum(results$match_status %in% c("ambiguous", "new_similar"), na.rm = TRUE)
+  new_count <- sum(results$match_status == "new", na.rm = TRUE)
+
+  match_summary <- div(
+    class = "match-summary-badges d-flex gap-2 mb-3",
+    div(class = "match-badge match-badge--matched",
+        bsicons::bs_icon("check-circle-fill"), span(class = "badge-count", matched_count), span(class = "badge-label", "Matched")),
+    if (similar_count > 0) div(class = "match-badge match-badge--possible",
+        bsicons::bs_icon("person-exclamation"), span(class = "badge-count", similar_count), span(class = "badge-label", "Review")),
+    div(class = "match-badge match-badge--new",
+        bsicons::bs_icon("person-plus-fill"), span(class = "badge-count", new_count), span(class = "badge-label", "New"))
+  )
+
+  # --- Instructions (matches upload grid pattern) ---
+  instructions <- div(
+    class = "alert alert-primary d-flex mb-3",
+    bsicons::bs_icon("pencil-square", class = "me-2 flex-shrink-0", size = "1.2em"),
+    div(
+      tags$strong("Review and edit match results"),
+      tags$br(),
+      tags$small("Check that opponent names and scores are correct.",
+                 if (parsed_count < total_rounds) " Fill in missing rounds manually." else "",
+                 if (matched_count > 0) " Opponents with green indicators were matched to known players." else "")
+    )
+  )
+
+  # --- Player matching explanation ---
+  match_info_text <- div(
+    class = "text-muted small mb-3",
+    bsicons::bs_icon("people", class = "me-1"),
+    "Opponents are matched by member number first, then by username. ",
+    tags$strong("Matched"), " = existing player. ",
+    tags$strong("New"), " = will be created on submit."
+  )
+
+  # --- Status badge for card header ---
   status_badge <- if (parsed_count == total_rounds) {
     span(class = "badge bg-success", paste("All", total_rounds, "rounds found"))
   } else {
     span(class = "badge bg-warning text-dark", paste("Parsed", parsed_count, "of", total_rounds, "rounds"))
   }
 
-  # Count auto-fill stats for summary
-  matched_count <- sum(results$match_status == "matched", na.rm = TRUE)
-  autofilled_count <- sum(grepl("prior_match", results$autofill_source, fixed = TRUE), na.rm = TRUE)
-
-  # Build autofill badge
-  autofill_badge <- if (matched_count > 0) {
-    span(class = "badge bg-info ms-2",
-         paste(matched_count, "matched",
-               if (autofilled_count > 0) paste0("/ ", autofilled_count, " pre-filled") else ""))
-  }
-
-  card(
+  # --- Grid card ---
+  grid_card <- card(
     class = "mt-3",
     card_header(
       class = "d-flex justify-content-between align-items-center",
-      div(span("Review & Edit Match History"), autofill_badge),
-      status_badge
+      div(
+        class = "d-flex align-items-center gap-2",
+        span("Match Results"),
+        status_badge
+      ),
+      span(class = "text-muted small", sprintf("Filled: %d/%d", parsed_count, total_rounds))
     ),
     card_body(
-      div(
-        class = "alert alert-info d-flex mb-3",
-        bsicons::bs_icon("pencil-square", class = "me-2 flex-shrink-0"),
-        tags$small("Review and edit the extracted data. Correct any OCR errors before submitting.",
-                   if (parsed_count < total_rounds) " Fill in missing rounds manually." else "",
-                   if (matched_count > 0) " Opponents with green indicators were matched to known players." else "")
-      ),
-
       # Header row
       layout_columns(
         col_widths = c(1, 4, 3, 2, 2),
@@ -615,8 +648,8 @@ output$sr_match_results_preview <- renderUI({
         row <- results[i, ]
         status <- if ("match_status" %in% names(row)) row$match_status else ""
 
-        # Build match indicator
-        indicator <- if (!is.null(status) && nchar(status) > 0) {
+        # Build match indicator (same pattern as upload grid)
+        match_badge <- if (!is.null(status) && nchar(status) > 0) {
           if (status == "matched") {
             div(class = "player-match-indicator matched",
                 bsicons::bs_icon("check-circle-fill"),
@@ -640,16 +673,20 @@ output$sr_match_results_preview <- renderUI({
           }
         }
 
+        # Round column with badge (same pattern as upload grid's placement column)
+        round_col <- div(
+          class = "upload-result-placement",
+          span(class = "placement-badge", row$round),
+          match_badge
+        )
+
         layout_columns(
           col_widths = c(1, 4, 3, 2, 2),
           class = paste0("upload-result-row",
                          if (!is.null(status) && status == "matched") " sr-row-matched" else ""),
-          div(span(class = "placement-badge", row$round)),
-          div(
-            textInput(paste0("sr_match_opponent_", i), NULL,
-                      value = row$opponent_username),
-            indicator
-          ),
+          round_col,
+          div(textInput(paste0("sr_match_opponent_", i), NULL,
+                        value = row$opponent_username)),
           div(textInput(paste0("sr_match_member_", i), NULL,
                         value = if (!is.na(row$opponent_member_number)) row$opponent_member_number else "",
                         placeholder = "0000...")),
@@ -663,6 +700,8 @@ output$sr_match_results_preview <- renderUI({
       })
     )
   )
+
+  tagList(summary_bar, match_summary, instructions, match_info_text, grid_card)
 })
 
 # =============================================================================
@@ -673,11 +712,25 @@ output$sr_match_final_button <- renderUI({
   req(rv$sr_match_ocr_results)
 
   div(
-    class = "mt-3 d-flex justify-content-end gap-2",
-    actionButton("sr_match_cancel", "Cancel", class = "btn-outline-secondary"),
-    actionButton("sr_match_submit", "Submit Match History",
-                 class = "btn-primary", icon = icon("check"))
+    class = "d-flex justify-content-between mt-3",
+    div(
+      class = "d-flex gap-2",
+      actionButton("sr_match_back_to_upload", "Back to Upload", class = "btn-secondary",
+                   icon = icon("arrow-left"))
+    ),
+    actionButton("sr_match_submit", "Submit Match History", class = "btn-primary btn-lg",
+                 icon = icon("check"))
   )
+})
+
+# =============================================================================
+# Step 2 → Step 1 (Back to Upload)
+# =============================================================================
+
+observeEvent(input$sr_match_back_to_upload, {
+  shinyjs::hide("sr_match_step2")
+  shinyjs::show("sr_match_step1")
+  shinyjs::runjs("$('#sr_match_step2_indicator').removeClass('active'); $('#sr_match_step1_indicator').addClass('active').removeClass('completed');")
 })
 
 # =============================================================================
@@ -694,6 +747,14 @@ observeEvent(input$sr_match_submit, {
   selected <- rv$sr_match_selected_tournament
   tournament_id <- as.integer(selected$tournament_id)
   player_id <- as.integer(player$player_id)
+
+  # Block submit if there are unresolved ambiguous opponents
+  unresolved <- sum(results$match_status %in% c("ambiguous", "new_similar"), na.rm = TRUE)
+  if (unresolved > 0) {
+    notify(paste(unresolved, "opponent(s) need resolution before submitting. Click the amber/cyan badges to resolve."),
+           type = "warning", duration = 8)
+    return()
+  }
 
   tryCatch({
     conn <- pool::localCheckout(db_pool)
@@ -758,8 +819,8 @@ observeEvent(input$sr_match_submit, {
       } else {
         # Fallback: run match_player() at submission time
         opp_match_info <- match_player(opponent_username, conn, member_number = clean_opp_member, scene_id = match_scene_id)
-        if (opp_match_info$status == "matched" || opp_match_info$status == "ambiguous") {
-          opponent_id <- if (opp_match_info$status == "matched") opp_match_info$player_id else opp_match_info$candidates$player_id[1]
+        if (opp_match_info$status == "matched") {
+          opponent_id <- opp_match_info$player_id
           if (opp_has_real_id) {
             DBI::dbExecute(conn, "
               UPDATE players SET member_number = $1, identity_status = 'verified'
@@ -794,18 +855,26 @@ observeEvent(input$sr_match_submit, {
         ))
         matches_inserted <- matches_inserted + 1
       }, error = function(e) {
-        message("[MATCH SUBMIT] Skipping duplicate match round ", row$round)
+        if (grepl("unique|duplicate", e$message, ignore.case = TRUE)) {
+          message("[MATCH SUBMIT] Skipping duplicate match round ", row$round)
+        } else {
+          stop(e)  # Re-throw non-duplicate errors to trigger ROLLBACK
+        }
       })
     }
 
     DBI::dbExecute(conn, "COMMIT")
 
-    # Clear form state
+    # Clear form state and return to Step 1
     rv$sr_match_ocr_results <- NULL
     rv$sr_match_uploaded_file <- NULL
     rv$sr_match_parsed_count <- 0
     rv$sr_match_total_rounds <- 0
     rv$sr_match_selected_tournament <- NULL
+
+    shinyjs::hide("sr_match_step2")
+    shinyjs::show("sr_match_step1")
+    shinyjs::runjs("$('#sr_match_step1_indicator').addClass('active').removeClass('completed'); $('#sr_match_step2_indicator').removeClass('active completed');")
 
     # Refresh tournament list to show updated match counts
     if (!is.null(rv$sr_match_player)) {
@@ -823,15 +892,6 @@ observeEvent(input$sr_match_submit, {
   })
 })
 
-# Handle match history cancel
-observeEvent(input$sr_match_cancel, {
-  rv$sr_match_ocr_results <- NULL
-  rv$sr_match_uploaded_file <- NULL
-  rv$sr_match_parsed_count <- 0
-  rv$sr_match_total_rounds <- 0
-  rv$sr_match_selected_tournament <- NULL
-  rv$sr_match_candidates <- list()
-})
 
 # =============================================================================
 # Ambiguous/Similar Player Resolution Modal
