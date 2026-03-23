@@ -5,6 +5,31 @@ All notable changes to DigiLab will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.9.0] - 2026-03-23 - Unified Submit Results Tab
+
+### Added
+- **Unified Submit Results tab**: Consolidated public "Upload Results" and admin "Enter Results" into a single tab with a card-picker landing page. All entry methods accessible from one location.
+- **Card picker**: 6 method cards — Bandai TCG+ Upload (everyone), Paste from Spreadsheet (admin), Manual Entry (admin), Match-by-Match (everyone), Add Decklists (everyone), Match Results CSV (admin, coming soon).
+- **Standalone decklist submission**: New "Add Decklists" flow — look up tournaments by Bandai Member ID and add decklist URLs retroactively.
+- **Editable placement**: Grid placement column is now a numeric input instead of a static badge, allowing users to fix OCR misplacements.
+- **Tied placements**: Multiple players can share the same placement (e.g., 1, 2, 2, 4). Auto-adjusts downstream placements.
+- **Add Player button**: Dynamic grid — append blank rows instead of pre-allocating 128 fixed rows.
+- **W/L/T override toggle**: Admin-only toggle to show W/L/T columns alongside Points for tournaments in points mode, solving ambiguous derivation (e.g., 3 pts could be 1W-0L-0T or 0W-0L-3T).
+- **CSV deck URL extraction**: Bandai TCG+ CSV `Deck URLs` column is now parsed and pre-filled in Step 3.
+- **Paste enhancements**: Header row auto-detection, Name+MemberID+Points and Name+MemberID+W/L/T format support.
+
+### Changed
+- **Tab navigation**: "Upload Results" (public) and "Enter Results" (admin) sidebar links replaced by "Submit Results" in both sections, pointing to the same unified tab.
+- **Server architecture**: Split into 5 focused modules (submit-shared, submit-upload, submit-match, submit-decklist, submit-grid) replacing 2 monolithic files.
+- **Input ID prefix**: Unified `sr_` prefix replaces split `submit_`/`admin_` prefixes.
+- **Grid rendering**: `render_grid_ui()` and `sync_grid_inputs()` enhanced with backward-compatible params for placement editing, add-player, and W/L/T override.
+
+### Removed
+- `views/submit-ui.R` — replaced by `views/submit-results-ui.R`
+- `views/admin-results-ui.R` — replaced by `views/submit-results-ui.R`
+- `server/public-submit-server.R` — split into submit-upload-server.R + submit-match-server.R
+- `server/admin-results-server.R` — split into submit-shared-server.R + submit-grid-server.R
+
 ## [1.7.8] - 2026-03-23 - Admin Scene Scoping & Merge Fix
 
 ### Fixed

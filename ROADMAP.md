@@ -1,42 +1,10 @@
 ---
-currentVersion: "1.7.7"
-lastUpdated: "2026-03-20"
+currentVersion: "1.9.0"
+lastUpdated: "2026-03-23"
 
 inProgress: []
 
 planned:
-
-  - id: player-anonymization
-    title: "Player Anonymization Toggle"
-    description: "Add is_anonymized flag to players table with toggle in Edit Players. Anonymized players show as 'Anonymous' in tournament results and are excluded from leaderboards, search, and profiles. Deck archetype data still counts toward meta stats. Reversible by admin."
-    tags: [privacy, admin, feature]
-    targetVersion: "v1.7.4"
-
-  # v1.8.0 — Datamon Bot
-  - id: datamon-bot
-    title: "Datamon Bot Launch"
-    description: "Discord bot (discord.py) on DigitalOcean droplet. Role sync for Scene Admin/Regional Admin roles, slash commands (/admins, /roster, /scene), react-to-resolve, auto-archive stale threads, welcome DM delivery."
-    tags: [integration, community, scaling]
-    targetVersion: "v1.8.0"
-
-  # v1.9.0 — Results Redesign & Data Entry
-  - id: results-upload-redesign
-    title: "Unified Upload Tab & Results Redesign"
-    description: "Consolidate all result entry into a single Upload tab with 4 entry-point cards: Bandai Screenshot (OCR), Bandai Export (CSV/paste), Manual Entry (grid), and Match-by-Match. Public users see Screenshot and Match-by-Match; admin login unlocks Export and Manual Entry. Replace current split between public Submit and admin Enter Results tabs. Touch-friendly grids, camera upload flow, mobile optimization, tournament data quality checks."
-    tags: [admin, ux, mobile]
-    targetVersion: "v1.9.0"
-
-  - id: edit-grid-record-format-switch
-    title: "Edit Grid: Allow W/L/T Override for Points-Mode Tournaments"
-    description: "When editing a tournament entered in points mode, the edit grid only shows the Points column — organizers cannot correct the auto-derived W/L/T record. Add ability to switch between points and W/L/T mode in the edit grid, or always show W/L/T fields so organizers can fix ambiguous derivations (e.g., 3 points could be 1W-2L or 0W-0L-3T). Reported by Madrid scene organizer."
-    tags: [enhancement, admin, ux]
-    targetVersion: "v1.9.0"
-
-  - id: grid-ux-improvements
-    title: "Results Grid UX Improvements"
-    description: "Add explicit 'Add Player' button instead of relying on blank padding rows. Add drag-to-reorder for placements. Support tied placements (multiple players sharing same placement number — rating system already handles 0.5 draw score). Make placement column editable."
-    tags: [feature, admin, ux]
-    targetVersion: "v1.9.0"
 
   - id: mobile-admin-tabs
     title: "Mobile Admin Tabs"
@@ -223,6 +191,30 @@ planned:
     targetVersion: "Future"
 
 completed:
+  # v1.9.0 — Unified Submit Results
+  - id: results-upload-redesign
+    title: "Unified Submit Results Tab & Grid Improvements"
+    description: "Consolidated public Submit and admin Enter Results into a single Submit Results tab with card-picker landing page. 6 entry methods, shared 3-step wizard, grid UX improvements (editable placement, tied placements, Add Player, W/L/T override). Subsumes grid-ux-improvements and edit-grid-record-format-switch."
+    tags: [admin, ux, feature]
+    date: "2026-03"
+    version: "v1.9.0"
+
+  # v1.8.0 — Datamon Bot
+  - id: datamon-bot
+    title: "Datamon Bot Launch"
+    description: "Discord bot (discord.py) on DigitalOcean droplet. Role sync for Scene Admin/Regional Admin roles, slash commands (/admins, /roster, /scene), react-to-resolve, auto-archive stale threads, welcome DM delivery."
+    tags: [integration, community, scaling]
+    date: "2026-03"
+    version: "v1.8.0"
+
+  # v1.7.8 — Player Anonymization
+  - id: player-anonymization
+    title: "Player Anonymization Toggle"
+    description: "Add is_anonymized flag to players table with toggle in Edit Players. Anonymized players show as 'Anonymous' in tournament results and are excluded from leaderboards, search, and profiles. Deck archetype data still counts toward meta stats. Reversible by admin."
+    tags: [privacy, admin, feature]
+    date: "2026-03"
+    version: "v1.7.8"
+
   # v1.7.4 — Admin Permission Tier Scoping
   - id: admin-permission-tiers
     title: "Admin Permission Tier Scoping"

@@ -941,32 +941,24 @@ version_changelog_content <- function() {
   tagList(
     div(class = "version-changelog-items",
       div(class = "version-changelog-item",
-        bsicons::bs_icon("globe-americas", class = "text-primary"),
-        span("Cascading scene selector — pick continent then scene, with country groupings")
+        bsicons::bs_icon("cloud-upload", class = "text-primary"),
+        span("Unified Submit Results tab — all entry methods under one card picker")
       ),
       div(class = "version-changelog-item",
-        bsicons::bs_icon("funnel", class = "text-success"),
-        span("Advanced filters on every tab — store, win %, date range, color, size, and more")
+        bsicons::bs_icon("link-45deg", class = "text-success"),
+        span("Add Decklists — look up tournaments by Bandai ID and submit decklist URLs")
       ),
       div(class = "version-changelog-item",
-        bsicons::bs_icon("toggle-on", class = "text-info"),
-        span("Ranked/Unranked toggle replaces the old event threshold pills")
+        bsicons::bs_icon("pencil-square", class = "text-info"),
+        span("Editable placement — fix OCR misplacements by typing the correct number")
       ),
       div(class = "version-changelog-item",
-        bsicons::bs_icon("phone", class = "text-warning"),
-        span("Mobile filter panels — search always visible, filters behind a compact toggle")
+        bsicons::bs_icon("person-plus", class = "text-warning"),
+        span("Dynamic grid — Add Player button appends rows instead of fixed 128-row grid")
       ),
       div(class = "version-changelog-item",
-        bsicons::bs_icon("incognito", class = "text-danger"),
-        span("Player anonymization — players can request to hide their name from public views")
-      ),
-      div(class = "version-changelog-item",
-        bsicons::bs_icon("table", class = "text-success"),
-        span("Reactable tables in player and deck modals for richer match history")
-      ),
-      div(class = "version-changelog-item",
-        bsicons::bs_icon("search", class = "text-warning"),
-        span("Find decks with decklists or top 3 finishes using the new advanced filters")
+        bsicons::bs_icon("people", class = "text-danger"),
+        span("Tied placements — assign same placement to multiple players (e.g., 1, 2, 2, 4)")
       ),
       div(class = "version-changelog-item",
         bsicons::bs_icon("shield-check", class = "text-info"),
