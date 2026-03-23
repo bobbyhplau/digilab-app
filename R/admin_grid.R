@@ -1,7 +1,7 @@
 # =============================================================================
-# Shared Admin Grid Module
-# Reusable grid rendering, input sync, and helper functions for both
-# Enter Results (admin-results-server.R) and Edit Tournaments grid.
+# Shared Results Grid Module
+# Reusable grid rendering, input sync, and helper functions for
+# Submit Results (all entry methods) and Edit Tournaments grid.
 # =============================================================================
 
 # -----------------------------------------------------------------------------
@@ -42,6 +42,36 @@ grid_ordinal <- function(n) {
   suffix <- c("th", "st", "nd", "rd", rep("th", 6))
   if (n %% 100 >= 11 && n %% 100 <= 13) return(paste0(n, "th"))
   paste0(n, suffix[(n %% 10) + 1])
+}
+
+# -----------------------------------------------------------------------------
+# validate_placements: Validate and auto-adjust tied placements
+# Accepts a vector of placement values (e.g., [1, 2, 2, 3])
+# and adjusts downstream (e.g., [1, 2, 2, 4]) so ties skip the next rank.
+# Returns the corrected placement vector.
+# -----------------------------------------------------------------------------
+validate_placements <- function(placements) {
+  if (length(placements) == 0) return(integer(0))
+  placements <- as.integer(placements)
+  # Sort and track which positions had which values
+  sorted <- sort(placements)
+  result <- integer(length(sorted))
+  next_rank <- 1L
+  i <- 1L
+  while (i <= length(sorted)) {
+    # Count how many share this placement
+    tied <- sum(sorted == sorted[i])
+    for (j in seq_len(tied)) {
+      result[i + j - 1L] <- next_rank
+    }
+    next_rank <- next_rank + tied
+    i <- i + tied
+  }
+  # Map back to original order
+  order_idx <- order(placements)
+  out <- integer(length(placements))
+  out[order_idx] <- result
+  out
 }
 
 # -----------------------------------------------------------------------------
@@ -106,23 +136,42 @@ load_grid_from_results <- function(tournament_id, con) {
 # sync_grid_inputs: Read current Shiny input values into the grid data frame
 # Returns updated data frame. Does NOT modify any reactive -- caller does that.
 # Parameters:
-#   input         - Shiny input object
-#   grid_data     - Current grid data frame
-#   record_format - "points" or "wlt"
-#   prefix        - Input ID prefix (e.g., "admin_" or "edit_")
+#   input              - Shiny input object
+#   grid_data          - Current grid data frame
+#   record_format      - "points" or "wlt"
+#   prefix             - Input ID prefix (e.g., "admin_" or "edit_" or "sr_")
+#   placement_editable - When TRUE, read placement from numericInput (default FALSE)
+#   wlt_override       - When TRUE, read W/L/T columns even in points mode (default FALSE)
 # -----------------------------------------------------------------------------
-sync_grid_inputs <- function(input, grid_data, record_format, prefix) {
+sync_grid_inputs <- function(input, grid_data, record_format, prefix,
+                             placement_editable = FALSE, wlt_override = FALSE) {
   if (is.null(grid_data) || nrow(grid_data) == 0) return(grid_data)
 
   for (i in seq_len(nrow(grid_data))) {
+    # Editable placement
+    if (placement_editable) {
+      place_val <- input[[paste0(prefix, "placement_", i)]]
+      if (!is.null(place_val) && !is.na(place_val)) grid_data$placement[i] <- as.integer(place_val)
+    }
+
     player_val <- input[[paste0(prefix, "player_", i)]]
     if (!is.null(player_val)) grid_data$player_name[i] <- player_val
     member_val <- input[[paste0(prefix, "member_", i)]]
     if (!is.null(member_val)) grid_data$member_number[i] <- member_val
 
-    if (record_format == "points") {
+    if (record_format == "points" && !wlt_override) {
       pts_val <- input[[paste0(prefix, "pts_", i)]]
       if (!is.null(pts_val) && !is.na(pts_val)) grid_data$points[i] <- as.integer(pts_val)
+    } else if (record_format == "points" && wlt_override) {
+      # W/L/T override in points mode: read both points and W/L/T
+      pts_val <- input[[paste0(prefix, "pts_", i)]]
+      if (!is.null(pts_val) && !is.na(pts_val)) grid_data$points[i] <- as.integer(pts_val)
+      w_val <- input[[paste0(prefix, "w_", i)]]
+      if (!is.null(w_val) && !is.na(w_val)) grid_data$wins[i] <- as.integer(w_val)
+      l_val <- input[[paste0(prefix, "l_", i)]]
+      if (!is.null(l_val) && !is.na(l_val)) grid_data$losses[i] <- as.integer(l_val)
+      t_val <- input[[paste0(prefix, "t_", i)]]
+      if (!is.null(t_val) && !is.na(t_val)) grid_data$ties[i] <- as.integer(t_val)
     } else {
       w_val <- input[[paste0(prefix, "w_", i)]]
       if (!is.null(w_val) && !is.na(w_val)) grid_data$wins[i] <- as.integer(w_val)
@@ -145,26 +194,40 @@ sync_grid_inputs <- function(input, grid_data, record_format, prefix) {
 # -----------------------------------------------------------------------------
 # render_grid_ui: Generate the full grid UI (header + data rows)
 # Parameters:
-#   grid_data       - Grid data frame
-#   record_format   - "points" or "wlt"
-#   is_release      - TRUE if release event (hides deck column)
-#   deck_choices    - Named character vector for deck selectInput
-#   player_matches  - Named list of match info per row index
-#   prefix          - Input ID prefix (e.g., "admin_" or "edit_")
-# Returns: tagList with optional release notice, header row, and data rows
+#   grid_data            - Grid data frame
+#   record_format        - "points" or "wlt"
+#   is_release           - TRUE if release event (hides deck column)
+#   deck_choices         - Named character vector for deck selectInput
+#   player_matches       - Named list of match info per row index
+#   prefix               - Input ID prefix (e.g., "admin_" or "edit_" or "sr_")
+#   mode                 - "entry" (default) or "review" (OCR review styling)
+#   ocr_rows             - Integer vector of OCR-populated row indices (review mode)
+#   placement_editable   - When TRUE, render numericInput for placement (default FALSE)
+#   show_add_player_btn  - When TRUE, append "Add Player" button row (default FALSE)
+#   show_wlt_override    - When TRUE + points mode, show W/L/T columns alongside Points (default FALSE)
+# Returns: tagList with optional release notice, header row, data rows, optional add button
 # -----------------------------------------------------------------------------
 render_grid_ui <- function(grid_data, record_format, is_release, deck_choices,
-                           player_matches, prefix, mode = "entry", ocr_rows = NULL) {
-  # Column widths depend on format and release event
+                           player_matches, prefix, mode = "entry", ocr_rows = NULL,
+                           placement_editable = FALSE, show_add_player_btn = FALSE,
+                           show_wlt_override = FALSE) {
+  # Determine effective display mode: show_wlt_override adds W/L/T columns in points mode
+  show_wlt <- record_format == "wlt" || show_wlt_override
+
+  # Column widths depend on format, release event, and W/L/T override
   if (is_release) {
-    if (record_format == "points") {
+    if (!show_wlt) {
       col_widths <- c(1, 1, 6, 2, 2)
+    } else if (record_format == "points" && show_wlt_override) {
+      col_widths <- c(1, 1, 3, 2, 1, 1, 1, 1)  # +Pts +W +L +T
     } else {
       col_widths <- c(1, 1, 4, 2, 2, 1, 1)
     }
   } else {
-    if (record_format == "points") {
+    if (!show_wlt) {
       col_widths <- c(1, 1, 3, 2, 2, 3)
+    } else if (record_format == "points" && show_wlt_override) {
+      col_widths <- c(1, 1, 2, 2, 1, 1, 1, 1, 2)  # +Pts +W +L +T +Deck
     } else {
       col_widths <- c(1, 1, 2, 2, 1, 1, 1, 3)
     }
@@ -172,17 +235,23 @@ render_grid_ui <- function(grid_data, record_format, is_release, deck_choices,
 
   # Header row
   if (is_release) {
-    if (record_format == "points") {
+    if (!show_wlt) {
       header <- layout_columns(col_widths = col_widths, class = "results-header-row",
                                div(""), div("#"), div("Player"), div("Member #"), div("Pts"))
+    } else if (record_format == "points" && show_wlt_override) {
+      header <- layout_columns(col_widths = col_widths, class = "results-header-row",
+                               div(""), div("#"), div("Player"), div("Member #"), div("Pts"), div("W"), div("L"), div("T"))
     } else {
       header <- layout_columns(col_widths = col_widths, class = "results-header-row",
                                div(""), div("#"), div("Player"), div("Member #"), div("W"), div("L"), div("T"))
     }
   } else {
-    if (record_format == "points") {
+    if (!show_wlt) {
       header <- layout_columns(col_widths = col_widths, class = "results-header-row",
                                div(""), div("#"), div("Player"), div("Member #"), div("Pts"), div("Deck"))
+    } else if (record_format == "points" && show_wlt_override) {
+      header <- layout_columns(col_widths = col_widths, class = "results-header-row",
+                               div(""), div("#"), div("Player"), div("Member #"), div("Pts"), div("W"), div("L"), div("T"), div("Deck"))
     } else {
       header <- layout_columns(col_widths = col_widths, class = "results-header-row",
                                div(""), div("#"), div("Player"), div("Member #"), div("W"), div("L"), div("T"), div("Deck"))
@@ -259,12 +328,21 @@ render_grid_ui <- function(grid_data, record_format, is_release, deck_choices,
       )
     )
 
-    # Placement column
-    placement_col <- div(
-      class = "upload-result-placement",
-      span(class = paste("placement-badge", place_class), grid_ordinal(row$placement)),
-      match_badge
-    )
+    # Placement column — editable numericInput or static badge
+    placement_col <- if (placement_editable) {
+      div(
+        class = "upload-result-placement",
+        numericInput(paste0(prefix, "placement_", i), NULL,
+                     value = row$placement, min = 1, max = 999, width = "60px"),
+        match_badge
+      )
+    } else {
+      div(
+        class = "upload-result-placement",
+        span(class = paste("placement-badge", place_class), grid_ordinal(row$placement)),
+        match_badge
+      )
+    }
 
     # Player name input
     player_col <- div(
@@ -278,16 +356,20 @@ render_grid_ui <- function(grid_data, record_format, is_release, deck_choices,
                 placeholder = "0000...")
     )
 
-    # Build row based on format and release event
+    # Build row based on format, release event, and W/L/T override
+    w_col <- div(numericInput(paste0(prefix, "w_", i), NULL, value = row$wins, min = 0))
+    l_col <- div(numericInput(paste0(prefix, "l_", i), NULL, value = row$losses, min = 0))
+    t_col <- div(numericInput(paste0(prefix, "t_", i), NULL, value = row$ties, min = 0))
+    pts_col <- div(numericInput(paste0(prefix, "pts_", i), NULL, value = row$points, min = 0, max = 99))
+
     if (is_release) {
-      if (record_format == "points") {
-        pts_col <- div(numericInput(paste0(prefix, "pts_", i), NULL, value = row$points, min = 0, max = 99))
+      if (!show_wlt) {
         layout_columns(col_widths = col_widths, class = row_class,
                        delete_btn, placement_col, player_col, member_col, pts_col)
+      } else if (record_format == "points" && show_wlt_override) {
+        layout_columns(col_widths = col_widths, class = row_class,
+                       delete_btn, placement_col, player_col, member_col, pts_col, w_col, l_col, t_col)
       } else {
-        w_col <- div(numericInput(paste0(prefix, "w_", i), NULL, value = row$wins, min = 0))
-        l_col <- div(numericInput(paste0(prefix, "l_", i), NULL, value = row$losses, min = 0))
-        t_col <- div(numericInput(paste0(prefix, "t_", i), NULL, value = row$ties, min = 0))
         layout_columns(col_widths = col_widths, class = row_class,
                        delete_btn, placement_col, player_col, member_col, w_col, l_col, t_col)
       }
@@ -299,21 +381,34 @@ render_grid_ui <- function(grid_data, record_format, is_release, deck_choices,
                        options = list(placeholder = "Search deck..."))
       )
 
-      if (record_format == "points") {
-        pts_col <- div(numericInput(paste0(prefix, "pts_", i), NULL, value = row$points, min = 0, max = 99))
+      if (!show_wlt) {
         layout_columns(col_widths = col_widths, class = row_class,
                        delete_btn, placement_col, player_col, member_col, pts_col, deck_col)
+      } else if (record_format == "points" && show_wlt_override) {
+        layout_columns(col_widths = col_widths, class = row_class,
+                       delete_btn, placement_col, player_col, member_col, pts_col, w_col, l_col, t_col, deck_col)
       } else {
-        w_col <- div(numericInput(paste0(prefix, "w_", i), NULL, value = row$wins, min = 0))
-        l_col <- div(numericInput(paste0(prefix, "l_", i), NULL, value = row$losses, min = 0))
-        t_col <- div(numericInput(paste0(prefix, "t_", i), NULL, value = row$ties, min = 0))
         layout_columns(col_widths = col_widths, class = row_class,
                        delete_btn, placement_col, player_col, member_col, w_col, l_col, t_col, deck_col)
       }
     }
   })
 
-  tagList(release_notice, header, rows)
+  # Optional "Add Player" button row
+  add_btn <- if (show_add_player_btn) {
+    div(
+      class = "upload-result-row add-player-row text-center mt-2",
+      htmltools::tags$button(
+        onclick = sprintf("Shiny.setInputValue('%sadd_player', Date.now(), {priority: 'event'})", prefix),
+        class = "btn btn-sm btn-outline-primary",
+        shiny::icon("plus"), " Add Player"
+      )
+    )
+  } else {
+    NULL
+  }
+
+  tagList(release_notice, header, rows, add_btn)
 }
 
 # -----------------------------------------------------------------------------
@@ -497,16 +592,35 @@ render_decklist_entry <- function(results_df, prefix) {
 # Supported formats:
 #   1 column  - names only
 #   2 columns - names + points
-#   3 columns - names + points + deck
-#   4 columns - names + W/L/T
-#   5+ columns - names + W/L/T + deck
-# Returns list of lists with name/points/wins/losses/ties/deck_id
+#   3 columns - names + points + deck   (or Name + MemberID + Points if col2 is 10-digit)
+#   4 columns - names + W/L/T           (or Name + MemberID + W/L/T if col2 is 10-digit — NOT USED, falls through to 4-col WLT)
+#   5+ columns - names + W/L/T + deck   (or Name + MemberID + W/L/T if col2 is 10-digit)
+# Header row detection: skips first row if it matches known headers.
+# Returns list of lists with name/member_number/points/wins/losses/ties/deck_id
 # -----------------------------------------------------------------------------
+PASTE_HEADER_PATTERNS <- c("name", "player", "username", "points", "wins", "losses",
+                            "ties", "deck", "member", "ranking", "rank", "place", "w", "l", "t")
+
 parse_paste_data <- function(text, all_decks) {
   lines <- strsplit(text, "\n")[[1]]
   lines <- lines[nchar(trimws(lines)) > 0]
 
   if (length(lines) == 0) return(list())
+
+  # Header row detection: skip first row if all parts match known headers
+  first_parts <- strsplit(lines[1], "\t")[[1]]
+  if (length(first_parts) == 1) first_parts <- strsplit(trimws(lines[1]), "\\s{2,}")[[1]]
+  first_parts_lower <- tolower(trimws(first_parts))
+  if (length(first_parts_lower) > 0 && all(first_parts_lower %in% PASTE_HEADER_PATTERNS)) {
+    lines <- lines[-1]
+  }
+
+  if (length(lines) == 0) return(list())
+
+  # Helper: detect if a value looks like a 10-digit member number
+  is_member_id <- function(val) {
+    grepl("^\\d{10,}$", val)
+  }
 
   lapply(lines, function(line) {
     parts <- strsplit(line, "\t")[[1]]
@@ -516,6 +630,7 @@ parse_paste_data <- function(text, all_decks) {
     parts <- trimws(parts)
 
     name <- parts[1]
+    member_number <- NA_character_
     pts <- 0L
     w <- 0L
     l <- 0L
@@ -527,10 +642,17 @@ parse_paste_data <- function(text, all_decks) {
       pts <- suppressWarnings(as.integer(parts[2]))
       if (is.na(pts)) pts <- 0L
     } else if (length(parts) == 3) {
-      # Name + Points + Deck
-      pts <- suppressWarnings(as.integer(parts[2]))
-      if (is.na(pts)) pts <- 0L
-      deck_name <- parts[3]
+      # Check if col2 is a member ID: Name + MemberID + Points
+      if (is_member_id(parts[2])) {
+        member_number <- normalize_member_number(parts[2])
+        pts <- suppressWarnings(as.integer(parts[3]))
+        if (is.na(pts)) pts <- 0L
+      } else {
+        # Name + Points + Deck
+        pts <- suppressWarnings(as.integer(parts[2]))
+        if (is.na(pts)) pts <- 0L
+        deck_name <- parts[3]
+      }
     } else if (length(parts) == 4) {
       # Name + W + L + T
       w <- suppressWarnings(as.integer(parts[2]))
@@ -541,15 +663,28 @@ parse_paste_data <- function(text, all_decks) {
       if (is.na(t_val)) t_val <- 0L
       pts <- w * 3L + t_val
     } else if (length(parts) >= 5) {
-      # Name + W + L + T + Deck
-      w <- suppressWarnings(as.integer(parts[2]))
-      l <- suppressWarnings(as.integer(parts[3]))
-      t_val <- suppressWarnings(as.integer(parts[4]))
-      if (is.na(w)) w <- 0L
-      if (is.na(l)) l <- 0L
-      if (is.na(t_val)) t_val <- 0L
-      pts <- w * 3L + t_val
-      deck_name <- parts[5]
+      # Check if col2 is a member ID: Name + MemberID + W/L/T (+ optional Deck)
+      if (is_member_id(parts[2])) {
+        member_number <- normalize_member_number(parts[2])
+        w <- suppressWarnings(as.integer(parts[3]))
+        l <- suppressWarnings(as.integer(parts[4]))
+        t_val <- suppressWarnings(as.integer(parts[5]))
+        if (is.na(w)) w <- 0L
+        if (is.na(l)) l <- 0L
+        if (is.na(t_val)) t_val <- 0L
+        pts <- w * 3L + t_val
+        if (length(parts) >= 6) deck_name <- parts[6]
+      } else {
+        # Name + W + L + T + Deck
+        w <- suppressWarnings(as.integer(parts[2]))
+        l <- suppressWarnings(as.integer(parts[3]))
+        t_val <- suppressWarnings(as.integer(parts[4]))
+        if (is.na(w)) w <- 0L
+        if (is.na(l)) l <- 0L
+        if (is.na(t_val)) t_val <- 0L
+        pts <- w * 3L + t_val
+        deck_name <- parts[5]
+      }
     }
 
     # Match deck name to archetype (case-insensitive)
@@ -561,7 +696,8 @@ parse_paste_data <- function(text, all_decks) {
       }
     }
 
-    list(name = name, points = pts, wins = w, losses = l, ties = t_val, deck_id = deck_id)
+    list(name = name, member_number = member_number, points = pts,
+         wins = w, losses = l, ties = t_val, deck_id = deck_id)
   })
 }
 
