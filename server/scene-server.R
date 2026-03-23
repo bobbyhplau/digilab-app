@@ -1370,28 +1370,24 @@ version_changelog_content <- function() {
   tagList(
     div(class = "version-changelog-items",
       div(class = "version-changelog-item",
+        bsicons::bs_icon("stars", class = "text-warning"),
+        span("New onboarding experience — pick your scene, find your player profile, and see your scene's stats at a glance")
+      ),
+      div(class = "version-changelog-item",
         bsicons::bs_icon("cloud-upload", class = "text-primary"),
         span("Unified Submit Results tab — all entry methods under one card picker")
       ),
       div(class = "version-changelog-item",
-        bsicons::bs_icon("link-45deg", class = "text-success"),
-        span("Add Decklists — look up tournaments by Bandai ID and submit decklist URLs")
+        bsicons::bs_icon("controller", class = "text-success"),
+        span("Match-by-Match redesign — look up by Bandai ID, select a tournament, and upload your match history")
       ),
       div(class = "version-changelog-item",
-        bsicons::bs_icon("pencil-square", class = "text-info"),
-        span("Editable placement — fix OCR misplacements by typing the correct number")
+        bsicons::bs_icon("link-45deg", class = "text-info"),
+        span("Add Decklists — look up tournaments by Bandai ID and submit decklist URLs retroactively")
       ),
       div(class = "version-changelog-item",
-        bsicons::bs_icon("person-plus", class = "text-warning"),
-        span("Dynamic grid — Add Player button appends rows instead of fixed 128-row grid")
-      ),
-      div(class = "version-changelog-item",
-        bsicons::bs_icon("people", class = "text-danger"),
-        span("Tied placements — assign same placement to multiple players (e.g., 1, 2, 2, 4)")
-      ),
-      div(class = "version-changelog-item",
-        bsicons::bs_icon("shield-check", class = "text-info"),
-        span("Admin-scene junction table for multi-scene regional admin access")
+        bsicons::bs_icon("pencil-square", class = "text-danger"),
+        span("Editable placements, tied placements, and dynamic Add Player grid")
       )
     )
   )
