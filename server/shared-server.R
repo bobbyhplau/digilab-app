@@ -859,7 +859,7 @@ observeEvent(input$admin_login_link, {
   if (rv$is_admin) {
     # Already logged in - show account info, change password, nav (mobile)
     role_label <- switch(rv$admin_user$role,
-      super_admin = "Super Admin",
+      super_admin = "Platform Admin",
       regional_admin = "Regional Admin",
       "Scene Admin"
     )
