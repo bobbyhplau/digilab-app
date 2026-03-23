@@ -215,6 +215,10 @@ Pattern: `selected_{entity}_id` for single selection, `selected_{entity}_ids` fo
 | Name | Type | Description |
 |------|------|-------------|
 | `onboarding_step` | integer | Current step in onboarding carousel (1-3) |
+| `onboarding_player` | data.frame/NULL | Player record from Step 2 search (player_id, display_name, member_number) |
+| `onboarding_player_rating` | numeric/NULL | Competitive rating from player_ratings_cache for found player |
+| `onboarding_player_rank` | integer/NULL | Scene rank of found player (position among scene's rated players) |
+| `onboarding_player_record` | list/NULL | W/L/T record for found player (wins, losses, ties) |
 
 ### Form/Wizard State
 
@@ -448,7 +452,7 @@ show_results_editor()
 
 On each page load, **one** modal may appear. Priority order:
 
-1. **Welcome modal** — first-time visitors (no `digilab_onboarding_complete` in storage)
+1. **Onboarding modal** — first-time visitors (no `digilab_onboarding_complete` in storage). 3-step flow: Pick Your Scene (map + geolocation), Find Yourself (player search by Bandai ID/name), Your Scene at a Glance (30-day stats + rank banner).
 2. **Announcement modal** — latest active, unexpired announcement the user hasn't seen (from `announcements` table)
 3. **Version changelog modal** — `APP_VERSION` differs from user's stored `digilab_last_seen_version`
 

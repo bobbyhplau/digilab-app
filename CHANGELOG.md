@@ -8,6 +8,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- **Onboarding redesign**: New 3-step flow — Pick Your Scene (interactive map + geolocation + scene buttons), Find Yourself (player search by Bandai ID or name with fuzzy matching via pg_trgm), Your Scene at a Glance (30-day stats grid with dashboard-style value boxes, trending deck card image, rank banner). Player identity persisted to localStorage for future sessions.
 - **Match-by-match auto-fill**: 3-layer opponent matching — tournament participants (exact member/name), prior match score pre-fill (flipped W/L from opponent's submissions), and `match_player()` fuzzy matching via pg_trgm. Match indicators (Matched/Ambiguous/Similar/New) shown on review grid.
 - **Match-by-match wizard steps**: 2-step flow (Upload Screenshot → Review & Submit) with step indicators, replacing scroll-to-discover pattern.
 - **Match review grid**: Tournament summary bar, match summary badges, player matching explanation — matching the upload results grid's layout and styling.

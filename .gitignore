@@ -95,8 +95,14 @@ scripts/analysis/snapshots/
 # R plot temp files
 Rplots.pdf
 
+# Analytics exports and test images (not part of app)
+/*.pdf
+test_*.png
+
 # One-off scripts and exported docs (not part of app)
 .github/workflows/refresh-shared-branch.yml
+docs/digilab-design-audit.html
+docs/onboarding-redesign-mockup.html
 docs/plans/2026-03-08-scene-onboarding-batch.html
 docs/plans/2026-03-08-scene-onboarding-batch_files/
 docs/plans/2026-03-13-decklist-json-collection-design.md

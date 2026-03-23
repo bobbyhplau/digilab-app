@@ -4,6 +4,25 @@ This log tracks development decisions, blockers, and technical notes for DigiLab
 
 ---
 
+## 2026-03-23: Onboarding Modal Redesign
+
+### New 3-Step Flow
+Replaced old Welcome → Pick Your Scene → Join Community flow with: Pick Your Scene → Find Yourself → Your Scene at a Glance. Step 1 promoted from old Step 2 (map is the hero). Step 2 is new player search. Step 3 shows scene stats and optional rank.
+
+### Player Search (Step 2)
+Three-tier search: exact Bandai ID match → exact name match → fuzzy pg_trgm similarity (threshold 0.3). All queries JOIN `player_ratings_cache` for competitive_rating. Key schema discovery: `competitive_rating` lives on `player_ratings_cache`, not `players` table.
+
+### Scene Stats (Step 3)
+Single CTE query scoped to last 30 days for all four stats (tournaments, active players, trending deck, rising star). Added `display_card_id` to trending deck subquery to show card art inline. Stat cards match dashboard `value-box-digital` pattern: navy gradient, grid overlay, color-coded left borders, circuit accents, inline Bootstrap Icons in labels.
+
+### Locale Fallback
+When user skips onboarding, JS sends `navigator.language` to R via `requestLocaleFallback` custom message handler. `locale_to_continent()` maps language subtags to continent slugs. Portuguese (`PT`) only maps to Europe (Brazilian Portuguese comes through as `BR`).
+
+### Player Identity Persistence
+`savePlayerIdentity` custom message handler persists `player_id` and `display_name` to localStorage (via DigilabStorage abstraction). Read back on `shiny:connected` alongside existing scene/continent keys.
+
+---
+
 ## 2026-03-23: Post-v1.9.0 UX Feedback — Submit Tab Design Pass
 
 ### Card Picker Rework
