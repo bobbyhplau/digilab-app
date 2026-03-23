@@ -767,9 +767,11 @@ observeEvent(input$onboarding_player_search_btn, {
   if (grepl("^\\d+$", clean_query)) {
     mn <- normalize_member_number(clean_query)
     player <- safe_query(db_pool,
-      "SELECT player_id, display_name, member_number, home_scene_id, competitive_rating
-       FROM players
-       WHERE member_number = $1 AND is_active IS NOT FALSE
+      "SELECT p.player_id, p.display_name, p.member_number, p.home_scene_id,
+              prc.competitive_rating
+       FROM players p
+       LEFT JOIN player_ratings_cache prc ON p.player_id = prc.player_id
+       WHERE p.member_number = $1 AND p.is_active IS NOT FALSE
        LIMIT 1",
       params = list(mn))
     if (nrow(player) == 0) player <- NULL
@@ -778,9 +780,11 @@ observeEvent(input$onboarding_player_search_btn, {
   # Fall back to name search
   if (is.null(player)) {
     player <- safe_query(db_pool,
-      "SELECT player_id, display_name, member_number, home_scene_id, competitive_rating
-       FROM players
-       WHERE LOWER(display_name) = LOWER($1) AND is_active IS NOT FALSE
+      "SELECT p.player_id, p.display_name, p.member_number, p.home_scene_id,
+              prc.competitive_rating
+       FROM players p
+       LEFT JOIN player_ratings_cache prc ON p.player_id = prc.player_id
+       WHERE LOWER(p.display_name) = LOWER($1) AND p.is_active IS NOT FALSE
        LIMIT 1",
       params = list(clean_query))
     if (nrow(player) == 0) player <- NULL
@@ -789,11 +793,13 @@ observeEvent(input$onboarding_player_search_btn, {
   # Fuzzy search if no exact match
   if (is.null(player) && nchar(clean_query) >= 3) {
     fuzzy <- safe_query(db_pool,
-      "SELECT player_id, display_name, member_number, home_scene_id, competitive_rating,
-              similarity(LOWER(display_name), LOWER($1)) AS sim
-       FROM players
-       WHERE similarity(LOWER(display_name), LOWER($1)) > 0.4
-         AND is_active IS NOT FALSE
+      "SELECT p.player_id, p.display_name, p.member_number, p.home_scene_id,
+              prc.competitive_rating,
+              similarity(LOWER(p.display_name), LOWER($1)) AS sim
+       FROM players p
+       LEFT JOIN player_ratings_cache prc ON p.player_id = prc.player_id
+       WHERE similarity(LOWER(p.display_name), LOWER($1)) > 0.4
+         AND p.is_active IS NOT FALSE
        ORDER BY sim DESC
        LIMIT 1",
       params = list(clean_query))
@@ -828,8 +834,11 @@ observeEvent(input$onboarding_player_search_btn, {
          SELECT
            (SELECT COUNT(*)
             FROM scene_players sp
+            JOIN player_ratings_cache prc ON sp.player_id = prc.player_id
             JOIN players p ON sp.player_id = p.player_id
-            WHERE p.competitive_rating > (SELECT competitive_rating FROM players WHERE player_id = $1)
+            WHERE prc.competitive_rating > (
+              SELECT prc2.competitive_rating FROM player_ratings_cache prc2
+              WHERE prc2.player_id = $1)
               AND p.is_active IS NOT FALSE) + 1 AS rank,
            (SELECT COUNT(*) FROM scene_players) AS total,
            EXISTS (SELECT 1 FROM scene_players WHERE player_id = $1) AS in_scene",
@@ -987,7 +996,7 @@ output$onboarding_stats_grid <- renderUI({
   # Single query for all stats (CTE avoids repeating the join chain)
   combined_query <- sprintf(
     "WITH recent AS (
-       SELECT t.tournament_id, r.player_id, r.placement, r.deck_archetype_id
+       SELECT t.tournament_id, r.player_id, r.placement, r.archetype_id
        FROM tournaments t
        JOIN stores s ON t.store_id = s.store_id
        LEFT JOIN scenes sc ON s.scene_id = sc.scene_id
@@ -999,7 +1008,7 @@ output$onboarding_stats_grid <- renderUI({
        (SELECT COUNT(DISTINCT tournament_id) FROM recent) AS tournaments,
        (SELECT COUNT(DISTINCT player_id) FROM recent) AS active_players,
        (SELECT da.name FROM recent rc
-        JOIN deck_archetypes da ON rc.deck_archetype_id = da.archetype_id
+        JOIN deck_archetypes da ON rc.archetype_id = da.archetype_id
         WHERE LOWER(da.name) != 'unknown'
         GROUP BY da.name ORDER BY COUNT(*) DESC LIMIT 1) AS trending_deck,
        (SELECT p.display_name FROM recent rc
