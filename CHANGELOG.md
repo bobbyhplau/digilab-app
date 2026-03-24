@@ -26,6 +26,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **JS event handler re-binding**: Consolidated grid event handlers into single one-time binding with delegated events.
 - **Ambiguous opponent submission**: Submit now blocked if unresolved ambiguous/similar opponents exist, with warning directing users to resolve them first.
 - **Silent error swallowing on match insert**: Only duplicate constraint violations are caught silently; other DB errors now properly trigger rollback and error notification.
+- **Scene admin empty player list and broken merge** (DIGILAB-SHINY-6H): RPostgres passes integer vectors as scalars, but PostgreSQL `ANY($1::int[])` expects array literal format. Added `pg_array()` helper to format R vectors as `{1,2,3}`. All scene_admin and regional_admin queries were silently failing and returning empty results.
+- **Admin store list unscoped for non-superadmins**: Scene admins and regional admins could see all stores in the Manage Stores tab. Now filtered by accessible scene IDs.
+- **Missing value where TRUE/FALSE needed** (DIGILAB-SHINY-6M, 156 events): Scene/continent reactive values could be `NA`, causing `if(NA)` crashes in `build_filters_param()` and `build_mv_filters()`. Added `!is.na()` and `isTRUE()` guards.
+- **Duplicate key on player member_number** (DIGILAB-SHINY-6H, 57 events): SELECT-then-INSERT race condition on player creation. Added lookup-before-insert pattern in submit-shared and submit-match.
+- **Duplicate column merge crash** (DIGILAB-SHINY-83): `safe_query` could return duplicate column names, causing `merge()` to fail with "'by' must specify a uniquely valid column". Added defensive column deduplication before merge in rising stars.
+- **Empty tournament history crash** (DIGILAB-SHINY-6X): `sapply(seq_len(nrow(result)))` on a 0-row dataframe after `format_event_type` transform. Added `nrow()` guard.
+- **Match-by-match transaction abort**: PostgreSQL transaction poisoned by caught duplicate match error. Added SAVEPOINT/ROLLBACK TO SAVEPOINT pattern so subsequent inserts in the same transaction succeed.
+- **OCR OBANDAI noise**: Google Cloud Vision merges `©BANDAI` into `OBANDAI` token. Added to noise filter list.
+- **Meta filters not conjunctive**: "Top 3 Only" + "Has Decklist" applied independently — showed archetypes with any top-3 AND any decklist, not archetypes where a top-3 result has a decklist. Now queries with both conditions on the same result row. Same fix in deck profile modal.
 
 ## [1.9.0] - 2026-03-23 - Unified Submit Results Tab
 

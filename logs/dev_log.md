@@ -4,6 +4,22 @@ This log tracks development decisions, blockers, and technical notes for DigiLab
 
 ---
 
+## 2026-03-23: Sentry Error Review & Scene Admin Bug Fixes
+
+### PostgreSQL Array Parameter Bug (pg_array)
+Root cause of scene admins seeing empty player lists, broken merge, and broken notification counts. RPostgres sends parameters as text — `as.integer(c(12))` becomes `"12"`, but PostgreSQL's `ANY($1::int[])` expects array literal `"{12}"`. Created `pg_array()` helper in `R/safe_db.R` that formats vectors as `{1,2,3}`. Fixed 5 call sites across admin-players, shared-server, and admin-notifications. The submit-shared and admin-tournaments files already used manual `paste0("{", ...)` formatting. Super admins were unaffected because `get_admin_accessible_scene_ids()` returns NULL for them, skipping the array branch entirely.
+
+### Sentry Top Errors (230+ events)
+Fixed 4 high-volume issues: (1) NA scene/continent values causing `if(NA)` crashes — added `isTRUE()` guards in filter builders, (2) duplicate key on player member_number — added lookup-before-insert, (3) duplicate column names from safe_query breaking merge() — added deduplication, (4) sapply on empty dataframe in tournament history — added nrow() guard.
+
+### Match-by-Match Transaction Abort
+PostgreSQL transactions are all-or-nothing — once any query fails, all subsequent queries fail until ROLLBACK. The match INSERT tryCatch caught duplicate errors but left the transaction poisoned. Fix: SAVEPOINT before each match INSERT, ROLLBACK TO SAVEPOINT on error.
+
+### Meta Filter Conjunction Bug
+"Top 3 Only" and "Has Decklist" were applied as independent archetype-level checks rather than row-level conjunction. An archetype qualified by having any top-3 from one tournament and any decklist from another. Fixed by combining into single subquery with both conditions on same result row.
+
+---
+
 ## 2026-03-23: Onboarding Modal Redesign
 
 ### New 3-Step Flow
