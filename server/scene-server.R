@@ -1379,16 +1379,21 @@ version_changelog_content <- function() {
       ),
       div(class = "version-changelog-item",
         bsicons::bs_icon("controller", class = "text-success"),
-        span("Match-by-Match redesign — look up by Bandai ID, select a tournament, and upload your match history")
+        span(HTML("Match-by-Match results — <strong>anyone</strong> can upload match history by Bandai ID. This unlocks deck matchup stats and better ratings down the road!"))
       ),
       div(class = "version-changelog-item",
         bsicons::bs_icon("link-45deg", class = "text-info"),
-        span("Add Decklists — look up tournaments by Bandai ID and submit decklist URLs retroactively")
+        span(HTML("Add Decklists — <strong>anyone</strong> can attach decklist URLs to past tournaments. In-app decklist viewer coming soon!"))
       ),
       div(class = "version-changelog-item",
         bsicons::bs_icon("pencil-square", class = "text-danger"),
         span("Editable placements, tied placements, and dynamic Add Player grid")
       )
+    ),
+    div(class = "version-changelog-support mt-3 pt-3",
+      style = "border-top: 1px solid rgba(255,255,255,0.1);",
+      p(class = "small mb-0", style = "opacity: 0.7;",
+        HTML("DigiLab is growing and so are hosting costs! If you find the app useful, consider supporting via the Ko-fi link below."))
     )
   )
 }
