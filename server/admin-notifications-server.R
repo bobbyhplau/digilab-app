@@ -29,7 +29,7 @@ get_pending_request_counts <- function(pool, scene_id, is_superadmin, admin_user
       FROM admin_requests
       WHERE status = 'pending' AND scene_id = ANY($1::int[])
       GROUP BY request_type
-    ", params = list(as.integer(regional_scene_ids)), default = data.frame(request_type = character(), n = integer()))
+    ", params = list(pg_array(regional_scene_ids)), default = data.frame(request_type = character(), n = integer()))
   } else {
     counts <- safe_query(pool, "
       SELECT request_type, COUNT(*) as n
@@ -101,7 +101,7 @@ get_pending_request_counts <- function(pool, scene_id, is_superadmin, admin_user
               WHERE r3.player_id = loc.player_id AND s3.scene_id = ANY($1::int[])
             )
           )
-      ", params = list(as.integer(regional_scene_ids)), default = data.frame(n = 0))
+      ", params = list(pg_array(regional_scene_ids)), default = data.frame(n = 0))
       type_counts$suggested_merge <- merge_count$n[1]
     } else {
       type_counts$suggested_merge <- 0
@@ -123,7 +123,7 @@ get_pending_request_counts <- function(pool, scene_id, is_superadmin, admin_user
       SELECT COUNT(*) as n FROM stores s
       WHERE s.is_active = TRUE AND s.is_online = FALSE AND s.scene_id = ANY($1::int[])
         AND NOT EXISTS (SELECT 1 FROM store_schedules ss WHERE ss.store_id = s.store_id AND ss.is_active = TRUE)
-    ", params = list(as.integer(regional_scene_ids)), default = data.frame(n = 0))
+    ", params = list(pg_array(regional_scene_ids)), default = data.frame(n = 0))
     type_counts$missing_schedule <- missing$n[1]
   } else {
     missing <- safe_query(pool, "

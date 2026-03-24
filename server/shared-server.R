@@ -1361,7 +1361,7 @@ get_player_choices <- function(pool, scene_ids = NULL) {
           WHERE r.player_id = p.player_id AND s.scene_id = ANY($1::int[])
         )
       ORDER BY display_name
-    ", params = list(as.integer(scene_ids)), default = data.frame())
+    ", params = list(pg_array(scene_ids)), default = data.frame())
   }
   choices <- setNames(players$player_id, players$display_name)
   return(choices)
