@@ -123,13 +123,13 @@ meta_archetype_data <- reactive({
   # Calculate Conv % (conversion rate: Top 3s / Entries)
   result$`Conv %` <- round(result$`Top 3s` * 100 / result$Entries, 1)
 
-  # Advanced filters: top 3 only
-  if (isTRUE(input$meta_top3_toggle) && nrow(result) > 0) {
-    result <- result[result$`Top 3s` > 0, ]
-  }
+  # Advanced filters: top 3 only + has decklist
 
-  # Advanced filters: has decklist (scoped to current scene/format)
-  if (isTRUE(input$meta_decklist_toggle) && nrow(result) > 0) {
+  # Build scene/store filters for decklist subquery (shared by decklist-only and combined filter)
+  want_top3 <- isTRUE(input$meta_top3_toggle)
+  want_decklist <- isTRUE(input$meta_decklist_toggle)
+
+  if ((want_top3 || want_decklist) && nrow(result) > 0) {
     dl_filters <- build_filters_param(
       table_alias = "t",
       format = input$meta_format,
@@ -139,22 +139,27 @@ meta_archetype_data <- reactive({
       store_alias = "s",
       start_idx = 1
     )
-    # Apply store filter to decklist check too
     dl_store <- input$meta_store_filter %||% ""
     if (nchar(dl_store) > 0) {
       dl_idx <- dl_filters$next_idx
       dl_filters$sql <- paste0(dl_filters$sql, sprintf(" AND s.slug = $%d", dl_idx))
       dl_filters$params <- c(dl_filters$params, list(dl_store))
     }
-    decklist_arch_ids <- safe_query(db_pool, sprintf(
+
+    # Build WHERE conditions based on which filters are active
+    extra_conditions <- ""
+    if (want_top3) extra_conditions <- paste0(extra_conditions, " AND r.placement <= 3")
+    if (want_decklist) extra_conditions <- paste0(extra_conditions, " AND r.decklist_url IS NOT NULL AND r.decklist_url != ''")
+
+    matching_arch_ids <- safe_query(db_pool, sprintf(
       "SELECT DISTINCT r.archetype_id FROM results r
        JOIN tournaments t ON r.tournament_id = t.tournament_id
        JOIN stores s ON t.store_id = s.store_id
-       WHERE r.decklist_url IS NOT NULL AND r.decklist_url != '' %s",
-      dl_filters$sql),
+       WHERE 1=1 %s %s",
+      extra_conditions, dl_filters$sql),
       params = dl_filters$params,
       default = data.frame(archetype_id = integer()))
-    result <- result[result$archetype_id %in% decklist_arch_ids$archetype_id, ]
+    result <- result[result$archetype_id %in% matching_arch_ids$archetype_id, ]
   }
 
   # Advanced filters: conversion rate minimum
@@ -462,12 +467,12 @@ output$deck_detail_modal <- renderUI({
     LIMIT 200
   ", scene_filters$sql), params = c(list(archetype_id), scene_filters$params), default = data.frame())
 
-  # Apply advanced filters to modal results
-  if (isTRUE(input$meta_top3_toggle) && nrow(recent_results) > 0) {
-    recent_results <- recent_results[recent_results$Place <= 3, ]
-  }
-  if (isTRUE(input$meta_decklist_toggle) && nrow(recent_results) > 0) {
-    recent_results <- recent_results[!is.na(recent_results$decklist_url) & recent_results$decklist_url != "", ]
+  # Apply advanced filters to modal results (conjunctive — both conditions on same row)
+  if (nrow(recent_results) > 0) {
+    keep <- rep(TRUE, nrow(recent_results))
+    if (isTRUE(input$meta_top3_toggle)) keep <- keep & recent_results$Place <= 3
+    if (isTRUE(input$meta_decklist_toggle)) keep <- keep & !is.na(recent_results$decklist_url) & recent_results$decklist_url != ""
+    recent_results <- recent_results[keep, ]
   }
 
   # Card image URL

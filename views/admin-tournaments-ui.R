@@ -125,6 +125,11 @@ admin_tournaments_ui <- tagList(
           div(
             class = "d-flex align-items-center gap-2",
             uiOutput("edit_filled_count", inline = TRUE),
+            div(class = "form-check form-check-inline ms-2 mb-0",
+              tags$input(type = "checkbox", class = "form-check-input", id = "edit_wlt_override",
+                         onchange = "Shiny.setInputValue('edit_wlt_override', this.checked, {priority: 'event'})"),
+              tags$label(class = "form-check-label small", `for` = "edit_wlt_override", "Show W/L/T")
+            ),
             actionButton("edit_paste_btn", "Paste from Spreadsheet",
                          class = "btn-sm btn-outline-primary",
                          icon = icon("clipboard"))

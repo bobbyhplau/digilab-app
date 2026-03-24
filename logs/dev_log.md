@@ -4,6 +4,60 @@ This log tracks development decisions, blockers, and technical notes for DigiLab
 
 ---
 
+## 2026-03-23: Sentry Error Review & Scene Admin Bug Fixes
+
+### PostgreSQL Array Parameter Bug (pg_array)
+Root cause of scene admins seeing empty player lists, broken merge, and broken notification counts. RPostgres sends parameters as text — `as.integer(c(12))` becomes `"12"`, but PostgreSQL's `ANY($1::int[])` expects array literal `"{12}"`. Created `pg_array()` helper in `R/safe_db.R` that formats vectors as `{1,2,3}`. Fixed 5 call sites across admin-players, shared-server, and admin-notifications. The submit-shared and admin-tournaments files already used manual `paste0("{", ...)` formatting. Super admins were unaffected because `get_admin_accessible_scene_ids()` returns NULL for them, skipping the array branch entirely.
+
+### Sentry Top Errors (230+ events)
+Fixed 4 high-volume issues: (1) NA scene/continent values causing `if(NA)` crashes — added `isTRUE()` guards in filter builders, (2) duplicate key on player member_number — added lookup-before-insert, (3) duplicate column names from safe_query breaking merge() — added deduplication, (4) sapply on empty dataframe in tournament history — added nrow() guard.
+
+### Match-by-Match Transaction Abort
+PostgreSQL transactions are all-or-nothing — once any query fails, all subsequent queries fail until ROLLBACK. The match INSERT tryCatch caught duplicate errors but left the transaction poisoned. Fix: SAVEPOINT before each match INSERT, ROLLBACK TO SAVEPOINT on error.
+
+### Meta Filter Conjunction Bug
+"Top 3 Only" and "Has Decklist" were applied as independent archetype-level checks rather than row-level conjunction. An archetype qualified by having any top-3 from one tournament and any decklist from another. Fixed by combining into single subquery with both conditions on same result row.
+
+---
+
+## 2026-03-23: Onboarding Modal Redesign
+
+### New 3-Step Flow
+Replaced old Welcome → Pick Your Scene → Join Community flow with: Pick Your Scene → Find Yourself → Your Scene at a Glance. Step 1 promoted from old Step 2 (map is the hero). Step 2 is new player search. Step 3 shows scene stats and optional rank.
+
+### Player Search (Step 2)
+Three-tier search: exact Bandai ID match → exact name match → fuzzy pg_trgm similarity (threshold 0.3). All queries JOIN `player_ratings_cache` for competitive_rating. Key schema discovery: `competitive_rating` lives on `player_ratings_cache`, not `players` table.
+
+### Scene Stats (Step 3)
+Single CTE query scoped to last 30 days for all four stats (tournaments, active players, trending deck, rising star). Added `display_card_id` to trending deck subquery to show card art inline. Stat cards match dashboard `value-box-digital` pattern: navy gradient, grid overlay, color-coded left borders, circuit accents, inline Bootstrap Icons in labels.
+
+### Locale Fallback
+When user skips onboarding, JS sends `navigator.language` to R via `requestLocaleFallback` custom message handler. `locale_to_continent()` maps language subtags to continent slugs. Portuguese (`PT`) only maps to Europe (Brazilian Portuguese comes through as `BR`).
+
+### Player Identity Persistence
+`savePlayerIdentity` custom message handler persists `player_id` and `display_name` to localStorage (via DigilabStorage abstraction). Read back on `shiny:connected` alongside existing scene/continent keys.
+
+---
+
+## 2026-03-23: Post-v1.9.0 UX Feedback — Submit Tab Design Pass
+
+### Card Picker Rework
+Consolidated Paste + Manual Entry into single "Manual Entry" card. Original `layout_columns` approach left gaps when `conditionalPanel` hid admin cards (wrapper divs still in DOM). Switched to CSS flex — hidden panels have `display: none` so flex skips them. Cards now always 2-per-row at `max-width: 720px`, odd last card centered.
+
+### Match-by-Match Flow Rewrite
+Old flow: select store → select tournament → enter username + member number → upload screenshot. New flow mirrors the decklist standalone pattern: enter Bandai ID → see tournament history → select tournament → upload screenshot. Key simplification: `player_id` comes from lookup, no manual identity entry. Added `sr_match_player`, `sr_match_tournaments`, `sr_match_selected_tournament` reactive values.
+
+### Grid Placement Auto-Reorder
+Added `blur` event handler on `sr_placement_*` inputs that syncs grid data, validates placements, and sorts. Critical subtlety: `rv$sr_player_matches` (keyed by row number strings) must be remapped after row reorder or match badges follow wrong players. Used `change` event initially but it fired on every spinner click — switched to `blur` so it waits for user to finish editing.
+
+### Design Pass — Internal Pages
+Created shared CSS classes for both Match-by-Match and Add Decklists flows: `.sr-tournament-item` (tournament list with body-color text), `.sr-player-found` (brand-consistent blue/cyan banner), `.sr-selected-tournament` (blue left-border), `.sr-lookup-row` (flexbox input+button alignment), `.sr-form-hint` (scanner-pattern hint boxes matching admin panels). Key fix: `actionLink` renders `<a>` tags that inherited the theme's orange link color — overrode with `color: var(--bs-body-color)`.
+
+### Next: Match Auto-Fill Enhancement
+Planning 3-layer auto-fill for match-by-match flow: (1) match OCR opponents against tournament participants from `results` table, (2) pre-fill scores from other players' prior submissions in `matches` table, (3) `match_player()` fuzzy matching with colored status indicators.
+
+---
+
 ## 2026-03-23: v1.7.8 — Admin Scene Scoping & Merge Fix
 
 ### Scene Scoping for Store Management

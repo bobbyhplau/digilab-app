@@ -8,6 +8,17 @@
 # and add session-level Sentry context tags.
 # =============================================================================
 
+#' Format an R vector as a PostgreSQL array literal string.
+#'
+#' RPostgres sends parameters as text, but PostgreSQL's ANY($1::int[]) expects
+#' array literal format like "{1,2,3}". This helper bridges the gap.
+#'
+#' @param x Integer or character vector
+#' @return Character string in PostgreSQL array literal format, e.g. "{1,2,3}"
+pg_array <- function(x) {
+  paste0("{", paste(x, collapse = ","), "}")
+}
+
 #' Helper to detect retryable connection pool / prepared statement errors
 #' @param msg Character. Error message string to check
 #' @return TRUE if the error is a retryable prepared statement error

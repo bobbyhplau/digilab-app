@@ -5,6 +5,63 @@ All notable changes to DigiLab will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Added
+- **Onboarding redesign**: New 3-step flow — Pick Your Scene (interactive map + geolocation + scene buttons), Find Yourself (player search by Bandai ID or name with fuzzy matching via pg_trgm), Your Scene at a Glance (30-day stats grid with dashboard-style value boxes, trending deck card image, rank banner). Player identity persisted to localStorage for future sessions.
+- **Match-by-match auto-fill**: 3-layer opponent matching — tournament participants (exact member/name), prior match score pre-fill (flipped W/L from opponent's submissions), and `match_player()` fuzzy matching via pg_trgm. Match indicators (Matched/Ambiguous/Similar/New) shown on review grid.
+- **Match-by-match wizard steps**: 2-step flow (Upload Screenshot → Review & Submit) with step indicators, replacing scroll-to-discover pattern.
+- **Match review grid**: Tournament summary bar, match summary badges, player matching explanation — matching the upload results grid's layout and styling.
+- **Edit Tournaments grid parity**: Admin Edit Results grid now has editable placements with auto-reorder, Add Player button, tied placements support, and Show W/L/T override toggle — matching the Submit Results grid.
+
+### Changed
+- **Card picker redesign**: Consolidated Paste + Manual Entry into single "Manual Entry" card. Reordered cards for better flow. Digital scanner styling (navy/blue gradient, grid overlay, cyan border). Coming Soon card styled as muted scanner variant.
+- **Match-by-Match redesign**: Replaced store/tournament dropdown pattern with Bandai ID lookup → tournament history → screenshot upload (mirrors decklist flow). Removed manual username/member number inputs — player identity comes from lookup.
+- **Label parity**: Card titles match page headers across all flows ("Match-by-Match" → "Match-by-Match Results", etc.).
+- **Design pass on internal pages**: Custom tournament list styling (de-oranged text), scanner-pattern hint boxes, Player Found banner with home scene, selected tournament banners with blue left-border, aligned lookup/save buttons.
+- **Match indicator positioning**: Round column uses same `upload-result-placement` pattern as upload grid for consistent badge placement above the row.
+
+### Fixed
+- **Grid auto-reorder on placement change**: Editing a placement number and tabbing out now auto-sorts the grid. Player match badges and all row data follow the reorder correctly.
+- **Card picker layout gaps**: Hidden admin cards no longer leave blank spaces for public users (switched from `layout_columns` to CSS flex).
+- **JS event handler re-binding**: Consolidated grid event handlers into single one-time binding with delegated events.
+- **Ambiguous opponent submission**: Submit now blocked if unresolved ambiguous/similar opponents exist, with warning directing users to resolve them first.
+- **Silent error swallowing on match insert**: Only duplicate constraint violations are caught silently; other DB errors now properly trigger rollback and error notification.
+- **Scene admin empty player list and broken merge** (DIGILAB-SHINY-6H): RPostgres passes integer vectors as scalars, but PostgreSQL `ANY($1::int[])` expects array literal format. Added `pg_array()` helper to format R vectors as `{1,2,3}`. All scene_admin and regional_admin queries were silently failing and returning empty results.
+- **Admin store list unscoped for non-superadmins**: Scene admins and regional admins could see all stores in the Manage Stores tab. Now filtered by accessible scene IDs.
+- **Missing value where TRUE/FALSE needed** (DIGILAB-SHINY-6M, 156 events): Scene/continent reactive values could be `NA`, causing `if(NA)` crashes in `build_filters_param()` and `build_mv_filters()`. Added `!is.na()` and `isTRUE()` guards.
+- **Duplicate key on player member_number** (DIGILAB-SHINY-6H, 57 events): SELECT-then-INSERT race condition on player creation. Added lookup-before-insert pattern in submit-shared and submit-match.
+- **Duplicate column merge crash** (DIGILAB-SHINY-83): `safe_query` could return duplicate column names, causing `merge()` to fail with "'by' must specify a uniquely valid column". Added defensive column deduplication before merge in rising stars.
+- **Empty tournament history crash** (DIGILAB-SHINY-6X): `sapply(seq_len(nrow(result)))` on a 0-row dataframe after `format_event_type` transform. Added `nrow()` guard.
+- **Match-by-match transaction abort**: PostgreSQL transaction poisoned by caught duplicate match error. Added SAVEPOINT/ROLLBACK TO SAVEPOINT pattern so subsequent inserts in the same transaction succeed.
+- **OCR OBANDAI noise**: Google Cloud Vision merges `©BANDAI` into `OBANDAI` token. Added to noise filter list.
+- **Meta filters not conjunctive**: "Top 3 Only" + "Has Decklist" applied independently — showed archetypes with any top-3 AND any decklist, not archetypes where a top-3 result has a decklist. Now queries with both conditions on the same result row. Same fix in deck profile modal.
+
+## [1.9.0] - 2026-03-23 - Unified Submit Results Tab
+
+### Added
+- **Unified Submit Results tab**: Consolidated public "Upload Results" and admin "Enter Results" into a single tab with a card-picker landing page. All entry methods accessible from one location.
+- **Card picker**: 6 method cards — Bandai TCG+ Upload (everyone), Paste from Spreadsheet (admin), Manual Entry (admin), Match-by-Match (everyone), Add Decklists (everyone), Match Results CSV (admin, coming soon).
+- **Standalone decklist submission**: New "Add Decklists" flow — look up tournaments by Bandai Member ID and add decklist URLs retroactively.
+- **Editable placement**: Grid placement column is now a numeric input instead of a static badge, allowing users to fix OCR misplacements.
+- **Tied placements**: Multiple players can share the same placement (e.g., 1, 2, 2, 4). Auto-adjusts downstream placements.
+- **Add Player button**: Dynamic grid — append blank rows instead of pre-allocating 128 fixed rows.
+- **W/L/T override toggle**: Admin-only toggle to show W/L/T columns alongside Points for tournaments in points mode, solving ambiguous derivation (e.g., 3 pts could be 1W-0L-0T or 0W-0L-3T).
+- **CSV deck URL extraction**: Bandai TCG+ CSV `Deck URLs` column is now parsed and pre-filled in Step 3.
+- **Paste enhancements**: Header row auto-detection, Name+MemberID+Points and Name+MemberID+W/L/T format support.
+
+### Changed
+- **Tab navigation**: "Upload Results" (public) and "Enter Results" (admin) sidebar links replaced by "Submit Results" in both sections, pointing to the same unified tab.
+- **Server architecture**: Split into 5 focused modules (submit-shared, submit-upload, submit-match, submit-decklist, submit-grid) replacing 2 monolithic files.
+- **Input ID prefix**: Unified `sr_` prefix replaces split `submit_`/`admin_` prefixes.
+- **Grid rendering**: `render_grid_ui()` and `sync_grid_inputs()` enhanced with backward-compatible params for placement editing, add-player, and W/L/T override.
+
+### Removed
+- `views/submit-ui.R` — replaced by `views/submit-results-ui.R`
+- `views/admin-results-ui.R` — replaced by `views/submit-results-ui.R`
+- `server/public-submit-server.R` — split into submit-upload-server.R + submit-match-server.R
+- `server/admin-results-server.R` — split into submit-shared-server.R + submit-grid-server.R
+
 ## [1.7.8] - 2026-03-23 - Admin Scene Scoping & Merge Fix
 
 ### Fixed

@@ -27,21 +27,25 @@ The application uses a modular server architecture. All server logic is extracte
 
 ```
 server/
-├── shared-server.R            # Database, navigation, auth helpers
-├── public-dashboard-server.R  # Dashboard/Overview tab (889 lines)
-├── public-stores-server.R     # Stores tab with map (851 lines)
-├── public-players-server.R    # Players tab (364 lines)
-├── public-meta-server.R       # Meta analysis tab (305 lines)
-├── public-tournaments-server.R # Tournaments tab (237 lines)
-├── admin-results-server.R     # Tournament entry wizard
-├── admin-tournaments-server.R # Tournament management
-├── admin-decks-server.R       # Deck archetype CRUD
-├── admin-stores-server.R      # Store management
-├── admin-players-server.R     # Player management
-├── admin-formats-server.R     # Format management
-├── admin-users-server.R       # Admin account management (super + regional)
+├── shared-server.R              # Database, navigation, auth helpers
+├── public-dashboard-server.R    # Dashboard/Overview tab (889 lines)
+├── public-stores-server.R       # Stores tab with map (851 lines)
+├── public-players-server.R      # Players tab (364 lines)
+├── public-meta-server.R         # Meta analysis tab (305 lines)
+├── public-tournaments-server.R  # Tournaments tab (237 lines)
+├── submit-shared-server.R       # Submit Results: shared helpers (tournament lookup, grid utilities)
+├── submit-upload-server.R       # Submit Results: screenshot upload method (OCR, review grid)
+├── submit-match-server.R        # Submit Results: match history upload method
+├── submit-decklist-server.R     # Submit Results: decklist submission method
+├── submit-grid-server.R         # Submit Results: paste/manual grid (admin-only, lazy-loaded)
+├── admin-tournaments-server.R   # Tournament management
+├── admin-decks-server.R         # Deck archetype CRUD
+├── admin-stores-server.R        # Store management
+├── admin-players-server.R       # Player management
+├── admin-formats-server.R       # Format management
+├── admin-users-server.R         # Admin account management (super + regional)
 ├── admin-notifications-server.R # Notification bar + request queue
-└── admin-scenes-server.R      # Scene management
+└── admin-scenes-server.R        # Scene management
 ```
 
 ### Naming Convention
@@ -49,6 +53,7 @@ server/
 | Prefix | Purpose | Example |
 |--------|---------|---------|
 | `public-*` | Public-facing tabs (no auth required) | `public-players-server.R` |
+| `submit-*` | Submit Results tab (public methods always loaded; grid lazy-loaded for admin) | `submit-upload-server.R` |
 | `admin-*` | Admin tabs (requires `rv$is_admin` or `rv$is_superadmin`) | `admin-decks-server.R` |
 | `shared-*` | Shared utilities used by multiple modules | `shared-server.R` |
 
@@ -59,17 +64,24 @@ Admin modules use a two-stage lazy loading pattern to reduce startup overhead fo
 1. **UI stage:** Admin view files (`views/admin-*.R`) are NOT sourced at app startup. Instead, `nav_panel_hidden` panels contain `uiOutput()` placeholders.
 2. **Server stage:** When `rv$is_admin` becomes TRUE, an `observeEvent` sources both the admin view files and server modules, then renders the UI into the placeholders via `renderUI()`.
 
-```r
-# In app.R UI definition — lightweight placeholders
-nav_panel_hidden(value = "admin_results", uiOutput("admin_results_ui")),
+**Submit Results** uses a hybrid loading strategy: the public submit methods (`submit-shared-server.R`, `submit-upload-server.R`, `submit-match-server.R`, `submit-decklist-server.R`) and their UI (`views/submit-results-ui.R`) are always loaded (available to all users). The admin-only paste/manual grid (`submit-grid-server.R`) is lazy-loaded when `rv$is_admin` becomes TRUE.
 
-# In app.R server — lazy-loaded on auth
+```r
+# In app.R UI definition — unified submit tab (always loaded)
+nav_panel_hidden(value = "submit_results", uiOutput("submit_results_ui")),
+
+# In app.R server — public submit modules always loaded
+source("views/submit-results-ui.R", local = TRUE)
+source("server/submit-shared-server.R", local = TRUE)
+source("server/submit-upload-server.R", local = TRUE)
+source("server/submit-match-server.R", local = TRUE)
+source("server/submit-decklist-server.R", local = TRUE)
+
+# Admin-only grid lazy-loaded on auth
 observeEvent(rv$is_admin, {
   if (rv$is_admin && !admin_modules_loaded()) {
-    source("views/admin-results-ui.R", local = TRUE)   # defines admin_results_ui
-    output$admin_results_ui <- renderUI(admin_results_ui)
-    source("server/admin-results-server.R", local = TRUE)
-    # ... repeat for all 8 admin modules
+    source("server/submit-grid-server.R", local = TRUE)
+    # ... repeat for other admin modules
     admin_modules_loaded(TRUE)
   }
 }, ignoreInit = TRUE)
@@ -98,8 +110,8 @@ source("server/public-newfeature-server.R", local = TRUE)
 | Navigation observers | `server/shared-server.R` |
 | Auth logic | `server/shared-server.R` |
 | Tab-specific outputs/observers | `server/{prefix}-{tab}-server.R` |
-| Helper functions (pure) | `R/*.R` |
-| UI definitions | `views/*-ui.R` |
+| Helper functions (pure) | `R/*.R` (includes `admin_grid.R` with `render_grid_ui()`, `sync_grid_inputs()`, `validate_placements()`, `parse_paste_data()`) |
+| UI definitions | `views/*-ui.R` (includes `submit-results-ui.R` for unified submit tab) |
 
 ---
 
@@ -203,6 +215,10 @@ Pattern: `selected_{entity}_id` for single selection, `selected_{entity}_ids` fo
 | Name | Type | Description |
 |------|------|-------------|
 | `onboarding_step` | integer | Current step in onboarding carousel (1-3) |
+| `onboarding_player` | data.frame/NULL | Player record from Step 2 search (player_id, display_name, member_number) |
+| `onboarding_player_rating` | numeric/NULL | Competitive rating from player_ratings_cache for found player |
+| `onboarding_player_rank` | integer/NULL | Scene rank of found player (position among scene's rated players) |
+| `onboarding_player_record` | list/NULL | W/L/T record for found player (wins, losses, ties) |
 
 ### Form/Wizard State
 
@@ -218,36 +234,61 @@ Pattern: `selected_{entity}_id` for single selection, `selected_{entity}_ids` fo
 | `card_search_page` | integer | Current page in card search pagination |
 | `schedule_to_delete_id` | integer | Schedule ID pending delete confirmation |
 
-### Admin Grid State
+### Submit Results State (Unified)
 
-Declared at top of respective server files. All three grids use shared functions from `R/admin_grid.R`.
+All Submit Results methods share the `sr_*` prefix. Declared across `submit-shared-server.R`, `submit-upload-server.R`, `submit-match-server.R`, `submit-decklist-server.R`, and `submit-grid-server.R`. Grid functions live in `R/admin_grid.R`.
 
-**Enter Results** (prefix: `admin_`, declared in `admin-results-server.R`):
-
-| Name | Type | Description |
-|------|------|-------------|
-| `admin_grid_data` | data.frame | Grid rows for bulk result entry |
-| `admin_record_format` | string | "points" or "wlt" |
-| `admin_player_matches` | list | Player match status per row |
-| `admin_deck_request_row` | integer | Row requesting a new deck |
-| `admin_decklist_results` | data.frame | Results for post-submit decklist entry (Step 3) |
-| `admin_decklist_tournament_id` | integer | Tournament ID for decklist entry |
-
-**Upload Results** (prefix: `submit_`, declared in `public-submit-server.R`):
+**Core** (declared in `submit-shared-server.R`):
 
 | Name | Type | Description |
 |------|------|-------------|
-| `submit_grid_data` | data.frame | Grid rows for OCR review/edit |
-| `submit_player_matches` | list | Player match status per row |
-| `submit_ocr_row_indices` | integer[] | Row indices populated by OCR (for review mode CSS) |
-| `submit_ocr_results` | data.frame | Raw OCR results (synced from grid on submit) |
-| `submit_refresh_trigger` | integer | Refresh trigger for submit grid re-render |
-| `ocr_pending_combined` | data.frame | Pending OCR results awaiting quality confirmation |
-| `ocr_pending_total_players` | integer | Pending player count for quality check |
-| `ocr_pending_total_rounds` | integer | Pending round count for quality check |
-| `ocr_pending_parsed_count` | integer | Parsed player count for quality check |
-| `submit_decklist_results` | data.frame | Results for post-submit decklist entry (Step 3) |
-| `submit_decklist_tournament_id` | integer | Tournament ID for decklist entry |
+| `sr_active_method` | string | Active submission method ("upload", "match", "decklist", "grid") |
+| `sr_active_tournament_id` | integer | Tournament being submitted |
+| `sr_grid_data` | data.frame | Grid rows for result entry/review |
+| `sr_record_format` | string | "points" or "wlt" |
+| `sr_player_matches` | list | Player match status per row |
+| `sr_deck_request_row` | integer | Row requesting a new deck |
+| `sr_decklist_results` | data.frame | Results for post-submit decklist entry |
+| `sr_decklist_tournament_id` | integer | Tournament ID for decklist entry |
+| `sr_refresh_trigger` | integer | Refresh trigger for grid re-render |
+| `sr_wlt_override` | logical | Whether WLT columns override placement |
+
+**Upload method** (declared in `submit-upload-server.R`):
+
+| Name | Type | Description |
+|------|------|-------------|
+| `sr_ocr_results` | data.frame | Raw OCR results (synced from grid on submit) |
+| `sr_uploaded_files` | list | Uploaded screenshot file info |
+| `sr_parsed_count` | integer | Parsed player count from OCR |
+| `sr_total_players` | integer | Total expected players |
+| `sr_ocr_row_indices` | integer[] | Row indices populated by OCR (for review mode CSS) |
+| `sr_ocr_pending_combined` | data.frame | Pending OCR results awaiting quality confirmation |
+| `sr_ocr_pending_total_players` | integer | Pending player count for quality check |
+| `sr_ocr_pending_total_rounds` | integer | Pending round count for quality check |
+| `sr_ocr_pending_parsed_count` | integer | Parsed player count for quality check |
+| `sr_csv_deck_urls` | list | Deck URLs parsed from CSV upload |
+
+**Match history method** (declared in `submit-match-server.R`):
+
+| Name | Type | Description |
+|------|------|-------------|
+| `sr_match_player` | data.frame | Player record from Bandai ID lookup |
+| `sr_match_tournaments` | data.frame | Tournament history with match counts for looked-up player |
+| `sr_match_selected_tournament` | data.frame | Currently selected tournament for match submission |
+| `sr_match_candidates` | list | match_player() candidates keyed by row number (for resolution modal) |
+| `sr_match_ocr_results` | data.frame | OCR results enriched with auto-fill (opponent_player_id, match_status, autofill_source) |
+| `sr_match_uploaded_file` | list | Uploaded match history file info |
+| `sr_match_parsed_count` | integer | Parsed match count from OCR |
+| `sr_match_total_rounds` | integer | Total rounds detected |
+
+**Decklist method** (declared in `submit-decklist-server.R`):
+
+| Name | Type | Description |
+|------|------|-------------|
+| `sr_decklist_standalone_player` | integer | Player ID for standalone decklist submission |
+| `sr_decklist_standalone_tournaments` | data.frame | Available tournaments for standalone submission |
+| `sr_decklist_standalone_selected` | integer | Selected tournament for standalone submission |
+| `sr_decklist_standalone_results` | data.frame | Results for standalone decklist entry |
 
 **Edit Tournaments** (prefix: `edit_`, declared in `admin-tournaments-server.R`):
 
@@ -339,7 +380,8 @@ session$sendCustomMessage("updateSidebarNav", "nav_target_tab")
 | Players | `players` | `nav_players` |
 | Meta | `meta` | `nav_meta` |
 | Tournaments | `tournaments` | `nav_tournaments` |
-| Admin: Add Results | `admin_results` | `nav_admin_results` |
+| Submit Results (public) | `submit_results` | `nav_submit_results` |
+| Submit Results (admin) | `submit_results` | `nav_admin_submit_results` |
 | Admin: Tournaments | `admin_tournaments` | `nav_admin_tournaments` |
 | Admin: Decks | `admin_decks` | `nav_admin_decks` |
 | Admin: Stores | `admin_stores` | `nav_admin_stores` |
@@ -410,7 +452,7 @@ show_results_editor()
 
 On each page load, **one** modal may appear. Priority order:
 
-1. **Welcome modal** — first-time visitors (no `digilab_onboarding_complete` in storage)
+1. **Onboarding modal** — first-time visitors (no `digilab_onboarding_complete` in storage). 3-step flow: Pick Your Scene (map + geolocation), Find Yourself (player search by Bandai ID/name), Your Scene at a Glance (30-day stats + rank banner).
 2. **Announcement modal** — latest active, unexpired announcement the user hasn't seen (from `announcements` table)
 3. **Version changelog modal** — `APP_VERSION` differs from user's stored `digilab_last_seen_version`
 
@@ -515,7 +557,7 @@ tryCatch({
 })
 ```
 
-**Transaction locations:** Enter Results submit (`admin-results-server.R`), Edit Tournament save and Delete Tournament (`admin-tournaments-server.R`), Submit Results and Match History submit (`public-submit-server.R`), Materialized view refresh (`shared-server.R`).
+**Transaction locations:** Submit Results grid submit (`submit-grid-server.R`), Upload Results submit (`submit-upload-server.R`), Match History submit (`submit-match-server.R`), Edit Tournament save and Delete Tournament (`admin-tournaments-server.R`), Materialized view refresh (`shared-server.R`).
 
 Outside of transactions, `safe_execute()` remains the correct choice — it prevents one failed write from crashing the session.
 
@@ -847,7 +889,7 @@ rv$data_refresh <- (rv$data_refresh %||% 0) + 1
 # Show modal
 showModal(modalDialog(title = "Title", ..., footer = modalButton("Close")))
 
-# Check admin (Enter Results, Edit Tournaments, Edit Players, Edit Decks)
+# Check admin (Submit Results grid, Edit Tournaments, Edit Players, Edit Decks)
 req(rv$is_admin)
 
 # Check superadmin (Edit Stores, Edit Formats, Edit Scenes)

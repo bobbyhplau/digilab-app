@@ -30,7 +30,7 @@ output$suggested_merges_section <- renderUI({
         )
       )
     "
-    query_params <- list(as.integer(accessible))
+    query_params <- list(pg_array(accessible))
   }
 
   candidates <- safe_query(db_pool, sprintf("
@@ -251,7 +251,7 @@ output$player_list <- renderReactable({
         WHERE r2.player_id = p.player_id AND s2.scene_id = ANY($1::int[])
       )
     "
-    query_params <- c(query_params, list(as.integer(accessible)))
+    query_params <- c(query_params, list(pg_array(accessible)))
   } else if (!show_all && !is.null(scene) && scene != "" && scene != "all") {
     # Superadmin with a specific scene selected
     if (scene == "online") {

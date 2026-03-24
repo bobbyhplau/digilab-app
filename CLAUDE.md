@@ -32,7 +32,11 @@ digimon-tcg-standings/
 │   ├── public-meta-server.R       # Meta analysis tab
 │   ├── public-tournaments-server.R # Tournaments tab
 │   ├── public-stores-server.R     # Stores tab with map
-│   ├── admin-results-server.R     # Tournament entry wizard
+│   ├── submit-shared-server.R     # Unified submit: wizard, grid, player matching
+│   ├── submit-upload-server.R     # Submit: OCR + CSV upload
+│   ├── submit-match-server.R      # Submit: match-by-match history
+│   ├── submit-decklist-server.R   # Submit: standalone decklist URLs
+│   ├── submit-grid-server.R       # Submit: paste/manual (admin, lazy-loaded)
 │   ├── admin-tournaments-server.R # Tournament management
 │   ├── admin-decks-server.R       # Deck archetype CRUD
 │   ├── admin-stores-server.R      # Store management
@@ -44,13 +48,12 @@ digimon-tcg-standings/
 │   ├── players-ui.R         # Player standings
 │   ├── meta-ui.R            # Meta analysis
 │   ├── tournaments-ui.R     # Tournament history
-│   ├── submit-ui.R          # Public result submission form
+│   ├── submit-results-ui.R  # Unified submit results (card picker + wizard)
 │   ├── mobile-dashboard-ui.R  # Mobile dashboard (conditional render)
 │   ├── mobile-players-ui.R    # Mobile player cards
 │   ├── mobile-meta-ui.R       # Mobile deck archetype cards
 │   ├── mobile-tournaments-ui.R # Mobile tournament cards
 │   ├── mobile-stores-ui.R     # Mobile compact map + store cards
-│   ├── admin-results-ui.R   # Tournament entry form
 │   ├── admin-decks-ui.R     # Deck archetype management
 │   └── admin-stores-ui.R    # Store management
 ├── R/
@@ -95,9 +98,9 @@ The architecture doc contains:
 
 ## Current Work
 
-### Latest Release: v1.7.8 - Admin Scene Scoping & Merge Fix
+### Latest Release: v1.9.0 - Unified Submit Results Tab
 
-Fixed cascading bugs around duplicate player names in the same scene: ambiguous matches now block submission until resolved, edit grid distinguishes name corrections from player reassignment, and Edit Players allows duplicate names with a save-twice confirmation. Also fixed a `normalize_member_number` NA crash and broadened scene-scoped player matching. See `CHANGELOG.md` for full details.
+Consolidated public "Upload Results" and admin "Enter Results" tabs into a single unified "Submit Results" tab with a card-picker landing page. Six entry methods under one roof: Bandai TCG+ Upload, Paste from Spreadsheet, Manual Entry, Match-by-Match, Add Decklists, and Match Results CSV (coming soon). Grid UX improvements include editable placement, tied placements, dynamic Add Player button, and W/L/T override toggle. See `CHANGELOG.md` for full details.
 
 See `ROADMAP.md` for the full version plan.
 
@@ -105,6 +108,7 @@ See `ROADMAP.md` for the full version plan.
 
 | Version | Focus |
 |---------|-------|
+| v1.9.0 | Unified Submit Results Tab |
 | v1.7.8 | Admin Scene Scoping & Merge Fix |
 | v1.7.7 | Duplicate Player Name Fixes |
 | v1.7.6 | Country-Grouped Scene Dropdowns & Store Filters |
@@ -385,6 +389,6 @@ See `ARCHITECTURE.md` > CSS Architecture for full documentation.
 
 ## Current Version
 
-**v1.7.8** - Admin Scene Scoping & Merge Fix
+**v1.9.0** - Unified Submit Results Tab
 
 See `CHANGELOG.md` for full version history and `ROADMAP.md` for upcoming features.

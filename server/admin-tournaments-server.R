@@ -8,6 +8,7 @@ rv$edit_record_format <- "points"
 rv$edit_player_matches <- list()
 rv$edit_deleted_result_ids <- c()
 rv$edit_grid_tournament_id <- NULL
+rv$edit_wlt_override <- FALSE
 
 # Update edit form dropdowns when data changes
 # Only fires when on admin_tournaments tab (prevents race condition with lazy-loaded UI)
@@ -229,6 +230,8 @@ observeEvent(input$admin_tournament_list_clicked, {
   rv$edit_grid_data <- NULL
   rv$edit_player_matches <- list()
   rv$edit_grid_tournament_id <- NULL
+  rv$edit_wlt_override <- FALSE
+  shinyjs::runjs("var el = document.getElementById('edit_wlt_override'); if (el) el.checked = false;")
 
   notify(sprintf("Editing: %s - %s", tournament$store_name, tournament$event_date),
                    type = "message", duration = 2)
@@ -327,6 +330,8 @@ observeEvent(input$cancel_edit_tournament, {
   rv$edit_player_matches <- list()
   rv$edit_deleted_result_ids <- c()
   rv$edit_grid_tournament_id <- NULL
+  rv$edit_wlt_override <- FALSE
+  shinyjs::runjs("var el = document.getElementById('edit_wlt_override'); if (el) el.checked = false;")
 })
 
 # Helper function to reset form
@@ -411,6 +416,8 @@ observeEvent(input$confirm_delete_tournament, {
   rv$edit_player_matches <- list()
   rv$edit_deleted_result_ids <- c()
   rv$edit_grid_tournament_id <- NULL
+  rv$edit_wlt_override <- FALSE
+  shinyjs::runjs("var el = document.getElementById('edit_wlt_override'); if (el) el.checked = false;")
 
   # Trigger table refresh (admin + public tables)
   rv$tournament_refresh <- (rv$tournament_refresh %||% 0) + 1
@@ -504,7 +511,9 @@ output$edit_grid_table <- renderUI({
 
   deck_choices <- build_deck_choices(db_pool)
 
-  render_grid_ui(grid, record_format, is_release, deck_choices, rv$edit_player_matches, "edit_")
+  render_grid_ui(grid, record_format, is_release, deck_choices, rv$edit_player_matches, "edit_",
+                 placement_editable = TRUE, show_add_player_btn = TRUE,
+                 show_wlt_override = isTRUE(rv$edit_wlt_override))
 })
 
 # Edit grid summary bar
@@ -553,6 +562,8 @@ observeEvent(input$edit_grid_cancel, {
   rv$edit_player_matches <- list()
   rv$edit_deleted_result_ids <- c()
   rv$edit_grid_tournament_id <- NULL
+  rv$edit_wlt_override <- FALSE
+  shinyjs::runjs("var el = document.getElementById('edit_wlt_override'); if (el) el.checked = false;")
 })
 
 # =============================================================================
@@ -565,7 +576,8 @@ observeEvent(input$edit_delete_row, {
   row_idx <- as.integer(input$edit_delete_row)
   if (is.null(row_idx) || row_idx < 1 || row_idx > nrow(rv$edit_grid_data)) return()
 
-  rv$edit_grid_data <- sync_grid_inputs(input, rv$edit_grid_data, rv$edit_record_format %||% "points", "edit_")
+  rv$edit_grid_data <- sync_grid_inputs(input, rv$edit_grid_data, rv$edit_record_format %||% "points", "edit_",
+                                       placement_editable = TRUE, wlt_override = isTRUE(rv$edit_wlt_override))
   grid <- rv$edit_grid_data
 
   # Track deleted result_ids for DB deletion on save
@@ -601,7 +613,33 @@ observeEvent(input$edit_delete_row, {
   notify(paste0("Row removed. Players renumbered 1-", nrow(grid), "."), type = "message", duration = 3)
 })
 
-# Attach blur handlers for edit grid
+# Add Player button handler
+observeEvent(input$edit_add_player, {
+  req(rv$edit_grid_data)
+
+  rv$edit_grid_data <- sync_grid_inputs(input, rv$edit_grid_data, rv$edit_record_format %||% "points", "edit_",
+                                       placement_editable = TRUE, wlt_override = isTRUE(rv$edit_wlt_override))
+
+  new_placement <- nrow(rv$edit_grid_data) + 1L
+  blank_row <- data.frame(
+    placement = new_placement,
+    player_name = "", member_number = "",
+    points = 0L, wins = 0L, losses = 0L, ties = 0L,
+    deck_id = NA_integer_, match_status = "",
+    matched_player_id = NA_integer_,
+    matched_member_number = NA_character_,
+    result_id = NA_integer_,
+    stringsAsFactors = FALSE
+  )
+  rv$edit_grid_data <- rbind(rv$edit_grid_data, blank_row)
+})
+
+# W/L/T override toggle handler
+observeEvent(input$edit_wlt_override, {
+  rv$edit_wlt_override <- isTRUE(input$edit_wlt_override)
+})
+
+# Attach blur handlers for edit grid (player name + placement)
 observe({
   req(rv$edit_grid_data)
   shinyjs::runjs("
@@ -612,7 +650,41 @@ observe({
         Shiny.setInputValue('edit_player_blur', {row: rowNum, name: $(this).val(), ts: Date.now()}, {priority: 'event'});
       }
     });
+    $(document).off('blur.editPlacement').on('blur.editPlacement', 'input[id^=\"edit_placement_\"]', function() {
+      Shiny.setInputValue('edit_placement_blur', {ts: Date.now()}, {priority: 'event'});
+    });
   ")
+})
+
+# Placement auto-reorder on blur
+observeEvent(input$edit_placement_blur, {
+  req(rv$edit_grid_data)
+
+  grid <- sync_grid_inputs(input, rv$edit_grid_data, rv$edit_record_format %||% "points", "edit_",
+                           placement_editable = TRUE, wlt_override = isTRUE(rv$edit_wlt_override))
+  grid$placement <- validate_placements(grid$placement)
+
+  old_order <- seq_len(nrow(grid))
+  new_order <- order(grid$placement)
+
+  if (!identical(old_order, new_order)) {
+    grid <- grid[new_order, ]
+    rownames(grid) <- NULL
+
+    # Remap edit_player_matches keys to new row positions
+    old_matches <- rv$edit_player_matches
+    new_matches <- list()
+    for (new_idx in seq_along(new_order)) {
+      old_idx <- new_order[new_idx]
+      key <- as.character(old_idx)
+      if (!is.null(old_matches[[key]])) {
+        new_matches[[as.character(new_idx)]] <- old_matches[[key]]
+      }
+    }
+    rv$edit_player_matches <- new_matches
+  }
+
+  rv$edit_grid_data <- grid
 })
 
 observeEvent(input$edit_player_blur, {
@@ -625,7 +697,8 @@ observeEvent(input$edit_player_blur, {
   if (is.null(row_num) || is.na(row_num)) return()
   if (row_num < 1 || row_num > nrow(rv$edit_grid_data)) return()
 
-  rv$edit_grid_data <- sync_grid_inputs(input, rv$edit_grid_data, rv$edit_record_format %||% "points", "edit_")
+  rv$edit_grid_data <- sync_grid_inputs(input, rv$edit_grid_data, rv$edit_record_format %||% "points", "edit_",
+                                       placement_editable = TRUE, wlt_override = isTRUE(rv$edit_wlt_override))
 
   if (nchar(name) == 0) {
     rv$edit_player_matches[[as.character(row_num)]] <- NULL
@@ -929,7 +1002,8 @@ observeEvent(input$edit_paste_apply, {
     return()
   }
 
-  rv$edit_grid_data <- sync_grid_inputs(input, rv$edit_grid_data, rv$edit_record_format %||% "points", "edit_")
+  rv$edit_grid_data <- sync_grid_inputs(input, rv$edit_grid_data, rv$edit_record_format %||% "points", "edit_",
+                                       placement_editable = TRUE, wlt_override = isTRUE(rv$edit_wlt_override))
   grid <- rv$edit_grid_data
 
   all_decks <- safe_query(db_pool, "
@@ -1049,7 +1123,8 @@ observeEvent(input$edit_deck_request_submit, {
   removeModal()
 
   # Force grid re-render
-  rv$edit_grid_data <- sync_grid_inputs(input, rv$edit_grid_data, rv$edit_record_format %||% "points", "edit_")
+  rv$edit_grid_data <- sync_grid_inputs(input, rv$edit_grid_data, rv$edit_record_format %||% "points", "edit_",
+                                       placement_editable = TRUE, wlt_override = isTRUE(rv$edit_wlt_override))
   rv$edit_grid_data <- rv$edit_grid_data
 })
 
@@ -1060,7 +1135,8 @@ observeEvent(input$edit_deck_request_submit, {
 observeEvent(input$edit_grid_save, {
   req(rv$is_admin, db_pool, rv$edit_grid_tournament_id)
 
-  rv$edit_grid_data <- sync_grid_inputs(input, rv$edit_grid_data, rv$edit_record_format %||% "points", "edit_")
+  rv$edit_grid_data <- sync_grid_inputs(input, rv$edit_grid_data, rv$edit_record_format %||% "points", "edit_",
+                                       placement_editable = TRUE, wlt_override = isTRUE(rv$edit_wlt_override))
   grid <- rv$edit_grid_data
   record_format <- rv$edit_record_format %||% "points"
   tournament_id <- rv$edit_grid_tournament_id
@@ -1219,7 +1295,14 @@ observeEvent(input$edit_grid_save, {
         }
 
         # Convert record and store points
-        if (record_format == "points") {
+        wlt_override_active <- isTRUE(rv$edit_wlt_override) && record_format == "points"
+        if (wlt_override_active) {
+          # Use explicitly entered W/L/T values from override toggle
+          wins <- row$wins
+          losses <- row$losses
+          ties <- row$ties
+          pts <- as.integer((wins * 3L) + ties)
+        } else if (record_format == "points") {
           pts <- row$points
           wins <- pts %/% 3L
           ties <- pts %% 3L
@@ -1337,6 +1420,8 @@ observeEvent(input$edit_grid_save, {
     rv$edit_player_matches <- list()
     rv$edit_deleted_result_ids <- c()
     rv$edit_grid_tournament_id <- NULL
+    rv$edit_wlt_override <- FALSE
+    shinyjs::runjs("var el = document.getElementById('edit_wlt_override'); if (el) el.checked = false;")
 
     # Refresh the tournament list table
     rv$tournament_refresh <- (rv$tournament_refresh %||% 0) + 1
