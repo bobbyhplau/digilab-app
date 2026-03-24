@@ -230,6 +230,8 @@ observeEvent(input$admin_tournament_list_clicked, {
   rv$edit_grid_data <- NULL
   rv$edit_player_matches <- list()
   rv$edit_grid_tournament_id <- NULL
+  rv$edit_wlt_override <- FALSE
+  shinyjs::runjs("var el = document.getElementById('edit_wlt_override'); if (el) el.checked = false;")
 
   notify(sprintf("Editing: %s - %s", tournament$store_name, tournament$event_date),
                    type = "message", duration = 2)
@@ -328,6 +330,8 @@ observeEvent(input$cancel_edit_tournament, {
   rv$edit_player_matches <- list()
   rv$edit_deleted_result_ids <- c()
   rv$edit_grid_tournament_id <- NULL
+  rv$edit_wlt_override <- FALSE
+  shinyjs::runjs("var el = document.getElementById('edit_wlt_override'); if (el) el.checked = false;")
 })
 
 # Helper function to reset form
@@ -412,6 +416,8 @@ observeEvent(input$confirm_delete_tournament, {
   rv$edit_player_matches <- list()
   rv$edit_deleted_result_ids <- c()
   rv$edit_grid_tournament_id <- NULL
+  rv$edit_wlt_override <- FALSE
+  shinyjs::runjs("var el = document.getElementById('edit_wlt_override'); if (el) el.checked = false;")
 
   # Trigger table refresh (admin + public tables)
   rv$tournament_refresh <- (rv$tournament_refresh %||% 0) + 1
@@ -556,6 +562,8 @@ observeEvent(input$edit_grid_cancel, {
   rv$edit_player_matches <- list()
   rv$edit_deleted_result_ids <- c()
   rv$edit_grid_tournament_id <- NULL
+  rv$edit_wlt_override <- FALSE
+  shinyjs::runjs("var el = document.getElementById('edit_wlt_override'); if (el) el.checked = false;")
 })
 
 # =============================================================================
@@ -1287,7 +1295,14 @@ observeEvent(input$edit_grid_save, {
         }
 
         # Convert record and store points
-        if (record_format == "points") {
+        wlt_override_active <- isTRUE(rv$edit_wlt_override) && record_format == "points"
+        if (wlt_override_active) {
+          # Use explicitly entered W/L/T values from override toggle
+          wins <- row$wins
+          losses <- row$losses
+          ties <- row$ties
+          pts <- as.integer((wins * 3L) + ties)
+        } else if (record_format == "points") {
           pts <- row$points
           wins <- pts %/% 3L
           ties <- pts %% 3L
@@ -1405,6 +1420,8 @@ observeEvent(input$edit_grid_save, {
     rv$edit_player_matches <- list()
     rv$edit_deleted_result_ids <- c()
     rv$edit_grid_tournament_id <- NULL
+    rv$edit_wlt_override <- FALSE
+    shinyjs::runjs("var el = document.getElementById('edit_wlt_override'); if (el) el.checked = false;")
 
     # Refresh the tournament list table
     rv$tournament_refresh <- (rv$tournament_refresh %||% 0) + 1
