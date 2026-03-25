@@ -157,10 +157,8 @@ sr_complete_ocr_processing <- function(combined, total_players, total_rounds, pa
     username <- combined$username[i]
     if (is.null(username) || is.na(username) || nchar(trimws(username)) == 0) next
 
-    # Strip GUEST IDs before matching
-    is_guest_id <- !is.null(member_num) && !is.na(member_num) &&
-                   grepl("^GUEST\\d+$", member_num, ignore.case = TRUE)
-    if (is_guest_id) {
+    # Strip GUEST IDs and placeholder member numbers before matching
+    if (!is.null(member_num) && !is.na(member_num) && is_placeholder_member(member_num)) {
       combined$member_number[i] <- ""
       member_num <- ""
     }
@@ -175,7 +173,7 @@ sr_complete_ocr_processing <- function(combined, total_players, total_rounds, pa
       ", params = list(match_info$player_id), default = data.frame())
       if (nrow(player_info) > 0) {
         combined$matched_player_name[i] <- player_info$display_name[1]
-        if (is_guest_id && !is.na(player_info$member_number[1]) && nchar(player_info$member_number[1]) > 0) {
+        if (nchar(member_num) == 0 && !is.na(player_info$member_number[1]) && nchar(player_info$member_number[1]) > 0) {
           combined$member_number[i] <- player_info$member_number[1]
         }
       }

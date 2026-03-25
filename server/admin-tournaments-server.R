@@ -1273,20 +1273,21 @@ observeEvent(input$edit_grid_save, {
             if (match_info$status == "matched" || match_info$status == "ambiguous") {
               player_id <- if (match_info$status == "matched") match_info$player_id else match_info$candidates$player_id[1]
             } else {
-              has_real_id <- nchar(member_num) > 0 && !grepl("^GUEST", member_num, ignore.case = TRUE)
+              has_real_id <- has_real_member_number(member_num)
               identity_status <- if (has_real_id) "verified" else "unverified"
               clean_member <- if (has_real_id) member_num else NA_character_
+              auto_anon <- should_auto_anonymize(name, member_num)
               player_slug <- generate_unique_slug(db_pool, name)
               new_player <- DBI::dbGetQuery(conn,
-                "INSERT INTO players (display_name, slug, member_number, identity_status, home_scene_id) VALUES ($1, $2, $3, $4, $5) RETURNING player_id",
-                params = list(name, player_slug, clean_member, identity_status, scene_id))
+                "INSERT INTO players (display_name, slug, member_number, identity_status, home_scene_id, is_anonymized) VALUES ($1, $2, $3, $4, $5, $6) RETURNING player_id",
+                params = list(name, player_slug, clean_member, identity_status, scene_id, auto_anon))
               player_id <- new_player$player_id[1]
             }
           }
         }
 
         # Update member_number if provided and player doesn't have one yet; promote to verified
-        if (nchar(member_num) > 0 && !grepl("^GUEST", member_num, ignore.case = TRUE)) {
+        if (has_real_member_number(member_num)) {
           DBI::dbExecute(conn, "
             UPDATE players SET member_number = $1, identity_status = 'verified',
                    updated_at = CURRENT_TIMESTAMP, updated_by = $2

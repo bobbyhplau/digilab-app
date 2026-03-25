@@ -37,6 +37,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **OCR OBANDAI noise**: Google Cloud Vision merges `©BANDAI` into `OBANDAI` token. Added to noise filter list.
 - **Meta filters not conjunctive**: "Top 3 Only" + "Has Decklist" applied independently — showed archetypes with any top-3 AND any decklist, not archetypes where a top-3 result has a decklist. Now queries with both conditions on the same result row. Same fix in deck profile modal.
 
+## [1.9.1] - 2026-03-25 - Auto-Anonymize Guest & Placeholder Players
+
+### Added
+- **Auto-anonymize GUEST/placeholder players**: Players created with GUEST names or known placeholder Bandai IDs (`0000000000`, `0000099999`) are now automatically set to `is_anonymized = TRUE` on creation, hiding them from leaderboards and public views. Tournament results still count toward meta/store stats.
+- **`has_real_member_number()` helper**: Consolidated 4 inline variations of the "is this a real Bandai ID?" check into a single reusable function in `R/admin_grid.R`.
+- **`is_placeholder_member()` helper**: Detects GUEST IDs and known junk member numbers. Used across all submission flows and `match_player()`.
+- **`should_auto_anonymize()` helper**: Determines if a new player should be auto-anonymized based on name or member number.
+
+### Fixed
+- **Placeholder member numbers treated as real IDs**: Member numbers like `0000000000` and `0000099999` were accepted as valid Bandai IDs, causing players to be marked as "verified" and matched globally. Now rejected across all submission flows (upload, paste, manual entry, match-by-match, edit tournaments).
+- **`match_player()` matched on placeholder IDs**: A player with `0000000000` would match globally instead of falling through to scene-scoped name matching. Now skips placeholder member numbers.
+
 ## [1.9.0] - 2026-03-23 - Unified Submit Results Tab
 
 ### Added

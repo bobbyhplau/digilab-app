@@ -13,6 +13,33 @@ is_guest_member <- function(mn) {
   !is.null(mn) && !is.na(mn) && nchar(mn) > 0 && grepl("^GUEST", mn, ignore.case = TRUE)
 }
 
+# Known placeholder Bandai member numbers (junk data)
+PLACEHOLDER_MEMBER_NUMBERS <- c("0000000000", "0000099999")
+
+# Check if a member number is a placeholder (GUEST ID or known junk)
+is_placeholder_member <- function(mn) {
+  if (is.null(mn) || is.na(mn)) return(FALSE)
+  mn <- trimws(mn)
+  if (nchar(mn) == 0) return(FALSE)
+  is_guest_member(mn) || mn %in% PLACEHOLDER_MEMBER_NUMBERS
+}
+
+# Check if a member number is a real Bandai ID (not empty, not GUEST, not placeholder)
+has_real_member_number <- function(mn) {
+  !is.null(mn) && !is.na(mn) && nchar(trimws(mn)) > 0 && !is_placeholder_member(mn)
+}
+
+# Check if a player name indicates a guest/placeholder (auto-anonymize on creation)
+is_guest_name <- function(name) {
+  if (is.null(name) || is.na(name)) return(FALSE)
+  grepl("^GUEST$", trimws(name), ignore.case = TRUE)
+}
+
+# Check if a new player should be auto-anonymized
+should_auto_anonymize <- function(name, member_number = NULL) {
+  is_guest_name(name) || is_placeholder_member(member_number %||% "")
+}
+
 # Get the scene_id for a tournament's store
 get_tournament_scene_id <- function(pool_or_conn, tournament_id) {
   result <- tryCatch(
@@ -767,10 +794,10 @@ build_deck_choices <- function(con) {
 #   list(status="new")
 # -----------------------------------------------------------------------------
 match_player <- function(name, con, member_number = NULL, scene_id = NULL) {
-  # Step 1: Bandai ID match (global, definitive) — skip GUEST IDs
+  # Step 1: Bandai ID match (global, definitive) — skip GUEST/placeholder IDs
   if (!is.null(member_number) && !is.na(member_number) && nchar(trimws(member_number)) > 0) {
     mn <- normalize_member_number(member_number)
-    if (!is.na(mn) && !grepl("^GUEST", mn, ignore.case = TRUE)) {
+    if (!is.na(mn) && has_real_member_number(mn)) {
       member_match <- safe_query_impl(con, "
         SELECT player_id, display_name, member_number
         FROM players WHERE member_number = $1 AND is_active IS NOT FALSE
