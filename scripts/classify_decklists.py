@@ -120,6 +120,22 @@ CLASSIFICATION_RULES = [
     ("Gigaseadramon", ["GigaSeadramon", "MegaSeadramon", "Seadramon"], 3),
     ("Gigaseadramon", ["MetalSeadramon", "MegaSeadramon", "Seadramon"], 3),
 
+    # Hexeblaumon (Crabmon/Seadramon X line)
+    ("Hexeblaumon", ["Hexeblaumon", "Crabmon"], 2),
+    ("Hexeblaumon", ["Hexeblaumon", "Seadramon (X Antibody)"], 2),
+
+    # Ragnaloardmon (Spadamon/Ludomon/Zubamon line)
+    ("Ragnaloardmon", ["Spadamon", "Ludomon", "Zubamon"], 3),
+    ("Ragnaloardmon", ["Spadamon", "RagnaLoardmon ACE"], 2),
+    ("Ragnaloardmon", ["Ludomon", "BryweLudramon"], 2),
+    ("Ragnaloardmon", ["Zubamon", "Durandamon"], 2),
+
+    # Nyabootmon (Shoemon/Cendrillmon line)
+    ("Nyabootmon", ["Shoemon", "ShoeShoemon", "Cendrillmon"], 2),
+    ("Nyabootmon", ["Shoemon", "Chaperomon", "Cendrillmon"], 2),
+    ("Nyabootmon", ["Shoemon", "PawnChessmon", "ShoeShoemon"], 2),
+    ("Nyabootmon", ["Shoemon", "Junkmon", "Cendrillmon"], 2),
+
     # Hudiemon (includes Gotsumon) — MUST come before Shakkoumon
     # BT20 Hudiemon decks include Shakkoumon as tech
     ("Hudiemon", ["Hudiemon", "Wormmon", "Gotsumon"], 2),
@@ -135,6 +151,11 @@ CLASSIFICATION_RULES = [
     ("Galaxy", ["Lunamon", "Coronamon", "Apollomon"], 2),
     ("Galaxy", ["Lunamon", "Dianamon", "Galaxymon"], 2),
     ("Galaxy", ["Coronamon", "Apollomon", "Dianamon"], 2),
+
+    # SEEKERS (Loogamon without Fenriloogamon) — MUST come before Fenriloogamon
+    ("SEEKERS", ["Loogamon", "Ukkomon", "Gazimon"], 2),
+    ("SEEKERS", ["Loogamon", "Ukkomon", "Loogarmon"], 2),
+    ("SEEKERS", ["Loogamon", "Soloogarmon", "Helloogarmon"], 2),
 
     # Fenriloogamon
     ("Fenriloogamon", ["Fenriloogamon", "Cerberusmon", "Kazuchimon"], 2),
@@ -152,8 +173,17 @@ CLASSIFICATION_RULES = [
     ("Beelzemon", ["Beelzemon", "Impmon"], 2),
     ("Beelzemon", ["Beelzemon: Blast Mode"], 1),
 
+    # Guilmon Loop — MUST come before Gallantmon and Megidramon
+    ("Guilmon Loop", ["Guilmon", "BlackGrowlmon", "Growlmon"], 3),
+    ("Guilmon Loop", ["Guilmon", "Ghoulmon", "Lilithmon"], 2),
+
     # Gallantmon
     ("Gallantmon", ["Gallantmon", "Guilmon", "Growlmon"], 3),
+
+    # Eaters expansion — MUST come before generic Eaters rule
+    ("Eaters", ["Eater (Species Form)"], 1),
+    ("Eaters", ["Eater (Human Form)", "Eater Eve"], 2),
+    ("Eaters", ["Eater Adam", "Eater Eve"], 2),
 
     # Eaters — min=2 required: "Eater" substring matches "In-Between Theater"
     ("Eaters", ["Eater", "EDEN's Javelin"], 2),
@@ -212,6 +242,10 @@ CLASSIFICATION_RULES = [
     # UlforceVeedramon
     ("UlforceVeedramon", ["UlforceVeedramon", "AeroVeedramon"], 2),
 
+    # Metalgarurumon — MUST come before MagnaGarurumon and Gabu Bond
+    ("Metalgarurumon", ["Gabumon (X Antibody)", "WereGarurumon", "MetalGarurumon"], 2),
+    ("Metalgarurumon", ["Gabumon", "Garurumon (X Antibody)", "MetalGarurumon (X Antibody)"], 2),
+
     # MagnaGarurumon
     ("MagnaGarurumon", ["MagnaGarurumon", "Lobomon", "KendoGarurumon"], 2),
 
@@ -252,6 +286,10 @@ CLASSIFICATION_RULES = [
     # D-Brigade
     ("D-Brigade", ["Darkdramon", "Commandramon", "Sealsdramon"], 2),
 
+    # Gaiamon — MUST come before Appmon and Hunters
+    ("Gaiamon", ["Gaiamon", "Arresterdramon: Superior Mode"], 2),
+    ("Gaiamon", ["Gaiamon", "Arresterdramon", "Gatchmon"], 2),
+
     # Hunters
     ("Hunters", ["Arresterdramon", "Gumdramon"], 2),
 
@@ -285,6 +323,11 @@ CLASSIFICATION_RULES = [
 
     # Phoenixmon (Biyomon line)
     ("Phoenixmon", ["Phoenixmon", "Garudamon", "Birdramon", "Biyomon"], 3),
+
+    # ADVENTURE (partner Digimon mix) — after Phoenixmon to avoid misclassifying Biyomon-line decks
+    ("ADVENTURE", ["Biyomon", "Gomamon", "Palmon"], 2),
+    ("ADVENTURE", ["Birdramon", "Togemon", "Lillymon"], 2),
+    ("ADVENTURE", ["Biyomon", "Palmon", "Togemon"], 2),
 
     # Wind Guardians / Accel (includes Valdurmon)
     ("Wind Guardians", ["Valdurmon", "Harpymon", "Aquilamon"], 2),
@@ -402,6 +445,8 @@ CLASSIFICATION_RULES = [
     # Ariemon
     ("Ariemon", ["Ariemon", "Huankunmon", "Sanzomon"], 2),
     ("Ariemon", ["Ariemon", "Xiangpengmon"], 2),
+    ("Ariemon", ["Sanzomon", "Venusmon", "Cho-Hakkaimon"], 2),
+    ("Ariemon", ["Muchomon", "Sanzomon", "Gokuumon"], 2),
 
     # Dynasmon
     ("Dynasmon", ["Dynasmon", "Lordomon"], 1),
@@ -413,6 +458,14 @@ CLASSIFICATION_RULES = [
     # Nightmare Soldiers (Wizardmon / Witchmon variants)
     ("Nightmare Soldiers", ["Wizardmon", "Candlemon", "Witchmon"], 2),
     ("Nightmare Soldiers", ["Wizardmon (X Antibody)", "Wizardmon", "Candlemon"], 2),
+
+    # Appmon — Gatchmon-based variants (broader rules before Dokamon-specific)
+    ("Appmon", ["Gatchmon", "DoGatchmon", "Globemon"], 2),
+    ("Appmon", ["Gatchmon", "Navimon", "Timemon"], 2),
+    ("Appmon", ["Gatchmon", "Navimon", "Calendamon"], 2),
+    ("Appmon", ["Gatchmon", "Navimon", "Watchmon"], 2),
+    ("Appmon", ["Gatchmon", "DoGatchmon", "Sociamon"], 2),
+    ("Appmon", ["Gatchmon", "DoGatchmon", "Charismon"], 2),
 
     # Appmon (generic - should be last among Appmon rules)
     ("Appmon", ["Dokamon", "Consulmon", "Beautymon"], 2),
