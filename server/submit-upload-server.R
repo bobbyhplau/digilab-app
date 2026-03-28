@@ -32,8 +32,8 @@ parse_tcgplus_csv <- function(file_path, total_rounds = 4) {
   name_col <- grep("^User.Name$|^Username$|^Name$|^Player$", names(csv), ignore.case = TRUE, value = TRUE)[1]
   points_col <- grep("^Win.Points$|^Points$|^WinPoints$", names(csv), ignore.case = TRUE, value = TRUE)[1]
   deck_url_col <- grep("^Deck.URLs?$|^DeckURL$|^Deck.Link$", names(csv), ignore.case = TRUE, value = TRUE)[1]
-  omw_col <- grep("^OMW|^Opp.*Match.*Win", names(csv), ignore.case = TRUE, value = TRUE)[1]
-  oomw_col <- grep("^OOMW|^Opp.*Opp.*Match.*Win", names(csv), ignore.case = TRUE, value = TRUE)[1]
+  omw_col <- grep("^OMW[^O]|^OMW$|^Opp\\.Match|^Opp[^.]*Match.*Win", names(csv), ignore.case = TRUE, value = TRUE)[1]
+  oomw_col <- grep("^OOMW|^Opp\\.Opp|^Opp.*Opp.*Match.*Win", names(csv), ignore.case = TRUE, value = TRUE)[1]
   memo_col <- grep("^Memo$|^Notes?$", names(csv), ignore.case = TRUE, value = TRUE)[1]
 
   if (is.na(rank_col) || is.na(name_col)) {
@@ -449,7 +449,14 @@ observeEvent(input$sr_step1_next, {
     return()
   }
 
-  # Combine results from all screenshots
+  # Combine results — normalize columns across CSV and OCR results before rbind
+  all_cols <- unique(unlist(lapply(all_results, names)))
+  all_results <- lapply(all_results, function(df) {
+    for (col in setdiff(all_cols, names(df))) {
+      df[[col]] <- NA
+    }
+    df[, all_cols, drop = FALSE]
+  })
   combined <- do.call(rbind, all_results)
 
   # Smart deduplication for overlapping screenshots

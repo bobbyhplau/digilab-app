@@ -1022,6 +1022,13 @@ observeEvent(input$sr_add_player, {
     result_id = NA_integer_,
     stringsAsFactors = FALSE
   )
+  # Add optional CSV-sourced columns if grid has them (from OCR/CSV upload)
+  for (col in c("deck_url", "memo")) {
+    if (col %in% names(rv$sr_grid_data)) blank_row[[col]] <- NA_character_
+  }
+  for (col in c("omw_pct", "oomw_pct")) {
+    if (col %in% names(rv$sr_grid_data)) blank_row[[col]] <- NA_real_
+  }
   rv$sr_grid_data <- rbind(rv$sr_grid_data, blank_row)
 })
 
@@ -1654,6 +1661,12 @@ observeEvent(input$sr_paste_apply, {
       matched_player_id = NA_integer_, matched_member_number = NA_character_,
       result_id = NA_integer_, stringsAsFactors = FALSE
     )
+    for (col in c("deck_url", "memo")) {
+      if (col %in% names(grid)) blank_row[[col]] <- NA_character_
+    }
+    for (col in c("omw_pct", "oomw_pct")) {
+      if (col %in% names(grid)) blank_row[[col]] <- NA_real_
+    }
     grid <- rbind(grid, blank_row)
   }
 
