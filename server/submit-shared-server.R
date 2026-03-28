@@ -1449,10 +1449,17 @@ observeEvent(input$sr_submit_results, {
           }
         }
 
+        # Carry CSV-sourced fields through for INSERT (deck_url, tiebreakers, memo)
+        deck_url <- if ("deck_url" %in% names(row) && !is.na(row$deck_url)) row$deck_url else NA_character_
+        omw_pct <- if ("omw_pct" %in% names(row) && !is.na(row$omw_pct)) row$omw_pct else NA_real_
+        oomw_pct <- if ("oomw_pct" %in% names(row) && !is.na(row$oomw_pct)) row$oomw_pct else NA_real_
+        memo <- if ("memo" %in% names(row) && !is.na(row$memo)) row$memo else NA_character_
+
         resolved_rows[[idx]] <- list(
           player_id = player_id, player_name = name,
           archetype_id = archetype_id, pending_deck_request_id = pending_deck_request_id,
-          placement = row$placement, wins = wins, losses = losses, ties = ties, pts = pts
+          placement = row$placement, wins = wins, losses = losses, ties = ties, pts = pts,
+          deck_url = deck_url, omw_pct = omw_pct, oomw_pct = oomw_pct, memo = memo
         )
       }
 
@@ -1475,10 +1482,12 @@ observeEvent(input$sr_submit_results, {
         r <- resolved_rows[[idx]]
         DBI::dbExecute(conn, "
           INSERT INTO results (tournament_id, player_id, archetype_id, pending_deck_request_id,
-                               placement, wins, losses, ties, points)
-          VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+                               placement, wins, losses, ties, points,
+                               decklist_url, omw_pct, oomw_pct, memo)
+          VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)
         ", params = list(tournament_id, r$player_id, r$archetype_id,
-                         r$pending_deck_request_id, r$placement, r$wins, r$losses, r$ties, r$pts))
+                         r$pending_deck_request_id, r$placement, r$wins, r$losses, r$ties, r$pts,
+                         r$deck_url, r$omw_pct, r$oomw_pct, r$memo))
       }
 
       DBI::dbExecute(conn, "COMMIT")
