@@ -4,6 +4,27 @@ This log tracks development decisions, blockers, and technical notes for DigiLab
 
 ---
 
+## 2026-03-27: Limitless Expansion — DigiGalaxy + Historical Format Backfill
+
+### DigiGalaxy Addition
+Added DigiGalaxy (Limitless organizer 1009) as 6th Tier 1 organizer. They were previously excluded for not tracking decklists, but committed to collecting them going forward. Used new `skip_deck_check` per-organizer config flag to bypass the deck coverage check (top 3 must have deck data). All DigiGalaxy results imported as UNKNOWN archetype until they start collecting decklists.
+
+### Sync Floor Change
+Moved Limitless sync floor from BT23 (~Oct 2025) to RSB2.0 (Nov 2024). Added 5 format records to bridge the gap: RSB2.0 (Release Special Booster 2.0), RSB2.5, BT21, EX09, BT22. Used "RSB" prefix for the bridge sets instead of "BT18-19"/"BT19-20" to avoid regex collisions in format inference.
+
+### Format Inference Fix
+Discovered that the regex path in `infer_format()` would return "BT17" from tournament names without checking if the format exists in the DB. Added DB validation — unrecognized format codes fall through to date-based inference. Also fixed `total_synced` NameError where summary variables were computed after the MV refresh block that referenced them.
+
+### Classification Rules
+Wrote 37 new rules for RSB2.0-BT22 era archetypes. Existing rules already covered 83% of backfilled decklists. Fixed archetype name mismatches (parentheses in "Red Hybrid (EmperorGreymon)" and "Aquatic (Ariemon)"). Final classification: 1,292/1,343 (96%), 51 remaining for admin deck_requests queue.
+
+### Stats
+- Tournaments: 180 → 625
+- Formats covered: 4 → 9 (RSB2.0 through EX11)
+- Classification rules: ~130 → ~167
+
+---
+
 ## 2026-03-23: Sentry Error Review & Scene Admin Bug Fixes
 
 ### PostgreSQL Array Parameter Bug (pg_array)

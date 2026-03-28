@@ -8,6 +8,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- **DigiGalaxy Limitless integration**: Added DigiGalaxy (organizer 1009) as 6th Tier 1 online organizer with `skip_deck_check` support for organizers without decklists. Created online store record (store_id=325).
+- **Historical format backfill**: Extended Limitless sync floor from BT23 (~Oct 2025) to RSB2.0 (Nov 2024). Added 5 new format records (RSB2.0, RSB2.5, BT21, EX09, BT22). Backfilled ~445 tournaments across all 6 organizers, bringing total from 180 to 625.
+- **37 new deck classification rules**: Added rules for RSB2.0-BT22 era archetypes (SEEKERS, Appmon/Gatchmon variants, Nyabootmon, Ragnaloardmon, ADVENTURE, Gaiamon, Eaters expansion, Guilmon Loop, Metalgarurumon, Aquatic/Ariemon, Hexeblaumon). 1,292 of 1,343 backfilled decklists auto-classified (96%).
+
+### Changed
+- **TIER1_ORGANIZERS restructured**: Sync script config changed from flat `{id: name}` to `{id: {name, skip_deck_check}}` to support per-organizer deck coverage settings.
+
+### Fixed
+- **Format regex validation**: `infer_format()` now validates regex-extracted format IDs (e.g., "BT17") against the formats table before returning. Falls through to date-based inference if format doesn't exist in DB.
+- **total_synced NameError**: Fixed bug where `total_synced` was referenced before definition in sync summary, causing MV refresh to crash after successful sync.
+- **Archetype name mismatches**: Fixed classification rule names to match DB exactly — "Red Hybrid EmperorGreymon" → "Red Hybrid (EmperorGreymon)", "Ariemon" → "Aquatic (Ariemon)".
+
 - **Onboarding redesign**: New 3-step flow — Pick Your Scene (interactive map + geolocation + scene buttons), Find Yourself (player search by Bandai ID or name with fuzzy matching via pg_trgm), Your Scene at a Glance (30-day stats grid with dashboard-style value boxes, trending deck card image, rank banner). Player identity persisted to localStorage for future sessions.
 - **Match-by-match auto-fill**: 3-layer opponent matching — tournament participants (exact member/name), prior match score pre-fill (flipped W/L from opponent's submissions), and `match_player()` fuzzy matching via pg_trgm. Match indicators (Matched/Ambiguous/Similar/New) shown on review grid.
 - **Match-by-match wizard steps**: 2-step flow (Upload Screenshot → Review & Submit) with step indicators, replacing scroll-to-discover pattern.
