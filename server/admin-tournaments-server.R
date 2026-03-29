@@ -1228,16 +1228,50 @@ observeEvent(input$edit_grid_save, {
         if (is.na(member_num)) member_num <- ""
 
         if (!is.na(row$result_id)) {
-          # Existing result — check if admin changed the player name
+          # Existing result — check if admin changed the player name or Bandai ID
           original <- DBI::dbGetQuery(conn, "
-            SELECT r.player_id, p.display_name AS original_name
+            SELECT r.player_id, p.display_name AS original_name, p.member_number AS original_member
             FROM results r JOIN players p ON r.player_id = p.player_id
             WHERE r.result_id = $1
           ", params = list(row$result_id))
 
           if (nrow(original) > 0) {
-            if (tolower(trimws(name)) == tolower(trimws(original$original_name[1]))) {
-              # Name unchanged — keep existing player
+            orig_member <- original$original_member[1]
+            if (is.na(orig_member)) orig_member <- ""
+            name_unchanged <- tolower(trimws(name)) == tolower(trimws(original$original_name[1]))
+            bandai_changed <- has_real_member_number(orig_member) && member_num != orig_member
+
+            if (name_unchanged && bandai_changed && isTRUE(rv$is_superadmin)) {
+              # Super admin detach: Bandai ID cleared or changed on existing result
+              # Create new player or reassign to existing player with the new Bandai ID
+              if (has_real_member_number(member_num)) {
+                # Bandai ID changed to a different value — check if a player with that ID exists
+                existing_player <- DBI::dbGetQuery(conn, "
+                  SELECT player_id FROM players WHERE member_number = $1 AND is_active = TRUE
+                ", params = list(member_num))
+                if (nrow(existing_player) > 0) {
+                  # Reassign result to the player who owns that Bandai ID
+                  player_id <- existing_player$player_id[1]
+                } else {
+                  # Create new verified player with the new Bandai ID
+                  player_slug <- generate_unique_slug(db_pool, name)
+                  new_player <- DBI::dbGetQuery(conn,
+                    "INSERT INTO players (display_name, slug, member_number, identity_status, home_scene_id, is_anonymized)
+                     VALUES ($1, $2, $3, 'verified', $4, FALSE) RETURNING player_id",
+                    params = list(name, player_slug, member_num, scene_id))
+                  player_id <- new_player$player_id[1]
+                }
+              } else {
+                # Bandai ID cleared — create new unverified, scene-locked player
+                player_slug <- generate_unique_slug(db_pool, name)
+                new_player <- DBI::dbGetQuery(conn,
+                  "INSERT INTO players (display_name, slug, member_number, identity_status, home_scene_id, is_anonymized)
+                   VALUES ($1, $2, NULL, 'unverified', $3, FALSE) RETURNING player_id",
+                  params = list(name, player_slug, scene_id))
+                player_id <- new_player$player_id[1]
+              }
+            } else if (name_unchanged) {
+              # Name unchanged, Bandai ID not changed (or not super admin) — keep existing player
               player_id <- original$player_id[1]
             } else {
               # Name changed — resolve the new name to decide: reassign or rename?
