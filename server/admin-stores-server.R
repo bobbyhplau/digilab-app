@@ -109,18 +109,25 @@ reverse_geocode_with_mapbox <- function(lat, lng) {
       httr2::req_perform()
     data <- httr2::resp_body_json(resp)
     address <- data$address %||% list()
+    # ArcGIS returns full country name in CntryName and ISO code in CountryCode
+    # Prefer CntryName (works for all countries), fall back to CountryCode
+    country_name <- address$CntryName %||% NA_character_
     country_code <- address$CountryCode %||% NA_character_
-    # ArcGIS returns country codes (USA, GBR, etc.) — map common ones to full names
-    country_map <- c(USA = "United States", GBR = "United Kingdom", CAN = "Canada",
-                     AUS = "Australia", JPN = "Japan", DEU = "Germany", FRA = "France",
-                     BRA = "Brazil", MEX = "Mexico", KOR = "South Korea",
-                     IRL = "Ireland", ITA = "Italy", ESP = "Spain", PRT = "Portugal",
-                     NLD = "Netherlands", DNK = "Denmark", HRV = "Croatia",
-                     NZL = "New Zealand", IDN = "Indonesia", SAU = "Saudi Arabia",
-                     COL = "Colombia", CRI = "Costa Rica", ARG = "Argentina",
-                     CHL = "Chile")
-    country <- if (!is.na(country_code) && country_code %in% names(country_map)) {
-      country_map[[country_code]]
+    # ArcGIS CntryName is localized (e.g., Deutschland, 日本) — override to English
+    country_override <- c(
+      USA = "United States", GBR = "United Kingdom", KOR = "South Korea",
+      JPN = "Japan", DEU = "Germany", ESP = "Spain", PRT = "Portugal",
+      NLD = "Netherlands", POL = "Poland", SWE = "Sweden", NOR = "Norway",
+      DNK = "Denmark", FIN = "Finland", AUT = "Austria", CHE = "Switzerland",
+      BEL = "Belgium", CZE = "Czech Republic", ROU = "Romania",
+      HUN = "Hungary", GRC = "Greece", MEX = "Mexico", SAU = "Saudi Arabia",
+      EGY = "Egypt", BRA = "Brazil", PER = "Peru", TWN = "Taiwan",
+      CHN = "China", HRV = "Croatia"
+    )
+    country <- if (!is.na(country_code) && country_code %in% names(country_override)) {
+      country_override[[country_code]]
+    } else if (!is.na(country_name) && nchar(country_name) > 0) {
+      country_name
     } else {
       country_code
     }
