@@ -51,7 +51,7 @@ resolve_scene_slug <- function(db_pool, slug) {
 
   switch(row$scene_type[1],
     "country" = paste0("country:", row$country[1]),
-    "state"   = paste0("state:", row$state_region[1]),
+    "state"   = paste0("state:", row$state_region[1], "::", row$country[1]),
     "online"  = "online",
     slug  # metro — keep raw slug
   )
@@ -107,11 +107,11 @@ AND s.scene_id IN (SELECT scene_id FROM scenes WHERE country = $N)
 -- After:
 AND s.scene_id IN (SELECT scene_id FROM scenes WHERE country = $N AND scene_type = 'metro')
 
--- state: filter (line ~1489)
+-- state: filter (line ~1489) — now parameterized country, consumes 2 params
 -- Before:
 AND s.scene_id IN (SELECT scene_id FROM scenes WHERE country = 'United States' AND state_region = $N)
 -- After:
-AND s.scene_id IN (SELECT scene_id FROM scenes WHERE country = 'United States' AND state_region = $N AND scene_type = 'metro')
+AND s.scene_id IN (SELECT scene_id FROM scenes WHERE state_region = $N AND country = $N+1 AND scene_type = 'metro')
 
 -- continent filter (line ~1508)
 -- Before:
@@ -122,22 +122,28 @@ AND s.scene_id IN (SELECT scene_id FROM scenes WHERE continent = $N AND scene_ty
 
 Same three changes in `build_mv_filters()` (lines ~1580, ~1588, ~1606).
 
-### 5. Future: Auto-Create Parent Scenes on Metro Creation
+### 5. Auto-Create Parent Scenes on Metro Creation
 
-When a new metro scene is created in `admin-scenes-server.R`:
-- Check if a country scene exists for the new metro's country. If not, create it.
-- Check if a state scene exists for the new metro's state_region (only if 2+ metros now share that state_region). If not, create it.
+Implemented in `server/admin-scenes-server.R`. When a new metro scene is created via the admin form, `ensure_parent_scenes()` runs automatically:
 
-**Deferred** — document the rule for now, automate later. The admin scenes form can show a warning like "This is the first metro in [country] — a country scene will be created automatically."
+1. **Country scene:** If no `scene_type = 'country'` row exists for the metro's country, creates one with an accent-safe slug. Skips if slug collides.
+2. **State scene:** If the metro's `(country, state_region)` now has 2+ active metros AND no `scene_type = 'state'` row exists, creates one. US states use plain slugs (`texas`), non-US use country-code prefixed slugs (`de-lower-saxony`). Skips if slug collides.
+
+Only runs on CREATE, not on UPDATE (scene updates are typically name corrections, not geographic changes).
+
+Helper functions:
+- `accent_safe_slug(text)` — R-side equivalent of the migration's `TRANSLATE`+`REGEXP_REPLACE`
+- `COUNTRY_SLUG_PREFIX` — named vector mapping countries to 2-letter codes (matches migration's CASE statement)
 
 ## Files Modified
 
 | File | Change |
 |------|--------|
 | `db/migrations/009_country_state_scenes.sql` | New — INSERT country + state scenes |
-| `server/shared-server.R` | Add `resolve_scene_slug()`, harden 6 subqueries |
+| `server/shared-server.R` | Add `resolve_scene_slug()`, `parse_state_prefix()`, harden 6 subqueries |
 | `server/url-routing-server.R` | Call `resolve_scene_slug()` on URL scene param |
 | `server/scene-server.R` | Call `resolve_scene_slug()` on localStorage scene values |
+| `server/admin-scenes-server.R` | Add `ensure_parent_scenes()`, wire into metro CREATE path |
 
 ## Impact Assessment
 
@@ -159,7 +165,7 @@ When a new metro scene is created in `admin-scenes-server.R`:
 ## Testing
 
 1. Verify `?scene=dallas-fort-worth` still works (metro slug, unchanged)
-2. Verify `?scene=texas` resolves to `state:Texas` and shows all Texas metros' data
+2. Verify `?scene=texas` resolves to `state:Texas::United States` and shows all Texas metros' data
 3. Verify `?scene=united-states` resolves to `country:United States` and shows all US data
 4. Verify `?scene=online` still works
 5. Verify `?scene=all` still works
