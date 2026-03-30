@@ -1074,7 +1074,6 @@ server <- function(input, output, session) {
     is_admin = FALSE,
     is_superadmin = FALSE,
     admin_user = NULL,          # List: user_id, username, discord_user_id, role, scene_id
-    needs_bootstrap = FALSE,    # TRUE when admin_users table is empty
 
     # === NAVIGATION ===
     current_nav = "dashboard",

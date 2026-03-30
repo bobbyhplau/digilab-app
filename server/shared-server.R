@@ -251,13 +251,10 @@ show_scene_request_modal <- function(prefill = NULL) {
 
 observe({
   # Batch startup checks into a single query
-  startup <- safe_query(db_pool, "
-      SELECT
-        (SELECT COUNT(*) FROM player_ratings_cache) as ratings_count,
-        (SELECT COUNT(*) FROM admin_users) as admin_count
-    ", default = data.frame(ratings_count = NA_integer_, admin_count = 0L))
+  ratings_count <- safe_query(db_pool, "
+      SELECT COUNT(*) as n FROM player_ratings_cache
+    ", default = data.frame(n = NA_integer_))$n %||% 0
 
-  ratings_count <- startup$ratings_count %||% 0
   if (is.na(ratings_count) || ratings_count == 0) {
     message("[startup] Ratings cache empty, populating...")
     tryCatch({
@@ -266,11 +263,6 @@ observe({
     }, error = function(e) {
       message("[startup] Could not populate ratings cache: ", e$message)
     })
-  }
-
-  admin_count <- startup$admin_count %||% 0
-  if (is.na(admin_count) || admin_count == 0) {
-    rv$needs_bootstrap <- TRUE
   }
 
   # Delay hiding loading screen so dashboard reactives have time to evaluate.
@@ -981,27 +973,6 @@ observeEvent(input$admin_login_link, {
         modalButton("Close")
       )
     ))
-  } else if (rv$needs_bootstrap) {
-    # First-time setup - create super admin
-    showModal(modalDialog(
-      title = "Create Super Admin",
-      tags$p(class = "text-muted", "No admin accounts exist yet. Create the first super admin account."),
-      tags$form(
-        id = "bootstrap_form",
-        autocomplete = "on",
-        onsubmit = "event.preventDefault(); $('#bootstrap_btn').click();",
-        tagAppendAttributes(textInput("bootstrap_username", "Username", placeholder = "e.g., michael"), autocomplete = "username"),
-        tags$div(
-          tagAppendAttributes(passwordInput("bootstrap_password", "Password"), autocomplete = "new-password"),
-          style = "margin-bottom: 0.5rem;"
-        ),
-        tagAppendAttributes(passwordInput("bootstrap_confirm", "Confirm Password"), autocomplete = "new-password")
-      ),
-      footer = tagList(
-        actionButton("bootstrap_btn", "Create Account", class = "btn-primary"),
-        modalButton("Cancel")
-      )
-    ))
   } else {
     # Normal login form (wrapped in <form> with autocomplete hints for browser password saving)
     showModal(modalDialog(
@@ -1095,68 +1066,6 @@ observeEvent(input$login_btn, {
 
   # Note: tournament_store and tournament_scene are populated by their own
   # tab-guarded observers when the Enter Results tab is visited.
-})
-
-# Handle bootstrap (first super admin creation)
-observeEvent(input$bootstrap_btn, {
-  username <- trimws(input$bootstrap_username)
-  password <- input$bootstrap_password
-  confirm <- input$bootstrap_confirm
-
-  # Validation
-  if (nchar(username) < 3) {
-    notify("Username must be at least 3 characters", type = "warning")
-    return()
-  }
-  if (nchar(password) < 8) {
-    notify("Password must be at least 8 characters", type = "warning")
-    return()
-  }
-  if (password != confirm) {
-    notify("Passwords do not match", type = "error")
-    return()
-  }
-
-  # Double-check table is still empty
-  admin_count <- safe_query(db_pool,
-    "SELECT COUNT(*) as n FROM admin_users",
-    default = data.frame(n = 0))
-  if (admin_count$n[1] > 0) {
-    rv$needs_bootstrap <- FALSE
-    notify("Admin accounts already exist. Please log in.", type = "warning")
-    removeModal()
-    return()
-  }
-
-  # Create super admin
-  hash <- bcrypt::hashpw(password)
-
-  result <- safe_query(db_pool,
-    "INSERT INTO admin_users (username, password_hash, role, scene_id)
-     VALUES ($1, $2, 'super_admin', NULL) RETURNING user_id",
-    params = list(username, hash),
-    default = data.frame())
-
-  if (nrow(result) > 0) {
-    new_id <- result$user_id[1]
-    rv$needs_bootstrap <- FALSE
-    rv$is_admin <- TRUE
-    rv$is_superadmin <- TRUE
-    rv$admin_user <- list(
-      user_id = new_id,
-      username = username,
-      discord_user_id = NA_character_,
-      role = "super_admin",
-      scene_id = NULL
-    )
-    removeModal()
-    notify(paste0("Super admin account created. Welcome, ", username, "!"), type = "message")
-
-    # Note: tournament_store and tournament_scene are populated by their own
-    # tab-guarded observers when the Enter Results tab is visited.
-  } else {
-    notify("Failed to create account. Please try again.", type = "error")
-  }
 })
 
 # Refresh sr_store when stores are added/updated (only if a scene is selected)
