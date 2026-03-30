@@ -1216,15 +1216,15 @@ get_archetype_choices <- function(pool) {
 
 #' Resolve a scene slug to the Shiny-internal dropdown format.
 #' The Astro frontend sends raw slugs (e.g., "texas", "united-states").
-#' The Shiny dropdown uses prefix convention ("country:United States", "state:Texas").
+#' The Shiny dropdown uses prefix convention:
+#'   country → "country:United States"
+#'   state   → "state:Texas::United States"  (state_region::country)
 #' This function bridges the two: country/state slugs → prefix, metro slugs → passthrough.
 #' @param pool Database connection pool
 #' @param slug Character scene slug from URL or localStorage
 #' @return Resolved scene value in Shiny dropdown format
 resolve_scene_slug <- function(pool, slug) {
   if (is.null(slug) || slug == "" || slug == "all" || slug == "online") return(slug)
-  # Already in prefix format — pass through
-
   if (startsWith(slug, "country:") || startsWith(slug, "state:")) return(slug)
 
   row <- safe_query(pool,
@@ -1236,10 +1236,26 @@ resolve_scene_slug <- function(pool, slug) {
 
   switch(row$scene_type[1],
     "country" = paste0("country:", row$country[1]),
-    "state"   = paste0("state:", row$state_region[1]),
+    "state"   = paste0("state:", row$state_region[1], "::", row$country[1]),
     "online"  = "online",
     slug  # metro or anything else — keep raw slug
   )
+}
+
+#' Parse a state: prefix value into state_region and country.
+#' Handles both formats:
+#'   "state:Texas::United States" (new, explicit country)
+#'   "state:Texas"               (legacy, assumes United States)
+#' @param scene Character scene value starting with "state:"
+#' @return List with $state_region and $country
+parse_state_prefix <- function(scene) {
+  val <- sub("^state:", "", scene)
+  if (grepl("::", val, fixed = TRUE)) {
+    parts <- strsplit(val, "::", fixed = TRUE)[[1]]
+    list(state_region = parts[1], country = parts[2])
+  } else {
+    list(state_region = val, country = "United States")
+  }
 }
 
 #' Get scene IDs an admin can manage based on their role
@@ -1512,13 +1528,13 @@ build_filters_param <- function(table_alias = "t",
         params <- c(params, list(country_val))
         idx <- idx + 1
       } else if (isTRUE(startsWith(scene, "state:"))) {
-        state_val <- sub("^state:", "", scene)
+        sp <- parse_state_prefix(scene)
         sql_parts <- c(sql_parts, sprintf(
-          "AND %s.scene_id IN (SELECT scene_id FROM scenes WHERE country = 'United States' AND state_region = $%d AND scene_type = 'metro')",
-          store_alias, idx
+          "AND %s.scene_id IN (SELECT scene_id FROM scenes WHERE country = $%d AND state_region = $%d AND scene_type = 'metro')",
+          store_alias, idx, idx + 1
         ))
-        params <- c(params, list(state_val))
-        idx <- idx + 1
+        params <- c(params, list(sp$country, sp$state_region))
+        idx <- idx + 2
       } else {
         sql_parts <- c(sql_parts, sprintf(
           "AND %s.scene_id = (SELECT scene_id FROM scenes WHERE slug = $%d)",
@@ -1610,14 +1626,14 @@ build_mv_filters <- function(format = NULL,
       params <- c(params, list(country_val))
       idx <- idx + 1
     } else if (isTRUE(startsWith(scene, "state:"))) {
-      # US state-level filter: all scenes in a state
-      state_val <- sub("^state:", "", scene)
+      # State-level filter: all metro scenes in country + state_region
+      sp <- parse_state_prefix(scene)
       sql_parts <- c(sql_parts, sprintf(
-        "AND %sscene_id IN (SELECT scene_id FROM scenes WHERE country = 'United States' AND state_region = $%d AND scene_type = 'metro')",
-        prefix, idx
+        "AND %sscene_id IN (SELECT scene_id FROM scenes WHERE country = $%d AND state_region = $%d AND scene_type = 'metro')",
+        prefix, idx, idx + 1
       ))
-      params <- c(params, list(state_val))
-      idx <- idx + 1
+      params <- c(params, list(sp$country, sp$state_region))
+      idx <- idx + 2
     } else {
       sql_parts <- c(sql_parts, sprintf(
         "AND %sscene_id = (SELECT scene_id FROM scenes WHERE slug = $%d)", prefix, idx

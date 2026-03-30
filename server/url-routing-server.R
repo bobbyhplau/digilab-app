@@ -94,7 +94,7 @@ observeEvent(input$url_initial, {
     if (startsWith(resolved_scene, "country:") || startsWith(resolved_scene, "state:")) {
       # Country/state scenes: look up continent from DB
       country_val <- if (startsWith(resolved_scene, "state:")) {
-        "United States"
+        parse_state_prefix(resolved_scene)$country
       } else {
         sub("^country:", "", resolved_scene)
       }

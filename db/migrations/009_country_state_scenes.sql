@@ -11,7 +11,10 @@
 INSERT INTO scenes (name, slug, display_name, scene_type, country, continent, is_active)
 SELECT DISTINCT ON (country)
   country,
-  LOWER(REGEXP_REPLACE(TRIM(country), '[^a-zA-Z0-9]+', '-', 'g')),
+  LOWER(REGEXP_REPLACE(TRANSLATE(TRIM(country),
+    'ÁÉÍÓÚáéíóúÀÈÌÒÙàèìòùÂÊÎÔÛâêîôûÄËÏÖÜäëïöüÃÑÕãñõÇç',
+    'AEIOUaeiouAEIOUaeiouAEIOUaeiouAEIOUaeiouANOanocc'),
+    '[^a-zA-Z0-9]+', '-', 'g')),
   country,
   'country',
   country,
@@ -26,7 +29,10 @@ ON CONFLICT (slug) DO NOTHING;
 INSERT INTO scenes (name, slug, display_name, scene_type, country, state_region, continent, is_active)
 SELECT DISTINCT
   state_region,
-  LOWER(REGEXP_REPLACE(TRIM(state_region), '[^a-zA-Z0-9]+', '-', 'g')),
+  LOWER(REGEXP_REPLACE(TRANSLATE(TRIM(state_region),
+    'ÁÉÍÓÚáéíóúÀÈÌÒÙàèìòùÂÊÎÔÛâêîôûÄËÏÖÜäëïöüÃÑÕãñõÇç',
+    'AEIOUaeiouAEIOUaeiouAEIOUaeiouAEIOUaeiouANOanocc'),
+    '[^a-zA-Z0-9]+', '-', 'g')),
   state_region,
   'state',
   'United States',
