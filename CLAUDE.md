@@ -98,9 +98,9 @@ The architecture doc contains:
 
 ## Current Work
 
-### Latest Release: v1.9.3 - Country & State Scene Hierarchy
+### Latest Release: v1.9.4 - Sentry Error Reporting Blind Spots
 
-Scene hierarchy rows (`scene_type = 'country'` and `'state'`) so the Astro frontend tree selector has selectable, linkable parent nodes above metro scenes. Slug resolution layer bridges Astro's raw URL slugs to Shiny's internal prefix format. Auto-creation of parent scenes when new metros are added. See `CHANGELOG.md` for full details.
+Fixed 35 tryCatch error handlers across 12 server files that silently swallowed errors (showing user toasts but never reporting to Sentry). All admin CRUD, submit flows, and Discord webhook failures now report to Sentry. See `CHANGELOG.md` for full details.
 
 See `ROADMAP.md` for the full version plan.
 
@@ -108,6 +108,7 @@ See `ROADMAP.md` for the full version plan.
 
 | Version | Focus |
 |---------|-------|
+| v1.9.4 | Sentry Error Reporting Blind Spots |
 | v1.9.3 | Country & State Scene Hierarchy |
 | v1.9.2 | Match History Schema & Layout-Aware Parser |
 | v1.9.1 | Auto-Anonymize Guest & Placeholder Players |
@@ -414,6 +415,6 @@ See `ARCHITECTURE.md` > CSS Architecture for full documentation.
 
 ## Current Version
 
-**v1.9.3** - Country & State Scene Hierarchy
+**v1.9.4** - Sentry Error Reporting Blind Spots
 
 See `CHANGELOG.md` for full version history and `ROADMAP.md` for upcoming features.

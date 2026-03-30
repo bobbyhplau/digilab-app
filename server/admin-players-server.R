@@ -209,6 +209,7 @@ observeEvent(input$suggested_merge_action, {
       rv$refresh_players <- rv$refresh_players + 1
 
     }, error = function(e) {
+      if (sentry_enabled) tryCatch(sentryR::capture_exception(e, tags = sentry_context_tags()), error = function(se) NULL)
       notify(paste("Merge failed:", e$message), type = "error")
     })
   }
@@ -493,6 +494,7 @@ observeEvent(input$update_player, {
     rv$refresh_players <- rv$refresh_players + 1
 
   }, error = function(e) {
+    if (sentry_enabled) tryCatch(sentryR::capture_exception(e, tags = sentry_context_tags()), error = function(se) NULL)
     notify(paste("Error:", e$message), type = "error")
   })
 })
@@ -577,6 +579,7 @@ observeEvent(input$confirm_delete_player, {
     rv$refresh_players <- rv$refresh_players + 1
 
   }, error = function(e) {
+    if (sentry_enabled) tryCatch(sentryR::capture_exception(e, tags = sentry_context_tags()), error = function(se) NULL)
     notify(paste("Error:", e$message), type = "error")
   })
 })
@@ -796,6 +799,7 @@ observeEvent(input$confirm_merge_players, {
     rv$refresh_players <- rv$refresh_players + 1
 
   }, error = function(e) {
+    if (sentry_enabled) tryCatch(sentryR::capture_exception(e, tags = sentry_context_tags()), error = function(se) NULL)
     notify(paste("Error:", e$message), type = "error")
   })
 })

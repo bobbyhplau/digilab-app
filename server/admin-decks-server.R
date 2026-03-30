@@ -17,6 +17,7 @@ observeEvent(input$search_card_btn, {
   cards <- tryCatch({
     search_cards_local(db_pool, input$card_search)
   }, error = function(e) {
+    if (sentry_enabled) tryCatch(sentryR::capture_exception(e, tags = sentry_context_tags()), error = function(se) NULL)
     message("Card search error: ", e$message)
     NULL
   })
@@ -235,6 +236,7 @@ observeEvent(input$add_archetype, {
     rv$refresh_decks <- rv$refresh_decks + 1
 
   }, error = function(e) {
+    if (sentry_enabled) tryCatch(sentryR::capture_exception(e, tags = sentry_context_tags()), error = function(se) NULL)
     notify(paste("Error:", e$message), type = "error")
   })
 })
@@ -424,6 +426,7 @@ observeEvent(input$update_archetype, {
     rv$refresh_decks <- rv$refresh_decks + 1
 
   }, error = function(e) {
+    if (sentry_enabled) tryCatch(sentryR::capture_exception(e, tags = sentry_context_tags()), error = function(se) NULL)
     notify(paste("Error:", e$message), type = "error")
   })
 })
@@ -528,6 +531,7 @@ observeEvent(input$confirm_delete_archetype, {
     rv$refresh_decks <- rv$refresh_decks + 1
 
   }, error = function(e) {
+    if (sentry_enabled) tryCatch(sentryR::capture_exception(e, tags = sentry_context_tags()), error = function(se) NULL)
     notify(paste("Error:", e$message), type = "error")
   })
 })
@@ -963,6 +967,7 @@ assign_request_to_existing_archetype <- function(req_id, archetype_id, session, 
     rv$deck_requests_refresh <- Sys.time()
 
   }, error = function(e) {
+    if (sentry_enabled) tryCatch(sentryR::capture_exception(e, tags = sentry_context_tags()), error = function(se) NULL)
     notify(paste("Error assigning archetype:", e$message), type = "error")
   })
 }
@@ -1023,6 +1028,7 @@ create_deck_from_request <- function(req_id, deck_name, primary_color, secondary
     rv$refresh_decks <- rv$refresh_decks + 1
 
   }, error = function(e) {
+    if (sentry_enabled) tryCatch(sentryR::capture_exception(e, tags = sentry_context_tags()), error = function(se) NULL)
     notify(paste("Error approving deck:", e$message), type = "error")
   })
 }
@@ -1068,6 +1074,7 @@ reject_deck_request <- function(req_id, replacement_archetype_id, session, rv) {
     rv$refresh_decks <- rv$refresh_decks + 1
 
   }, error = function(e) {
+    if (sentry_enabled) tryCatch(sentryR::capture_exception(e, tags = sentry_context_tags()), error = function(se) NULL)
     notify(paste("Error rejecting request:", e$message), type = "error")
   })
 }
@@ -1219,6 +1226,7 @@ observeEvent(input$confirm_merge_decks, {
     rv$refresh_decks <- rv$refresh_decks + 1
 
   }, error = function(e) {
+    if (sentry_enabled) tryCatch(sentryR::capture_exception(e, tags = sentry_context_tags()), error = function(se) NULL)
     notify(paste("Error merging decks:", e$message), type = "error")
   })
 })

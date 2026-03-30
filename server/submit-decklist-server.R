@@ -205,6 +205,7 @@ observeEvent(input$sr_decklist_standalone_save, {
         }
       }
     }, error = function(e) {
+      if (sentry_enabled) tryCatch(sentryR::capture_exception(e, tags = sentry_context_tags()), error = function(se) NULL)
       notify(paste("Error clearing URL:", e$message), type = "error")
     })
     return()
@@ -233,6 +234,7 @@ observeEvent(input$sr_decklist_standalone_save, {
       }
     }
   }, error = function(e) {
+    if (sentry_enabled) tryCatch(sentryR::capture_exception(e, tags = sentry_context_tags()), error = function(se) NULL)
     notify(paste("Error saving URL:", e$message), type = "error")
   })
 })

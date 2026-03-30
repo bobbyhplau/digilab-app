@@ -1928,6 +1928,7 @@ submit_store_request_final <- function(store_name, city, state, scene_id, discor
 
     rv$requests_refresh <- (rv$requests_refresh %||% 0) + 1
   }, error = function(e) {
+    if (sentry_enabled) tryCatch(sentryR::capture_exception(e, tags = sentry_context_tags()), error = function(se) NULL)
     warning(paste("Store request error:", e$message))
     removeModal()
     notify("Your request was received but we couldn't send it to Discord. We'll follow up manually.", type = "warning", duration = 5)
@@ -2039,6 +2040,7 @@ submit_scene_request_final <- function(city_name, state, stores, notes, discord_
     removeModal()
     notify("Your scene request has been submitted! We'll follow up on Discord.", type = "message", duration = 5)
   }, error = function(e) {
+    if (sentry_enabled) tryCatch(sentryR::capture_exception(e, tags = sentry_context_tags()), error = function(se) NULL)
     warning(paste("Scene request error:", e$message))
     removeModal()
     notify("Your request was received but we couldn't send it to Discord. We'll follow up manually.", type = "warning", duration = 5)

@@ -123,6 +123,7 @@ observeEvent(input$add_format, {
     if (grepl("unique|duplicate|primary key", e$message, ignore.case = TRUE)) {
       notify("A format with this Set Code already exists", type = "error")
     } else {
+      if (sentry_enabled) tryCatch(sentryR::capture_exception(e, tags = sentry_context_tags()), error = function(se) NULL)
       notify(paste("Error:", e$message), type = "error")
     }
   })
@@ -190,6 +191,7 @@ observeEvent(input$update_format, {
     rv$refresh_formats <- rv$refresh_formats + 1
 
   }, error = function(e) {
+    if (sentry_enabled) tryCatch(sentryR::capture_exception(e, tags = sentry_context_tags()), error = function(se) NULL)
     notify(paste("Error:", e$message), type = "error")
   })
 })
@@ -278,6 +280,7 @@ observeEvent(input$confirm_delete_format, {
     rv$refresh_formats <- rv$refresh_formats + 1
 
   }, error = function(e) {
+    if (sentry_enabled) tryCatch(sentryR::capture_exception(e, tags = sentry_context_tags()), error = function(se) NULL)
     notify(paste("Error:", e$message), type = "error")
   })
 })

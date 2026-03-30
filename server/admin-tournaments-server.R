@@ -316,6 +316,7 @@ observeEvent(input$update_tournament, {
     rv$refresh_tournaments <- rv$refresh_tournaments + 1
 
   }, error = function(e) {
+    if (sentry_enabled) tryCatch(sentryR::capture_exception(e, tags = sentry_context_tags()), error = function(se) NULL)
     notify(paste("Error:", e$message), type = "error")
   })
 })
@@ -395,6 +396,7 @@ observeEvent(input$confirm_delete_tournament, {
       DBI::dbExecute(conn, "DELETE FROM tournaments WHERE tournament_id = $1", params = list(tournament_id))
     }),
     error = function(e) {
+      if (sentry_enabled) tryCatch(sentryR::capture_exception(e, tags = sentry_context_tags()), error = function(se) NULL)
       notify(paste("Failed to delete tournament:", e$message), type = "error")
       0L
     }
@@ -1444,6 +1446,7 @@ observeEvent(input$edit_grid_save, {
     rv$tournament_refresh <- (rv$tournament_refresh %||% 0) + 1
 
   }, error = function(e) {
+    if (sentry_enabled) tryCatch(sentryR::capture_exception(e, tags = sentry_context_tags()), error = function(se) NULL)
     notify(paste("Error saving results:", e$message), type = "error")
   })
 })
