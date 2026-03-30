@@ -1346,8 +1346,8 @@ observeEvent(input$sr_submit_results, {
     tryCatch({
       # Create tournament if needed (upload flow)
       tournament_id <- rv$sr_active_tournament_id
+      submit_by <- if (isTRUE(rv$is_admin)) current_admin_username(rv) else "public_submit"
       if (is.null(tournament_id)) {
-        submit_by <- if (isTRUE(rv$is_admin)) current_admin_username(rv) else "public_submit"
         tourney_result <- DBI::dbGetQuery(conn, "
           INSERT INTO tournaments (store_id, event_date, event_type, format, player_count, rounds, record_format, updated_by)
           VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
