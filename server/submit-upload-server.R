@@ -82,10 +82,12 @@ parse_tcgplus_csv <- function(file_path, total_rounds = 4) {
     result$member_number <- vapply(result$member_number, normalize_member_number, character(1), USE.NAMES = FALSE)
   }
 
-  # Extract deck URLs if column exists (for Step 3 pre-fill)
+  # Extract deck URLs if column exists — validate against allowlist
   if (!is.na(deck_url_col)) {
-    result$deck_url <- trimws(as.character(csv[[deck_url_col]]))
-    result$deck_url[is.na(result$deck_url) | result$deck_url == ""] <- NA_character_
+    raw_urls <- trimws(as.character(csv[[deck_url_col]]))
+    result$deck_url <- vapply(raw_urls, function(u) {
+      validate_decklist_url(u) %||% NA_character_
+    }, character(1), USE.NAMES = FALSE)
   }
 
   # Extract tiebreaker stats (OMW%, OOMW%) — stored for reference, not displayed
@@ -211,11 +213,6 @@ sr_complete_ocr_processing <- function(combined, total_players, total_rounds, pa
   rv$sr_ocr_results <- combined
   rv$sr_parsed_count <- parsed_count
   rv$sr_total_players <- total_players
-
-  # Store deck URLs from CSV for Step 3 pre-fill
-  if ("deck_url" %in% names(combined)) {
-    rv$sr_csv_deck_urls <- combined$deck_url
-  }
 
   # Cache static values for Step 2 summary bar (avoid re-querying on every render)
   store <- safe_query(db_pool, "SELECT name FROM stores WHERE store_id = $1",

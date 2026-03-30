@@ -126,7 +126,6 @@ sr_back_to_picker <- function() {
   rv$sr_uploaded_files <- NULL
   rv$sr_ocr_row_indices <- NULL
   rv$sr_wlt_override <- FALSE
-  rv$sr_csv_deck_urls <- NULL
   rv$sr_duplicate_tournament <- NULL
 
   # Clear Step 3 / decklist state
@@ -1457,7 +1456,7 @@ observeEvent(input$sr_submit_results, {
         }
 
         # Carry CSV-sourced fields through for INSERT (deck_url, tiebreakers, memo)
-        deck_url <- if ("deck_url" %in% names(row) && !is.na(row$deck_url)) row$deck_url else NA_character_
+        deck_url <- if ("deck_url" %in% names(row) && !is.na(row$deck_url)) validate_decklist_url(row$deck_url) %||% NA_character_ else NA_character_
         omw_pct <- if ("omw_pct" %in% names(row) && !is.na(row$omw_pct)) row$omw_pct else NA_real_
         oomw_pct <- if ("oomw_pct" %in% names(row) && !is.na(row$oomw_pct)) row$oomw_pct else NA_real_
         memo <- if ("memo" %in% names(row) && !is.na(row$memo)) row$memo else NA_character_

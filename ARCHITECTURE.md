@@ -266,7 +266,6 @@ All Submit Results methods share the `sr_*` prefix. Declared across `submit-shar
 | `sr_ocr_pending_total_players` | integer | Pending player count for quality check |
 | `sr_ocr_pending_total_rounds` | integer | Pending round count for quality check |
 | `sr_ocr_pending_parsed_count` | integer | Parsed player count for quality check |
-| `sr_csv_deck_urls` | list | Deck URLs parsed from CSV upload |
 
 **Match history method** (declared in `submit-match-server.R`):
 

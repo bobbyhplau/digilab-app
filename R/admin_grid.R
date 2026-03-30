@@ -567,7 +567,7 @@ ALLOWED_DECKLIST_DOMAINS <- c(
   "tcgstacked.com"
 )
 
-validate_decklist_url <- function(url, strict = FALSE) {
+validate_decklist_url <- function(url) {
   if (is.null(url) || is.na(url)) return(NULL)
   url <- trimws(url)
   if (nchar(url) == 0) return(NULL)
@@ -576,11 +576,7 @@ validate_decklist_url <- function(url, strict = FALSE) {
   # Extract domain and check against allowlist
   domain <- sub("^https://([^/]+).*$", "\\1", url, ignore.case = TRUE)
   domain <- tolower(sub("^www\\.", "", domain))
-  if (!domain %in% ALLOWED_DECKLIST_DOMAINS) {
-    if (strict) return(NULL)
-    # Permissive mode: accept any valid HTTPS URL, log unknown domain
-    message("[DECKLIST] Unknown domain accepted: ", domain, " — URL: ", url)
-  }
+  if (!domain %in% ALLOWED_DECKLIST_DOMAINS) return(NULL)
   url
 }
 
