@@ -974,6 +974,7 @@ observeEvent(input$sr_match_submit, {
 
   }, error = function(e) {
     tryCatch(DBI::dbExecute(conn, "ROLLBACK"), error = function(re) NULL)
+    if (sentry_enabled) tryCatch(sentryR::capture_exception(e, tags = sentry_context_tags()), error = function(se) NULL)
     notify(paste("Error submitting match history:", e$message), type = "error")
   })
 })

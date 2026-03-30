@@ -443,6 +443,7 @@ sr_create_tournament_and_show_grid <- function() {
     shinyjs::runjs("$('#sr_step1_indicator').removeClass('active').addClass('completed'); $('#sr_step2_indicator').addClass('active');")
 
   }, error = function(e) {
+    if (sentry_enabled) tryCatch(sentryR::capture_exception(e, tags = sentry_context_tags()), error = function(se) NULL)
     notify(paste("Error:", e$message), type = "error")
   })
 }
@@ -1249,7 +1250,10 @@ observeEvent(input$sr_clear_results_only, {
     removeModal()
     notify("Results cleared.", type = "message")
     defer_ratings_recalc(db_pool, notify)
-  }, error = function(e) notify(paste("Error:", e$message), type = "error"))
+  }, error = function(e) {
+    if (sentry_enabled) tryCatch(sentryR::capture_exception(e, tags = sentry_context_tags()), error = function(se) NULL)
+    notify(paste("Error:", e$message), type = "error")
+  })
 })
 
 observeEvent(input$sr_delete_tournament_confirm, {
@@ -1269,7 +1273,10 @@ observeEvent(input$sr_delete_tournament_confirm, {
     shinyjs::hide("sr_step2")
     shinyjs::show("sr_step1")
     shinyjs::runjs("$('#sr_step2_indicator').removeClass('active'); $('#sr_step1_indicator').addClass('active').removeClass('completed');")
-  }, error = function(e) notify(paste("Error:", e$message), type = "error"))
+  }, error = function(e) {
+    if (sentry_enabled) tryCatch(sentryR::capture_exception(e, tags = sentry_context_tags()), error = function(se) NULL)
+    notify(paste("Error:", e$message), type = "error")
+  })
 })
 
 # =============================================================================

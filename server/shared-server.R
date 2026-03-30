@@ -686,6 +686,7 @@ observeEvent(input$submit_data_error, {
     removeModal()
     notify("Error report submitted! We'll follow up on Discord.", type = "message", duration = 5)
   }, error = function(e) {
+    if (sentry_enabled) tryCatch(sentryR::capture_exception(e, tags = sentry_context_tags()), error = function(se) NULL)
     warning(paste("Data error report failed:", e$message))
     removeModal()
     notify("Report received but couldn't send to Discord. We'll follow up manually.", type = "warning", duration = 5)
@@ -783,6 +784,7 @@ observeEvent(input$submit_bug_report, {
     removeModal()
     notify("Bug report submitted! We'll follow up on Discord.", type = "message", duration = 5)
   }, error = function(e) {
+    if (sentry_enabled) tryCatch(sentryR::capture_exception(e, tags = sentry_context_tags()), error = function(se) NULL)
     warning(paste("Bug report failed:", e$message))
     removeModal()
     notify("Report received but couldn't send to Discord. We'll follow up manually.", type = "warning", duration = 5)

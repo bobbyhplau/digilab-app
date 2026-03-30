@@ -449,6 +449,7 @@ observeEvent(input$resolve_request, {
     label <- if (action == "resolved") "resolved" else "rejected"
     notify(paste("Request", label), type = "message")
   }, error = function(e) {
+    if (sentry_enabled) tryCatch(sentryR::capture_exception(e, tags = sentry_context_tags()), error = function(se) NULL)
     warning(paste("Failed to resolve request:", e$message))
     notify("Failed to update request", type = "warning")
   })

@@ -993,6 +993,7 @@ observeEvent(input$save_admin_btn, {
         DBI::dbExecute(con, "COMMIT")
       }, error = function(e) {
         try(DBI::dbExecute(con, "ROLLBACK"), silent = TRUE)
+        if (sentry_enabled) tryCatch(sentryR::capture_exception(e, tags = sentry_context_tags()), error = function(se) NULL)
         warning("Junction table sync failed: ", e$message)
       })
     } else if (role == "regional_admin") {
@@ -1021,6 +1022,7 @@ observeEvent(input$save_admin_btn, {
         DBI::dbExecute(con, "COMMIT")
       }, error = function(e) {
         try(DBI::dbExecute(con, "ROLLBACK"), silent = TRUE)
+        if (sentry_enabled) tryCatch(sentryR::capture_exception(e, tags = sentry_context_tags()), error = function(se) NULL)
         warning("Region sync failed: ", e$message)
       })
     } else if (role == "super_admin") {

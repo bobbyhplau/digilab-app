@@ -53,6 +53,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **OCR OBANDAI noise**: Google Cloud Vision merges `©BANDAI` into `OBANDAI` token. Added to noise filter list.
 - **Meta filters not conjunctive**: "Top 3 Only" + "Has Decklist" applied independently — showed archetypes with any top-3 AND any decklist, not archetypes where a top-3 result has a decklist. Now queries with both conditions on the same result row. Same fix in deck profile modal.
 
+## [1.9.4] - 2026-03-30 - Sentry Error Reporting Blind Spots
+
+### Fixed
+- **Sentry blind spots in tryCatch handlers**: 35 error handlers across 12 server files were silently swallowing errors — showing user toast notifications but never reporting to Sentry. Added `sentryR::capture_exception()` calls to all admin CRUD operations (tournaments, decks, stores, players, formats, users, notifications), submit flows (tournament creation, results, decklists, match history), and Discord webhook failures. Expected fallbacks (geocoding cascades, optional query defaults, transaction rollbacks that re-throw) intentionally left without Sentry reporting.
+
 ## [1.9.3] - 2026-03-30 - Country & State Scene Hierarchy
 
 ### Added
