@@ -60,7 +60,6 @@ CREATE TABLE IF NOT EXISTS stores (
     phone VARCHAR,
     is_active BOOLEAN DEFAULT TRUE,
     is_online BOOLEAN DEFAULT FALSE,
-    is_regional_organizer BOOLEAN DEFAULT FALSE,
     country VARCHAR DEFAULT 'USA',        -- Country code for international support
     limitless_organizer_id INTEGER,  -- Limitless TCG organizer ID for auto-sync
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
@@ -255,7 +254,6 @@ CREATE TABLE IF NOT EXISTS tournaments (
     rounds INTEGER,
     limitless_id VARCHAR,
     record_format TEXT DEFAULT 'points',  -- 'points' or 'wlt' — how results were entered
-    venue_name TEXT,            -- Venue name for regionals/traveling events (venue ≠ organizer)
     notes TEXT,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,

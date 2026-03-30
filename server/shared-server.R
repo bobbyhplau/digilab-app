@@ -1364,7 +1364,6 @@ format_event_type <- function(et) {
     "locals" = "Locals",
     "evo_cup" = "Evo Cup",
     "store_championship" = "Store Championship",
-    "regional" = "Regional",
     "regionals" = "Regionals",
     "online" = "Online",
     "casuals" = "Casuals",
