@@ -907,6 +907,7 @@ observeEvent(input$sr_match_submit, {
           opp_points <- if (opp_won > opp_lost) 3L else if (opp_won < opp_lost) 0L else 1L
 
           tryCatch({
+            DBI::dbExecute(conn, sprintf("SAVEPOINT mirror_%d", i))
             DBI::dbExecute(conn, "
               INSERT INTO matches (tournament_id, round_number, player_id, opponent_id,
                                    games_won, games_lost, games_tied, match_points,
@@ -924,8 +925,10 @@ observeEvent(input$sr_match_submit, {
               "normal",
               "ocr"
             ))
+            DBI::dbExecute(conn, sprintf("RELEASE SAVEPOINT mirror_%d", i))
           }, error = function(me) {
-            # Duplicate mirror row is expected if opponent already submitted
+            # Roll back mirror savepoint to keep transaction healthy
+            tryCatch(DBI::dbExecute(conn, sprintf("ROLLBACK TO SAVEPOINT mirror_%d", i)), error = function(re) NULL)
             if (!grepl("unique|duplicate", me$message, ignore.case = TRUE)) {
               message("[MATCH SUBMIT] Mirror row error (non-duplicate): ", me$message)
             }
