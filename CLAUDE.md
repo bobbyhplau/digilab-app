@@ -282,7 +282,7 @@ git checkout -b fix/fix-name
 
 **v1.0 Release Strategy:** All new features from v0.20 onward should be developed in feature branches and merged incrementally as they're completed and tested. Main should stay stable with released versions.
 
-**Exception:** Documentation-only changes, bug fixes, and minor config tweaks can go directly to main.
+**Exception:** Documentation-only changes and minor config tweaks can go directly to main. Non-trivial bug fixes (especially anything touching auth, player identity, or transaction logic) should use feature branches with review.
 
 ### Code Verification (REQUIRED)
 
@@ -326,6 +326,28 @@ Keep documentation in sync with code changes. Update these files regularly:
 - On **feature releases (x.X.0)**: bump `APP_VERSION` in `app.R` and update `version_changelog_content()` in `server/scene-server.R` with 3-5 user-facing highlights (see ARCHITECTURE.md > Modal Patterns for details)
 - **After any edit to `ROADMAP.md`**: run `python3 scripts/validate_roadmap.py` to catch duplicate YAML keys, missing fields, and structural errors before committing
 - Don't let documentation drift - if you change code, check if docs need updating
+
+### Player Identity Change Scenarios
+
+When modifying the edit grid save handler, player matching, or detach logic, verify all scenarios:
+
+| Scenario | Expected Behavior |
+|----------|-------------------|
+| Name unchanged, Bandai unchanged | Keep existing player |
+| Name unchanged, Bandai changed (super admin) | Detach to new/existing player |
+| Name changed, Bandai changed (super admin) | Detach to new/existing player |
+| Name changed, Bandai unchanged | Name-change logic (resolve/rename) |
+| Bandai changed, non-super-admin | No detach (existing behavior) |
+| Target player already in tournament | Error message, full ROLLBACK |
+| GUEST name or placeholder Bandai | Auto-anonymize on player creation |
+
+### Security-Sensitive Code Patterns
+
+When writing or reviewing code that handles auth, permissions, or data integrity:
+
+- **Fail-closed defaults:** If a DB query fails, default to *denying* access, not granting it. Never use `default = 0` for permission/count checks — use `NA` and require positive confirmation.
+- **Transaction-aware queries:** Inside `localCheckout(db_pool)` transactions, pass `conn` (not `db_pool`) to helper functions like `generate_unique_slug`. Pool connections can't see uncommitted rows from the current transaction.
+- **Super admin gates:** Always check `isTRUE(rv$is_superadmin)` — never rely on truthiness of `rv$is_superadmin` alone, since it may be NULL.
 
 ## Development Workflow
 

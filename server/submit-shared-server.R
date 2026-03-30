@@ -1262,7 +1262,7 @@ observeEvent(input$sr_clear_tournament, {
 })
 
 observeEvent(input$sr_clear_results_only, {
-  req(rv$sr_active_tournament_id, db_pool)
+  req(rv$is_admin, rv$sr_active_tournament_id, db_pool)
   tryCatch({
     safe_execute(db_pool, "DELETE FROM results WHERE tournament_id = $1",
                  params = list(rv$sr_active_tournament_id))
@@ -1279,7 +1279,7 @@ observeEvent(input$sr_clear_results_only, {
 })
 
 observeEvent(input$sr_delete_tournament_confirm, {
-  req(rv$sr_active_tournament_id, db_pool)
+  req(rv$is_admin, rv$sr_active_tournament_id, db_pool)
   tryCatch({
     safe_execute(db_pool, "DELETE FROM results WHERE tournament_id = $1", params = list(rv$sr_active_tournament_id))
     safe_execute(db_pool, "DELETE FROM tournaments WHERE tournament_id = $1", params = list(rv$sr_active_tournament_id))
