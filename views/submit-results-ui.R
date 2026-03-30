@@ -150,11 +150,9 @@ submit_results_ui <- tagList(
               ),
               layout_columns(
                 col_widths = breakpoints(sm = c(12, 12, 12), md = c(4, 4, 4)),
-                div(id = "sr_scene_wrapper",
-                  selectInput("sr_scene", tags$span("Scene", tags$span(class = "required-indicator", "*")),
-                              choices = c("Loading..." = ""),
-                              selectize = FALSE)
-                ),
+                selectInput("sr_scene", tags$span("Scene", tags$span(class = "required-indicator", "*")),
+                            choices = c("Loading..." = ""),
+                            selectize = FALSE),
                 div(
                   selectInput("sr_store", tags$span("Store", tags$span(class = "required-indicator", "*")),
                               choices = c("Select scene first..." = ""),

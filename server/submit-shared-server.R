@@ -210,7 +210,6 @@ observeEvent(input$sr_scene, {
     stores <- safe_query(db_pool, "
       SELECT store_id, name FROM stores
       WHERE is_active = TRUE AND scene_id = $1
-        AND COALESCE(is_regional_organizer, FALSE) = FALSE
       ORDER BY name
     ", params = list(as.integer(scene_val)), default = data.frame())
   }
@@ -219,34 +218,6 @@ observeEvent(input$sr_scene, {
   updateSelectInput(session, "sr_store",
                     choices = c("Select store..." = "", choices))
 })
-
-# Swap store dropdown for regional organizers when event type = Regionals
-rv$sr_event_type_prev <- NULL
-observeEvent(input$sr_event_type, {
-  event_type <- input$sr_event_type
-  prev <- rv$sr_event_type_prev
-  rv$sr_event_type_prev <- event_type
-
-  if (!is.null(event_type) && event_type == "regionals") {
-    # Hide scene, show regional organizers
-    shinyjs::hide("sr_scene_wrapper")
-    shinyjs::runjs("$('#sr_store').closest('.form-group, .shiny-input-container').find('label').html('Organizer <span class=\"required-indicator\">*</span>');")
-    organizers <- safe_query(db_pool, "
-      SELECT store_id, name FROM stores
-      WHERE is_active = TRUE AND is_regional_organizer = TRUE
-      ORDER BY name
-    ", default = data.frame())
-    choices <- if (nrow(organizers) > 0) setNames(organizers$store_id, organizers$name) else character()
-    updateSelectInput(session, "sr_store",
-                      choices = c("Select organizer..." = "", choices))
-  } else if (!is.null(prev) && prev == "regionals") {
-    # Switching away from regionals — restore normal scene→store flow
-    shinyjs::show("sr_scene_wrapper")
-    shinyjs::runjs("$('#sr_store').closest('.form-group, .shiny-input-container').find('label').html('Store <span class=\"required-indicator\">*</span>');")
-    updateSelectInput(session, "sr_store",
-                      choices = c("Select scene first..." = ""))
-  }
-}, ignoreNULL = FALSE)
 
 # Populate format dropdown
 observe({
