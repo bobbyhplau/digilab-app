@@ -1244,7 +1244,8 @@ observeEvent(input$edit_grid_save, {
             if (bandai_modified && isTRUE(rv$is_superadmin)) {
               # Super admin detach: Bandai ID changed or cleared (name may also have changed)
               # Create new player or reassign to existing player with the new Bandai ID
-              player_id <- detach_to_player(conn, name, member_num, scene_id, tournament_id)
+              player_id <- detach_to_player(conn, name, member_num, scene_id, tournament_id,
+                                            admin_username = current_admin_username(rv))
               if (is.null(player_id)) {
                 DBI::dbExecute(conn, "ROLLBACK")
                 notify(sprintf("Cannot reassign — player with Bandai ID %s already has a result in this tournament.", member_num),
