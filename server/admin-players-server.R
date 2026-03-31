@@ -605,10 +605,10 @@ observeEvent(input$show_merge_modal, {
     p(class = "text-muted small", "All results from the source player will be moved to the target player, then the source player will be deleted."),
     hr(),
     selectizeInput("merge_source_player", "Source Player (will be deleted)",
-                   choices = c("" = "", player_choices), selected = "",
+                   choices = c(setNames("", ""), player_choices), selected = "",
                    options = list(placeholder = "Select player to merge FROM...", maxOptions = 200)),
     selectizeInput("merge_target_player", "Target Player (will keep)",
-                   choices = c("" = "", player_choices), selected = "",
+                   choices = c(setNames("", ""), player_choices), selected = "",
                    options = list(placeholder = "Select player to merge INTO...", maxOptions = 200)),
     uiOutput("merge_preview"),
     footer = tagList(
