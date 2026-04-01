@@ -2,8 +2,8 @@ name: Sync Limitless Tournament Data
 
 on:
   schedule:
-    # Run every Tuesday and Friday at midnight UTC
-    - cron: '0 0 * * 2,5'
+    # Run daily at 6am EST (11am UTC)
+    - cron: '0 11 * * *'
   workflow_dispatch:
     # Allow manual trigger from GitHub Actions UI
     inputs:
