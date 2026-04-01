@@ -56,6 +56,34 @@ accent_safe_slug <- function(text) {
 #' @param state_region Character state/region name (can be NULL)
 #' @param continent Character continent code (can be NULL)
 #' @param admin_username Character username of the admin performing the action (for audit trail)
+# Resolve the parent_scene_id for a scene based on its type, country, and state_region.
+# Returns integer scene_id or NA_integer_ if no parent applies.
+resolve_parent_scene_id <- function(pool, scene_type, country, state_region) {
+  if (scene_type %in% c("country", "global", "online")) return(NA_integer_)
+  if (is.null(country) || is.na(country) || country == "") return(NA_integer_)
+
+  if (scene_type == "state") {
+    # State scenes parent to their country scene
+    parent <- safe_query(pool,
+      "SELECT scene_id FROM scenes WHERE scene_type = 'country' AND country = $1 LIMIT 1",
+      params = list(country), default = data.frame())
+    return(if (nrow(parent) > 0) parent$scene_id[1] else NA_integer_)
+  }
+
+  # Metro scenes: prefer state parent if one exists, otherwise country
+  if (!is.null(state_region) && !is.na(state_region) && state_region != "") {
+    state_parent <- safe_query(pool,
+      "SELECT scene_id FROM scenes WHERE scene_type = 'state' AND country = $1 AND state_region = $2 LIMIT 1",
+      params = list(country, state_region), default = data.frame())
+    if (nrow(state_parent) > 0) return(state_parent$scene_id[1])
+  }
+
+  country_parent <- safe_query(pool,
+    "SELECT scene_id FROM scenes WHERE scene_type = 'country' AND country = $1 LIMIT 1",
+    params = list(country), default = data.frame())
+  if (nrow(country_parent) > 0) country_parent$scene_id[1] else NA_integer_
+}
+
 ensure_parent_scenes <- function(pool, country, state_region, continent, admin_username = "system") {
   if (is.null(country) || is.na(country) || country == "") return()
 
@@ -115,10 +143,12 @@ ensure_parent_scenes <- function(pool, country, state_region, continent, admin_u
     params = list(state_slug), default = data.frame(n = 1))
   if (slug_check$n[1] > 0) return()  # collision — skip, admin can create manually
 
+  # Link state scene to its country parent
+  country_parent_id <- resolve_parent_scene_id(pool, "state", country, state_region)
   safe_execute(pool,
-    "INSERT INTO scenes (name, slug, display_name, scene_type, country, state_region, continent, is_active, updated_by)
-     VALUES ($1, $2, $3, 'state', $4, $5, $6, TRUE, $7)",
-    params = list(state_region, state_slug, state_region, country, state_region, continent, admin_username))
+    "INSERT INTO scenes (name, slug, display_name, scene_type, country, state_region, continent, is_active, updated_by, parent_scene_id)
+     VALUES ($1, $2, $3, 'state', $4, $5, $6, TRUE, $7, $8)",
+    params = list(state_region, state_slug, state_region, country, state_region, continent, admin_username, country_parent_id))
   message(sprintf("[PARENT SCENES] Created state scene: %s / %s (%s)", country, state_region, state_slug))
 }
 
@@ -488,6 +518,7 @@ execute_scene_save <- function() {
       default = data.frame())
 
     if (nrow(insert_result) > 0) {
+      new_scene_id <- insert_result$scene_id[1]
       notify(paste0("Scene '", form$display_name, "' created"), type = "message")
 
       # Auto-create parent country/state scenes if this is a new metro
@@ -495,6 +526,14 @@ execute_scene_save <- function() {
         ensure_parent_scenes(db_pool, form$country, form$state_region,
                              derive_continent(form$country),
                              admin_username = current_admin_username(rv))
+      }
+
+      # Link to parent scene (must run after ensure_parent_scenes so parent exists)
+      parent_id <- resolve_parent_scene_id(db_pool, form$scene_type, form$country, form$state_region)
+      if (!is.na(parent_id)) {
+        safe_execute(db_pool,
+          "UPDATE scenes SET parent_scene_id = $1 WHERE scene_id = $2",
+          params = list(parent_id, new_scene_id))
       }
 
       rv$refresh_scenes <- rv$refresh_scenes + 1
@@ -532,16 +571,20 @@ execute_scene_save <- function() {
       return()
     }
 
+    # Recalculate parent linkage (country/state_region/scene_type may have changed)
+    parent_id <- resolve_parent_scene_id(db_pool, form$scene_type, form$country, form$state_region)
+
     safe_execute(db_pool,
       "UPDATE scenes SET name = $1, slug = $2, display_name = $3, scene_type = $4,
        latitude = $5, longitude = $6, is_active = $7,
-       country = $8, state_region = $9, continent = $10, updated_at = CURRENT_TIMESTAMP
-       WHERE scene_id = $11",
+       country = $8, state_region = $9, continent = $10, parent_scene_id = $11,
+       updated_at = CURRENT_TIMESTAMP
+       WHERE scene_id = $12",
       params = list(form$display_name, form$slug, form$display_name, form$scene_type,
                     if (is.na(form$lat)) NA_real_ else form$lat,
                     if (is.na(form$lng)) NA_real_ else form$lng,
                     form$is_active, form$country, form$state_region,
-                    derive_continent(form$country), sid))
+                    derive_continent(form$country), parent_id, sid))
 
     notify(paste0("Scene '", form$display_name, "' updated"), type = "message")
     rv$refresh_scenes <- rv$refresh_scenes + 1
