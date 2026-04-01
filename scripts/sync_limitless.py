@@ -1551,7 +1551,8 @@ def main():
         conn.commit()
 
     # Refresh materialized views after sync
-    if not args.dry_run and total_synced > 0:
+    total_synced = sum(s.get("tournaments_synced", 0) for s in all_stats)
+    if not args.dry_run and (total_synced > 0 or classified_count > 0):
         print("\nRefreshing materialized views...")
         mv_views = [
             "mv_player_store_stats",
