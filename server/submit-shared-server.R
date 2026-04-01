@@ -308,15 +308,15 @@ observeEvent(input$sr_step1_next, {
     notify("Please select a format", type = "error"); return()
   }
   player_count <- as.integer(input$sr_players %||% 8)
-  if (is.null(player_count) || is.na(player_count) || player_count < 2) {
+  if (is.na(player_count) || player_count < 2) {
     notify("Player count must be at least 2", type = "error"); return()
   }
 
-  method <- rv$sr_active_method %||% "unknown"
+  method <- rv$sr_active_method
   record_fmt <- if (isTRUE(rv$is_admin)) (input$sr_record_format %||% "points") else "points"
   rv$sr_record_format <- record_fmt
 
-  if (method == "upload") {
+  if (identical(method, "upload")) {
     # Upload: process files (handled in submit-upload-server.R)
     # The upload server observes sr_step1_next and handles OCR/CSV processing
     return()
@@ -1344,7 +1344,7 @@ observeEvent(input$sr_submit_results, {
     }
   }
 
-  rounds <- input$sr_rounds %||% 4
+  rounds <- as.integer(input$sr_rounds %||% 4)
   is_release <- !is.null(input$sr_event_type) && input$sr_event_type == "release_event"
 
   unknown_row <- safe_query(db_pool, "SELECT archetype_id FROM deck_archetypes WHERE archetype_name = 'UNKNOWN' LIMIT 1",
