@@ -123,6 +123,62 @@ meta_archetype_data <- reactive({
   # Calculate Conv % (conversion rate: Top 3s / Entries)
   result$`Conv %` <- round(result$`Top 3s` * 100 / result$Entries, 1)
 
+  # Calculate "vs Top Win %" — win rate against the #1 most-played deck
+  current_format <- input$meta_format %||% ""
+  if (nchar(current_format) > 0) {
+    matchup_format_sql <- "WHERE format = $1"
+    matchup_format_params <- list(current_format)
+  } else {
+    matchup_format_sql <- "WHERE TRUE"
+    matchup_format_params <- list()
+  }
+
+  # Find the top deck by total match volume
+  top_deck <- safe_query(db_pool, sprintf("
+    SELECT archetype_id
+    FROM mv_archetype_matchups
+    %s
+    GROUP BY archetype_id
+    ORDER BY SUM(wins + losses) DESC
+    LIMIT 1
+  ", matchup_format_sql),
+  params = matchup_format_params,
+  default = data.frame(archetype_id = integer()))
+
+  if (nrow(top_deck) > 0) {
+    top_deck_id <- top_deck$archetype_id[1]
+    # Get each archetype's record vs the top deck
+    vs_top_params <- c(list(as.integer(top_deck_id)), matchup_format_params)
+    vs_top_format_sql <- if (nchar(current_format) > 0) "AND format = $2" else ""
+    vs_top <- safe_query(db_pool, sprintf("
+      SELECT archetype_id,
+             SUM(wins)::int as wins_vs_top,
+             SUM(losses)::int as losses_vs_top
+      FROM mv_archetype_matchups
+      WHERE opponent_archetype_id = $1 %s
+      GROUP BY archetype_id
+    ", vs_top_format_sql),
+    params = vs_top_params,
+    default = data.frame(archetype_id = integer(), wins_vs_top = integer(), losses_vs_top = integer()))
+
+    result <- merge(result, vs_top, by = "archetype_id", all.x = TRUE, sort = FALSE)
+    result$wins_vs_top[is.na(result$wins_vs_top)] <- 0L
+    result$losses_vs_top[is.na(result$losses_vs_top)] <- 0L
+    vs_total <- result$wins_vs_top + result$losses_vs_top
+    result$`vs Top Win %` <- ifelse(vs_total >= 10,
+      round(result$wins_vs_top * 100 / vs_total, 1),
+      NA_real_
+    )
+    # Store top deck name for display
+    top_deck_name <- result$Deck[result$archetype_id == top_deck_id]
+    attr(result, "top_deck_name") <- if (length(top_deck_name) > 0) top_deck_name[1] else "Unknown"
+  } else {
+    result$wins_vs_top <- 0L
+    result$losses_vs_top <- 0L
+    result$`vs Top Win %` <- NA_real_
+    attr(result, "top_deck_name") <- NULL
+  }
+
   # Advanced filters: top 3 only + has decklist
 
   # Build scene/store filters for decklist subquery (shared by decklist-only and combined filter)
@@ -243,7 +299,15 @@ output$archetype_stats <- renderReactable({
       `1sts` = colDef(minWidth = 50, align = "center"),
       `Top 3s` = colDef(minWidth = 60, align = "center"),
       `Conv %` = colDef(minWidth = 70, align = "center"),
-      `Win %` = colDef(minWidth = 60, align = "center")
+      `Win %` = colDef(minWidth = 60, align = "center"),
+      wins_vs_top = colDef(show = FALSE),
+      losses_vs_top = colDef(show = FALSE),
+      `vs Top Win %` = colDef(
+        minWidth = 100, align = "center",
+        name = if (!is.null(attr(result, "top_deck_name")))
+          paste0("vs ", attr(result, "top_deck_name")) else "vs Top Win %",
+        cell = function(value) if (is.na(value)) "—" else paste0(value, "%")
+      )
     )
   )
 })

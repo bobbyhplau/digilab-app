@@ -598,8 +598,9 @@ All 5 public tabs read from materialized views instead of multi-table JOINs. Vie
 | `mv_tournament_list` | Tournaments, Dashboard | tournament (1 row per tournament) |
 | `mv_store_summary` | Stores | store (1 row per active store) |
 | `mv_dashboard_counts` | (mostly unused) | scene + format + event_type |
+| `mv_archetype_matchups` | Meta | archetype + opponent archetype + format |
 
-**Refresh:** `refresh_materialized_views(pool)` in `shared-server.R` runs non-concurrent `REFRESH MATERIALIZED VIEW` on all 5 views. Triggered by:
+**Refresh:** `refresh_materialized_views(pool)` in `shared-server.R` runs non-concurrent `REFRESH MATERIALIZED VIEW` on all 6 views. Triggered by:
 - `rv$data_refresh` observer (fires after any admin mutation)
 - `sync_limitless.py` (after online tournament sync)
 

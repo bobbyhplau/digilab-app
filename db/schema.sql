@@ -545,8 +545,9 @@ CREATE TABLE IF NOT EXISTS announcements (
 -- See db/migrations/005_materialized_views.sql for full definitions.
 -- Refresh via: refresh_materialized_views() in shared-server.R
 -- =============================================================================
--- mv_player_store_stats   — grain: (player_id, store_id, format, archetype_id)
+-- mv_player_store_stats    — grain: (player_id, store_id, format, archetype_id)
 -- mv_archetype_store_stats — grain: (archetype_id, store_id, format, event_type, week_start)
--- mv_tournament_list      — grain: (tournament_id)
--- mv_store_summary        — grain: (store_id)
--- mv_dashboard_counts     — grain: (scene_id, format, event_type, is_online)
+-- mv_tournament_list       — grain: (tournament_id)
+-- mv_store_summary         — grain: (store_id)
+-- mv_dashboard_counts      — grain: (scene_id, format, event_type, is_online)
+-- mv_archetype_matchups    — grain: (archetype_id, opponent_archetype_id, format)

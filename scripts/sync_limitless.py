@@ -1562,6 +1562,7 @@ def main():
             "mv_tournament_list",
             "mv_store_summary",
             "mv_dashboard_counts",
+            "mv_archetype_matchups",
         ]
         for mv in mv_views:
             try:

@@ -216,3 +216,29 @@ CREATE UNIQUE INDEX ON mv_dashboard_counts
   (scene_id, COALESCE(format, '__null__'), event_type, is_online);
 
 CREATE INDEX idx_mv_dash_scene ON mv_dashboard_counts (scene_id);
+
+-- =============================================================================
+-- View 6: mv_archetype_matchups
+-- Grain: (archetype_id, opponent_archetype_id, format)
+-- Used by: Meta tab ("vs Top Win %" column)
+-- =============================================================================
+CREATE MATERIALIZED VIEW mv_archetype_matchups AS
+SELECT
+  r1.archetype_id,
+  r2.archetype_id AS opponent_archetype_id,
+  t.format,
+  SUM(CASE WHEN m.match_points = 3 THEN 1 ELSE 0 END) AS wins,
+  SUM(CASE WHEN m.match_points = 0 THEN 1 ELSE 0 END) AS losses
+FROM matches m
+JOIN results r1 ON r1.tournament_id = m.tournament_id AND r1.player_id = m.player_id
+JOIN results r2 ON r2.tournament_id = m.tournament_id AND r2.player_id = m.opponent_id
+JOIN tournaments t ON t.tournament_id = m.tournament_id
+WHERE r1.archetype_id IS NOT NULL AND r2.archetype_id IS NOT NULL
+  AND m.match_points IN (0, 3)
+GROUP BY r1.archetype_id, r2.archetype_id, t.format;
+
+CREATE UNIQUE INDEX ON mv_archetype_matchups
+  (archetype_id, opponent_archetype_id, COALESCE(format, '__null__'));
+
+CREATE INDEX idx_mv_matchup_opponent ON mv_archetype_matchups (opponent_archetype_id);
+CREATE INDEX idx_mv_matchup_format ON mv_archetype_matchups (format);

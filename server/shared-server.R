@@ -1660,7 +1660,8 @@ build_mv_filters <- function(format = NULL,
 # Called after data mutations (result submission, tournament edit, sync).
 refresh_materialized_views <- function(pool) {
   views <- c("mv_player_store_stats", "mv_archetype_store_stats",
-             "mv_tournament_list", "mv_store_summary", "mv_dashboard_counts")
+             "mv_tournament_list", "mv_store_summary", "mv_dashboard_counts",
+             "mv_archetype_matchups")
   con <- pool::localCheckout(pool)
   for (v in views) {
     tryCatch(
@@ -1675,9 +1676,10 @@ mv_views_exist <- function(pool) {
   result <- safe_query(pool, "
       SELECT COUNT(*) as n FROM pg_matviews
       WHERE matviewname IN ('mv_player_store_stats', 'mv_archetype_store_stats',
-                            'mv_tournament_list', 'mv_store_summary', 'mv_dashboard_counts')
+                            'mv_tournament_list', 'mv_store_summary', 'mv_dashboard_counts',
+                            'mv_archetype_matchups')
     ", default = data.frame(n = 0))
-  result$n[1] == 5
+  result$n[1] == 6
 }
 
 # Auto-refresh materialized views when data changes
