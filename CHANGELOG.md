@@ -23,9 +23,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Tournament selection highlighting**: Selected tournament gets a cyan left-border accent and subtle background highlight. Custom status badges (Complete/Partial/No data) use translucent styling consistent with the app's aesthetic.
 - **Mobile responsive**: Side-by-side collapses to stacked layout below 768px, hiding the empty detail panel until a tournament is selected.
 
-## [Unreleased]
+## [2.0.1] - 2026-04-06
 
 ### Fixed
+- **OCR crash on desktop screenshots**: Both tournament standings and match-by-match OCR flows crashed when parsers returned malformed or empty data frames (e.g., from desktop browser screenshots). Added column validation guards at three levels: parser error handlers now return properly-typed empty frames, post-parse validation catches malformed columns before grid rendering, and `ocr_to_grid_data` has defense-in-depth column checks.
 - **Match-by-match mobile: upload panel not showing**: Selecting a tournament on mobile didn't reveal the upload file input. Replaced unreliable CSS `:has(:empty)` toggle with explicit class management from the server; panel now appears and auto-scrolls into view on selection.
 - **Match-by-match mobile: lookup button overflow**: "Look Up" button overflowed card boundaries on small screens. Button now shows icon-only (magnifying glass) on mobile.
 

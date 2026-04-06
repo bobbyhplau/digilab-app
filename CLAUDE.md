@@ -416,6 +416,6 @@ See `ARCHITECTURE.md` > CSS Architecture for full documentation.
 
 ## Current Version
 
-**v1.9.5** - Match Submission Pipeline Fix
+**v2.0.1** - OCR Graceful Error Handling
 
 See `CHANGELOG.md` for full version history and `ROADMAP.md` for upcoming features.

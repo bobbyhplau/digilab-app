@@ -584,7 +584,7 @@ observeEvent(input$sr_match_process_ocr, {
 
   if (is.null(ocr_text) || ocr_text == "") {
     removeModal()
-    notify("Could not read the screenshot. Make sure the image is clear and shows the match history screen.", type = "error")
+    notify("Could not read the screenshot. Make sure the image is clear and shows the match history screen from the Bandai TCG+ mobile app. Desktop browser screenshots are not currently supported.", type = "error")
     return()
   }
 
@@ -595,8 +595,35 @@ observeEvent(input$sr_match_process_ocr, {
     parse_match_history(ocr_result, verbose = TRUE)
   }, error = function(e) {
     message("[MATCH SUBMIT] Parse error: ", e$message)
-    data.frame()
+    data.frame(
+      round = integer(), opponent_username = character(),
+      opponent_member_number = character(), games_won = integer(),
+      games_lost = integer(), games_tied = integer(),
+      match_points = integer(), match_type = character(),
+      stringsAsFactors = FALSE
+    )
   })
+
+  # Validate parsed result has required columns (parser may return malformed frame)
+  match_required_cols <- c("round", "opponent_username", "opponent_member_number",
+                           "games_won", "games_lost", "games_tied")
+  if (!all(match_required_cols %in% names(parsed))) {
+    message("[MATCH SUBMIT] Parsed result missing required columns: ",
+            paste(setdiff(match_required_cols, names(parsed)), collapse = ", "))
+    parsed <- data.frame(
+      round = integer(), opponent_username = character(),
+      opponent_member_number = character(), games_won = integer(),
+      games_lost = integer(), games_tied = integer(),
+      match_points = integer(), match_type = character(),
+      stringsAsFactors = FALSE
+    )
+  }
+  if (!"match_type" %in% names(parsed)) {
+    parsed$match_type <- if (nrow(parsed) > 0) "normal" else character()
+  }
+  if (!"match_points" %in% names(parsed)) {
+    parsed$match_points <- if (nrow(parsed) > 0) 0L else integer()
+  }
 
   removeModal()
 

@@ -967,6 +967,25 @@ match_player <- function(name, con, member_number = NULL, scene_id = NULL) {
 # Maps column names: username -> player_name, etc.
 # -----------------------------------------------------------------------------
 ocr_to_grid_data <- function(ocr_results) {
+  # Defense-in-depth: validate required columns exist before accessing them
+  required_cols <- c("placement", "username", "member_number", "points",
+                     "wins", "losses", "ties", "match_status", "matched_player_id")
+  missing <- setdiff(required_cols, names(ocr_results))
+  if (length(missing) > 0) {
+    message("[GRID] ocr_to_grid_data received data missing columns: ",
+            paste(missing, collapse = ", "))
+    return(data.frame(
+      placement = integer(), player_name = character(),
+      member_number = character(), points = integer(),
+      wins = integer(), losses = integer(), ties = integer(),
+      deck_id = integer(), match_status = character(),
+      matched_player_id = integer(), matched_member_number = character(),
+      result_id = integer(), deck_url = character(),
+      omw_pct = double(), oomw_pct = double(), memo = character(),
+      stringsAsFactors = FALSE
+    ))
+  }
+
   n <- nrow(ocr_results)
   data.frame(
     placement = ocr_results$placement,
