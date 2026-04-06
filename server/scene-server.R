@@ -1374,24 +1374,20 @@ version_changelog_content <- function() {
   tagList(
     div(class = "version-changelog-items",
       div(class = "version-changelog-item",
-        bsicons::bs_icon("stars", class = "text-warning"),
-        span("New onboarding experience — pick your scene, find your player profile, and see your scene's stats at a glance")
+        bsicons::bs_icon("globe2", class = "text-info"),
+        span(HTML("<strong>DigiLab 2.0!</strong> Player profiles, meta, tournaments & stores have been completely rebuilt at <a href='https://digilab.cards' target='_blank' rel='noopener'>digilab.cards</a>"))
       ),
       div(class = "version-changelog-item",
-        bsicons::bs_icon("cloud-upload", class = "text-primary"),
-        span("Unified Submit Results tab — all entry methods under one card picker")
+        bsicons::bs_icon("arrow-up-right-circle", class = "text-primary"),
+        span("Starting May 1st, all data views move to the new site. This app becomes submission-only for results, decklists & match data.")
       ),
       div(class = "version-changelog-item",
-        bsicons::bs_icon("controller", class = "text-success"),
-        span(HTML("Match-by-Match results — <strong>anyone</strong> can upload match history by Bandai ID. This unlocks deck matchup stats and better ratings down the road!"))
+        bsicons::bs_icon("bar-chart-fill", class = "text-success"),
+        span("Deeper analysis, faster pages, and shareable links for everything on the new site")
       ),
       div(class = "version-changelog-item",
-        bsicons::bs_icon("link-45deg", class = "text-info"),
-        span(HTML("Add Decklists — <strong>anyone</strong> can attach decklist URLs to past tournaments. In-app decklist viewer coming soon!"))
-      ),
-      div(class = "version-changelog-item",
-        bsicons::bs_icon("pencil-square", class = "text-danger"),
-        span("Editable placements, tied placements, and dynamic Add Player grid")
+        bsicons::bs_icon("cloud-upload", class = "text-warning"),
+        span("All submission features stay right here — tournament results, decklist URLs, and match-by-match uploads")
       )
     ),
     div(class = "version-changelog-support mt-3 pt-3",
