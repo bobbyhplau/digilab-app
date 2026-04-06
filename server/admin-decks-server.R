@@ -216,10 +216,11 @@ observeEvent(input$add_archetype, {
   }
 
   tryCatch({
+    slug <- generate_slug(name)
     safe_execute(db_pool, "
-      INSERT INTO deck_archetypes (archetype_name, display_card_id, primary_color, secondary_color, is_multi_color, updated_by)
-      VALUES ($1, $2, $3, $4, $5, $6)
-    ", params = list(name, card_id, primary_color, secondary_color, isTRUE(input$deck_multi_color), current_admin_username(rv)))
+      INSERT INTO deck_archetypes (archetype_name, slug, display_card_id, primary_color, secondary_color, is_multi_color, updated_by)
+      VALUES ($1, $2, $3, $4, $5, $6, $7)
+    ", params = list(name, slug, card_id, primary_color, secondary_color, isTRUE(input$deck_multi_color), current_admin_username(rv)))
 
     notify(paste("Added archetype:", name), type = "message")
 
@@ -399,12 +400,13 @@ observeEvent(input$update_archetype, {
   }
 
   tryCatch({
+    slug <- generate_slug(name)
     safe_execute(db_pool, "
       UPDATE deck_archetypes
-      SET archetype_name = $1, primary_color = $2, secondary_color = $3, display_card_id = $4, is_multi_color = $5,
-          updated_at = CURRENT_TIMESTAMP, updated_by = $6
-      WHERE archetype_id = $7
-    ", params = list(name, primary_color, secondary_color, card_id, isTRUE(input$deck_multi_color), current_admin_username(rv), archetype_id))
+      SET archetype_name = $1, slug = $2, primary_color = $3, secondary_color = $4, display_card_id = $5, is_multi_color = $6,
+          updated_at = CURRENT_TIMESTAMP, updated_by = $7
+      WHERE archetype_id = $8
+    ", params = list(name, slug, primary_color, secondary_color, card_id, isTRUE(input$deck_multi_color), current_admin_username(rv), archetype_id))
 
     notify(sprintf("Updated archetype: %s", name), type = "message")
 
@@ -986,11 +988,12 @@ create_deck_from_request <- function(req_id, deck_name, primary_color, secondary
 
   tryCatch({
     # Create new archetype
+    slug <- generate_slug(deck_name)
     archetype_result <- safe_query(db_pool, "
-      INSERT INTO deck_archetypes (archetype_name, primary_color, secondary_color, display_card_id, updated_by)
-      VALUES ($1, $2, $3, $4, $5)
+      INSERT INTO deck_archetypes (archetype_name, slug, primary_color, secondary_color, display_card_id, updated_by)
+      VALUES ($1, $2, $3, $4, $5, $6)
       RETURNING archetype_id
-    ", params = list(deck_name, primary_color, secondary_color, card_id, current_admin_username(rv)),
+    ", params = list(deck_name, slug, primary_color, secondary_color, card_id, current_admin_username(rv)),
        default = data.frame())
     new_archetype_id <- archetype_result$archetype_id[1]
 
