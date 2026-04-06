@@ -590,16 +590,45 @@ recalculate_ratings_cache <- function(db_con, from_date = NULL, use_legacy = FAL
         UNION ALL
 
         -- Priority 2: online stores (s.country fallback for online-only players)
-        -- Normalize 'USA' to 'United States' to match scene country format
+        -- Normalize store country codes to full names to match scene country format
         SELECT r.player_id,
-               CASE WHEN s.country = 'USA' THEN 'United States' ELSE s.country END AS country,
+               CASE s.country
+                 WHEN 'USA' THEN 'United States'
+                 WHEN 'GBR' THEN 'United Kingdom'
+                 WHEN 'KOR' THEN 'South Korea'
+                 WHEN 'JPN' THEN 'Japan'
+                 WHEN 'DEU' THEN 'Germany'
+                 WHEN 'ESP' THEN 'Spain'
+                 WHEN 'PRT' THEN 'Portugal'
+                 WHEN 'NLD' THEN 'Netherlands'
+                 WHEN 'BRA' THEN 'Brazil'
+                 WHEN 'MEX' THEN 'Mexico'
+                 WHEN 'TWN' THEN 'Taiwan'
+                 WHEN 'CHN' THEN 'China'
+                 ELSE s.country
+               END AS country,
                2 AS priority, COUNT(*) AS cnt
         FROM results r
         JOIN tournaments t ON r.tournament_id = t.tournament_id
         JOIN stores s ON t.store_id = s.store_id
         WHERE s.is_online = TRUE
           AND s.country IS NOT NULL
-        GROUP BY r.player_id, s.country
+        GROUP BY r.player_id,
+                 CASE s.country
+                   WHEN 'USA' THEN 'United States'
+                   WHEN 'GBR' THEN 'United Kingdom'
+                   WHEN 'KOR' THEN 'South Korea'
+                   WHEN 'JPN' THEN 'Japan'
+                   WHEN 'DEU' THEN 'Germany'
+                   WHEN 'ESP' THEN 'Spain'
+                   WHEN 'PRT' THEN 'Portugal'
+                   WHEN 'NLD' THEN 'Netherlands'
+                   WHEN 'BRA' THEN 'Brazil'
+                   WHEN 'MEX' THEN 'Mexico'
+                   WHEN 'TWN' THEN 'Taiwan'
+                   WHEN 'CHN' THEN 'China'
+                   ELSE s.country
+                 END
       ) combined
       ORDER BY player_id, priority, cnt DESC
     ", default = data.frame(player_id = integer(), country = character()))

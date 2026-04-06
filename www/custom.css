@@ -4513,16 +4513,6 @@ body.bslib-gap-spacing, body > .bslib-gap-spacing {
   transform: translateY(-1px);
   box-shadow: 0 4px 12px rgba(255, 94, 91, 0.4);
 }
-.btn-digilab {
-  background: var(--dl-cyan);
-  color: #ffffff;
-}
-.btn-digilab:hover {
-  background: #00a0d0;
-  color: #ffffff;
-  transform: translateY(-1px);
-  box-shadow: 0 4px 12px rgba(var(--dl-cyan-rgb), 0.4);
-}
 
 /* =============================================================================
    PLACEMENT COLORS (Gold, Silver, Bronze)

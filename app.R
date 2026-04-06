@@ -938,8 +938,8 @@ ui <- page_fillable(
       # Admin notification bar (pending requests — shown only to admins)
       uiOutput("admin_notification_bar"),
 
-      # Migration banner (persistent, non-dismissible)
-      uiOutput("migration_banner"),
+      # Migration banner (persistent, non-dismissible — static, no reactive deps)
+      migration_banner_ui(),
 
       # Community filter banner (shown when filtering by store)
       uiOutput("community_banner"),
@@ -1169,7 +1169,6 @@ server <- function(input, output, session) {
   source("server/public-tournaments-server.R", local = TRUE)
   source("server/public-players-server.R", local = TRUE)
   source("server/public-dashboard-server.R", local = TRUE)
-  source("server/migration-server.R", local = TRUE)
   source("server/submit-shared-server.R", local = TRUE)
   source("server/submit-upload-server.R", local = TRUE)
   source("server/submit-match-server.R", local = TRUE)
