@@ -541,6 +541,23 @@ CREATE TABLE IF NOT EXISTS announcements (
 );
 
 -- =============================================================================
+-- PLAYER SCENES TABLE (Junction Table)
+-- Tracks which scenes a player qualifies for based on tournament participation
+-- Recomputed alongside rating refresh (>= 3 events threshold)
+-- Home scene derived: physical scene with most events wins over online
+-- =============================================================================
+CREATE TABLE IF NOT EXISTS player_scenes (
+    player_id    INT NOT NULL REFERENCES players(player_id) ON DELETE CASCADE,
+    scene_id     INT NOT NULL REFERENCES scenes(scene_id) ON DELETE CASCADE,
+    events_played INT NOT NULL DEFAULT 0,
+    is_home      BOOLEAN NOT NULL DEFAULT false,
+    PRIMARY KEY (player_id, scene_id)
+);
+
+CREATE INDEX IF NOT EXISTS idx_player_scenes_scene ON player_scenes(scene_id);
+CREATE INDEX IF NOT EXISTS idx_player_scenes_home ON player_scenes(player_id) WHERE is_home = true;
+
+-- =============================================================================
 -- MATERIALIZED VIEWS (pre-computed aggregations for performance)
 -- See db/migrations/005_materialized_views.sql for full definitions.
 -- Refresh via: refresh_materialized_views() in shared-server.R
