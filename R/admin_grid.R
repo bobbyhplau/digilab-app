@@ -614,7 +614,7 @@ ALLOWED_DECKLIST_DOMAINS <- c(
   "limitlesstcg.com",
   "play.limitlesstcg.com",
   "my.limitlesstcg.com",
-  "tcgstacked.com"
+  "bandai-tcg-plus.com"
 )
 
 validate_decklist_url <- function(url) {
