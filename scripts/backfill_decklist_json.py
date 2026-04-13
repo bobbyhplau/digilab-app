@@ -26,7 +26,7 @@ import re
 import time
 import urllib.request
 from base64 import urlsafe_b64decode
-from urllib.parse import urlparse, parse_qs, unquote
+from urllib.parse import urlparse, parse_qs, quote, unquote
 
 import psycopg2
 from dotenv import load_dotenv
@@ -375,17 +375,95 @@ def parse_digimoncard_app(url):
     return cards if cards else None
 
 
+def parse_bandai_tcg_plus(url):
+    """
+    Parse bandai-tcg-plus.com /deck_code_recipe/{deck_code} URLs.
+    Two-step API:
+      1. /api/user/deck/url_code?deck_code={code} → resolves to dot-separated url_code
+      2. /api/user/deck/recipe?url_code={url_code} → returns full card details
+    Returns 4-category JSON dict directly (not flat cards), or None.
+    """
+    parsed = urlparse(url)
+    match = re.match(r'^/deck_code_recipe/([A-Za-z0-9_-]+)', parsed.path)
+    if not match:
+        return None
+
+    deck_code = match.group(1)
+
+    # Step 1: Resolve deck_code → url_code
+    try:
+        step1_url = f"https://api.bandai-tcg-plus.com/api/user/deck/url_code?deck_code={deck_code}"
+        req = urllib.request.Request(step1_url, headers={"User-Agent": "DigiLab/2.1.0"})
+        with urllib.request.urlopen(req, timeout=10) as resp:
+            data = json.loads(resp.read().decode("utf-8"))
+        success = data.get("success", {})
+        url_code = success.get("url_code")
+        game_title_id = success.get("game_title_id", 2)
+        if not url_code:
+            print(f"    bandai-tcg-plus.com: no url_code returned for {deck_code}")
+            return None
+    except Exception as e:
+        print(f"    bandai-tcg-plus.com API error (step 1) for {deck_code}: {e}")
+        return None
+
+    # Step 2: Fetch full recipe from url_code
+    try:
+        step2_url = (
+            f"https://api.bandai-tcg-plus.com/api/user/deck/recipe"
+            f"?url_code={quote(url_code)}&game_title_id={game_title_id}&encode=0"
+        )
+        req = urllib.request.Request(step2_url, headers={"User-Agent": "DigiLab/2.1.0"})
+        with urllib.request.urlopen(req, timeout=10) as resp:
+            data = json.loads(resp.read().decode("utf-8"))
+        success = data.get("success", {})
+    except Exception as e:
+        print(f"    bandai-tcg-plus.com API error (step 2) for {deck_code}: {e}")
+        return None
+
+    main_deck = success.get("main_deck", [])
+    extra_deck = success.get("extra_deck", [])
+
+    if not main_deck and not extra_deck:
+        return None
+
+    # Build 4-category JSON directly from the API response
+    # API card types: "Digimon", "Tamer", "Option", "Digi-Egg"
+    BANDAI_TYPE_MAP = {"Digimon": "digimon", "Tamer": "tamer", "Option": "option", "Digi-Egg": "egg"}
+    result = {"digimon": [], "tamer": [], "option": [], "egg": []}
+
+    for card in main_deck + extra_deck:
+        card_number = card.get("card_number", "")
+        parts = card_number.split("-", 1)
+        card_dict = {
+            "count": card.get("card_count", 1),
+            "name": card.get("card_name", card_number),
+            "set": parts[0] if len(parts) == 2 else "",
+            "number": parts[1] if len(parts) == 2 else card_number,
+        }
+        category = BANDAI_TYPE_MAP.get(card.get("type", ""), "digimon")
+        result[category].append(card_dict)
+
+    total = sum(len(v) for v in result.values())
+    return result if total > 0 else None
+
+
 # ---------------------------------------------------------------------------
 # URL router
 # ---------------------------------------------------------------------------
 
 # Domains with implemented parsers — used for both routing and error tracking
-PARSEABLE_DOMAINS = {
+# Parsers returning flat (card_id, count) lists (processed by flat_cards_to_4cat)
+_FLAT_PARSERS = {
     "digimoncard.dev": parse_digimoncard_dev,
     "digimonmeta.com": parse_digimonmeta,
     "digitalgateopen.com": parse_digitalgateopen,
     "digimoncard.app": parse_digimoncard_app,
 }
+# Parsers returning final 4-category JSON directly
+_DIRECT_PARSERS = {
+    "bandai-tcg-plus.com": parse_bandai_tcg_plus,
+}
+PARSEABLE_DOMAINS = {**_FLAT_PARSERS, **_DIRECT_PARSERS}
 
 
 def extract_domain(url):
@@ -403,15 +481,19 @@ def parse_decklist_url(url):
         return None
 
     domain = extract_domain(url)
-    parser = PARSEABLE_DOMAINS.get(domain)
-    if not parser:
-        return None
 
-    flat_cards = parser(url)
-    if not flat_cards:
-        return None
+    # Direct parsers return final 4-category JSON
+    if domain in _DIRECT_PARSERS:
+        return _DIRECT_PARSERS[domain](url)
 
-    return flat_cards_to_4cat(flat_cards)
+    # Flat parsers return (card_id, count) lists needing enrichment
+    if domain in _FLAT_PARSERS:
+        flat_cards = _FLAT_PARSERS[domain](url)
+        if not flat_cards:
+            return None
+        return flat_cards_to_4cat(flat_cards)
+
+    return None
 
 
 # ---------------------------------------------------------------------------
@@ -505,8 +587,8 @@ def main():
                     print(f"    (committed batch of {uncommitted})")
                     uncommitted = 0
 
-            # Rate limit API calls to digimoncard.app
-            if domain == "digimoncard.app":
+            # Rate limit API calls to external services
+            if domain in ("digimoncard.app", "bandai-tcg-plus.com"):
                 time.sleep(0.5)
 
         if not args.dry_run and uncommitted > 0:
