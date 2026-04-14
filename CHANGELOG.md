@@ -5,6 +5,11 @@ All notable changes to DigiLab will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Changed
+- **Curve B round multiplier**: Events with 5+ rounds now carry progressively more rating weight. Formula changed from capped `min(1.0 + (rounds-3)*0.1, 1.4)` to uncapped `1.1 + (rounds-4)*0.2` for 5+ rounds. 1-4 round events unchanged. An 8-round regional goes from 1.4× to 1.9×. See `docs/plans/2026-04-07-round-multiplier-curve-b.md`. Pending full rating rebuild via `scripts/rebuild_ratings_curve_b.R`.
+
 ## [2.1.0] - 2026-04-13
 
 ### Added

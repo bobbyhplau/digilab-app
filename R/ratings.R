@@ -122,9 +122,14 @@ calculate_ratings_single_pass <- function(db_con, from_date = NULL, record_histo
 
     if (nrow(tourney_results) < 2) next
 
-    # Round multiplier: min(1.0 + (rounds - 3) * 0.1, 1.4)
+    # Round multiplier: Curve B — steeper slope above 4 rounds, no cap
+    # See docs/plans/2026-04-07-round-multiplier-curve-b.md
     rounds <- if (is.na(tourney$rounds)) 3 else tourney$rounds
-    round_mult <- min(1.0 + (rounds - 3) * 0.1, 1.4)
+    round_mult <- if (rounds <= 4) {
+      1.0 + (rounds - 3) * 0.1
+    } else {
+      1.1 + (rounds - 4) * 0.2
+    }
 
     # Calculate rating changes for all players in this tournament
     player_changes <- list()
@@ -318,9 +323,13 @@ calculate_competitive_ratings <- function(db_con, format_filter = NULL, date_cut
       months_ago <- as.numeric(difftime(current_date, tourney$event_date, units = "days")) / 30.44
       decay_weight <- 0.5 ^ (months_ago / 4)
 
-      # Calculate round multiplier: min(1.0 + (rounds - 3) * 0.1, 1.4)
+      # Round multiplier: Curve B — steeper slope above 4 rounds, no cap
       rounds <- if (is.na(tourney$rounds)) 3 else tourney$rounds
-      round_mult <- min(1.0 + (rounds - 3) * 0.1, 1.4)
+      round_mult <- if (rounds <= 4) {
+        1.0 + (rounds - 3) * 0.1
+      } else {
+        1.1 + (rounds - 4) * 0.2
+      }
 
       # Process each player's implied results
       for (j in 1:nrow(tourney_results)) {

@@ -4,6 +4,19 @@ This log tracks development decisions, blockers, and technical notes for DigiLab
 
 ---
 
+## 2026-04-14: Curve B Round Multiplier
+
+### Problem
+Tournament size was a non-factor in rating changes. The `/num_opponents` normalization in `calculate_ratings_single_pass` cancels out tournament size entirely, and the round multiplier capped at 1.4 for 7+ rounds. A 9th place at a 234-player regional gained roughly the same as 1st at a 12-player local.
+
+### Solution
+Steeper round multiplier slope above 4 rounds with no cap: `1.1 + (rounds - 4) * 0.2`. Events with 1-4 rounds are unchanged. This uses rounds as a proxy for event size/rigor, which correlates strongly (8 rounds → avg 181 players). Only 6% of tournaments affected but 27% of players.
+
+### Implementation
+Formula updated in both `calculate_ratings_single_pass` (active) and `calculate_competitive_ratings` (legacy) in `R/ratings.R`. Rebuild script at `scripts/rebuild_ratings_curve_b.R` does a full `recalculate_ratings_cache(from_date = NULL)` and prints before/after deltas for verification. Rebuild not yet executed — waiting for review window.
+
+---
+
 ## 2026-04-13: Archetype Families (v2.1.0)
 
 ### Design: Flat Hierarchy, One Family Per Archetype

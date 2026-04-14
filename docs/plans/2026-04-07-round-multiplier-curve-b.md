@@ -1,7 +1,7 @@
 # Round Multiplier Curve B — Large Event Rating Scaling
 
 **Date:** 2026-04-07
-**Status:** Planned
+**Status:** Code complete — pending rating rebuild
 **Roadmap ID:** `round-multiplier-curve-b`
 
 ## Problem
