@@ -532,13 +532,14 @@ calculate_store_avg_player_rating <- function(db_con, player_ratings) {
 #' @return Number of player-scene associations created
 refresh_player_scenes <- function(db_con, threshold = 3) {
   tryCatch({
-    # Full rebuild: delete old rows and insert fresh in a single CTE statement
-    # to avoid a window where the table is empty
-    n_rows <- safe_execute_impl(db_con, sprintf("
-      WITH cleared AS (
-        DELETE FROM player_scenes
-      ),
-      player_scene_events AS (
+    # Use a dedicated connection so DELETE + INSERT run in a single transaction
+    # (data-modifying CTEs hit snapshot isolation issues with the connection pool)
+    conn <- pool::localCheckout(db_con)
+
+    DBI::dbExecute(conn, "DELETE FROM player_scenes")
+
+    n_rows <- DBI::dbExecute(conn, sprintf("
+      WITH player_scene_events AS (
         SELECT
           r.player_id,
           st.scene_id,
@@ -570,7 +571,7 @@ refresh_player_scenes <- function(db_con, threshold = 3) {
     # Sync home_scene_id for players who have a qualifying home scene.
     # Only touches players WITH qualifying scenes — players below threshold
     # keep their original home_scene_id (set on creation for name-match scoping).
-    safe_execute_impl(db_con, "
+    DBI::dbExecute(conn, "
       UPDATE players p
       SET home_scene_id = ps.scene_id
       FROM player_scenes ps
