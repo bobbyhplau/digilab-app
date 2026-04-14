@@ -1203,6 +1203,7 @@ server <- function(input, output, session) {
       source("server/submit-grid-server.R", local = TRUE)
       source("server/admin-tournaments-server.R", local = TRUE)
       source("server/admin-decks-server.R", local = TRUE)
+      source("server/admin-families-server.R", local = TRUE)
       source("server/admin-stores-server.R", local = TRUE)
       source("server/admin-formats-server.R", local = TRUE)
       source("server/admin-players-server.R", local = TRUE)
