@@ -379,6 +379,36 @@ def resolve_deck(cursor, deck_info, deck_map_cache):
 # Tournament Sync
 # =============================================================================
 
+def derive_round_from_match_field(match_field, api_round):
+    """Derive a unique round number from the bracket match field.
+
+    Single-elimination tournaments on Limitless report all pairings as round 1,
+    with bracket position encoded in the match field (e.g., T8-3, T4-2, T2-1).
+    This converts bracket tier to sequential rounds so players appearing in
+    multiple bracket stages get distinct round numbers.
+
+    Args:
+        match_field: Match identifier from API (e.g., "T8-3", "T4-2")
+        api_round: The round number from the API
+
+    Returns:
+        Integer round number (derived from bracket tier, or api_round as fallback)
+    """
+    if not match_field or not isinstance(match_field, str):
+        return api_round
+
+    # Match bracket format: T<size>-<seat> (e.g., T8-3, T4-2, T2-1)
+    bracket_match = re.match(r'^T(\d+)-', match_field)
+    if not bracket_match:
+        return api_round
+
+    bracket_size = int(bracket_match.group(1))
+
+    # Larger bracket size = earlier round: T128→1, T64→2, ... T8→5, T4→6, T2→7, T1→8
+    size_to_round = {128: 1, 64: 2, 32: 3, 16: 4, 8: 5, 4: 6, 2: 7, 1: 8}
+    return size_to_round.get(bracket_size, api_round)
+
+
 def count_total_rounds(details):
     """Count total rounds across all phases in tournament details.
 
@@ -608,7 +638,9 @@ def sync_tournament(cursor, tournament, organizer_id, store_id, dry_run=False):
     matches_inserted = 0
 
     for pairing in pairings:
-        round_number = pairing.get("round")
+        api_round = pairing.get("round")
+        match_field = pairing.get("match", "")
+        round_number = derive_round_from_match_field(match_field, api_round)
         player1_username = pairing.get("player1", "")
         player2_username = pairing.get("player2", "")
         winner = str(pairing.get("winner", ""))
@@ -643,7 +675,10 @@ def sync_tournament(cursor, tournament, organizer_id, store_id, dry_run=False):
 
         # Insert two match rows (one per player perspective)
         # Let IDENTITY generate match_id — do NOT use explicit IDs
+        # Use SAVEPOINT so a failed insert doesn't abort the outer transaction
         try:
+            cursor.execute("SAVEPOINT match_insert")
+
             # Player 1's perspective
             cursor.execute("""
                 INSERT INTO matches
@@ -660,8 +695,10 @@ def sync_tournament(cursor, tournament, organizer_id, store_id, dry_run=False):
                 VALUES (%s, %s, %s, %s, 0, 0, 0, %s, 'normal', 'limitless', CURRENT_TIMESTAMP)
             """, (next_tournament_id, round_number, player2_id, player1_id, p2_points))
 
+            cursor.execute("RELEASE SAVEPOINT match_insert")
             matches_inserted += 2
         except Exception as e:
+            cursor.execute("ROLLBACK TO SAVEPOINT match_insert")
             if "unique" in str(e).lower() or "duplicate" in str(e).lower():
                 pass  # Duplicate pairing, skip silently
             else:
@@ -1001,7 +1038,9 @@ def repair_tournament(cursor, tournament_id, limitless_id):
     print(f"got {len(pairings)}")
 
     for pairing in pairings:
-        round_number = pairing.get("round")
+        api_round = pairing.get("round")
+        match_field = pairing.get("match", "")
+        round_number = derive_round_from_match_field(match_field, api_round)
         player1_username = pairing.get("player1", "")
         player2_username = pairing.get("player2", "")
         winner = str(pairing.get("winner", ""))
@@ -1038,7 +1077,10 @@ def repair_tournament(cursor, tournament_id, limitless_id):
             p1_points, p2_points = 1, 1
 
         # Let IDENTITY generate match_id — do NOT use explicit IDs
+        # Use SAVEPOINT so a failed insert doesn't abort the outer transaction
         try:
+            cursor.execute("SAVEPOINT match_insert")
+
             cursor.execute("""
                 INSERT INTO matches
                     (tournament_id, round_number, player_id, opponent_id,
@@ -1053,8 +1095,10 @@ def repair_tournament(cursor, tournament_id, limitless_id):
                 VALUES (%s, %s, %s, %s, 0, 0, 0, %s, 'normal', 'limitless', CURRENT_TIMESTAMP)
             """, (tournament_id, round_number, player2_id, player1_id, p2_points))
 
+            cursor.execute("RELEASE SAVEPOINT match_insert")
             matches_inserted += 2
         except Exception as e:
+            cursor.execute("ROLLBACK TO SAVEPOINT match_insert")
             if "unique" not in str(e).lower() and "duplicate" not in str(e).lower():
                 print(f"      Error inserting match: {e}")
 
