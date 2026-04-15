@@ -35,6 +35,7 @@ Prerequisites:
 import os
 import re
 import sys
+import math
 import time
 import json
 import argparse
@@ -382,10 +383,13 @@ def resolve_deck(cursor, deck_info, deck_map_cache):
 def derive_round_from_match_field(match_field, api_round):
     """Derive a unique round number from the bracket match field.
 
-    Single-elimination tournaments on Limitless report all pairings as round 1,
-    with bracket position encoded in the match field (e.g., T8-3, T4-2, T2-1).
-    This converts bracket tier to sequential rounds so players appearing in
-    multiple bracket stages get distinct round numbers.
+    Limitless reports all bracket pairings with the same round number (e.g.,
+    all top-cut matches share round 6 after 5 Swiss rounds). The bracket tier
+    is encoded in the match field (T8-3, T4-2, T2-1). This offsets from the
+    API round so each bracket stage gets a distinct round number.
+
+    Works for both pure single-elim (api_round=1 for all) and mixed Swiss+Cut
+    (api_round=N+1 where N is the last Swiss round).
 
     Args:
         match_field: Match identifier from API (e.g., "T8-3", "T4-2")
@@ -403,10 +407,26 @@ def derive_round_from_match_field(match_field, api_round):
         return api_round
 
     bracket_size = int(bracket_match.group(1))
+    if bracket_size <= 0:
+        return api_round
 
-    # Larger bracket size = earlier round: T128→1, T64→2, ... T8→5, T4→6, T2→7, T1→8
-    size_to_round = {128: 1, 64: 2, 32: 3, 16: 4, 8: 5, 4: 6, 2: 7, 1: 8}
-    return size_to_round.get(bracket_size, api_round)
+    # Offset from api_round: largest bracket = first round of cut, smaller = later
+    # T8→+0, T4→+1, T2→+2 (using log2: log2(8)=3, log2(4)=2, log2(2)=1)
+    # offset = log2(max_bracket_in_this_set) - log2(this_bracket)
+    # Since we don't know max_bracket across all pairings, we use a simpler approach:
+    # offset = log2(largest_common) - log2(size), where largest_common = 128
+    # This gives T128→0, T64→1, T32→2, T16→3, T8→4, T4→5, T2→6
+    # But we want T8 (largest in set) to be +0. Since all bracket pairings share
+    # the same api_round, we just need unique offsets — the absolute value doesn't
+    # matter, only that larger brackets get smaller offsets.
+    try:
+        # log2(8)=3 → offset 0, log2(4)=2 → offset 1, log2(2)=1 → offset 2
+        max_log = 7  # covers up to T128
+        offset = max_log - int(math.log2(bracket_size))
+    except (ValueError, OverflowError):
+        return api_round
+
+    return api_round + offset
 
 
 def count_total_rounds(details):
