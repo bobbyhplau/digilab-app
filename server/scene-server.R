@@ -1375,19 +1375,19 @@ version_changelog_content <- function() {
     div(class = "version-changelog-items",
       div(class = "version-changelog-item",
         bsicons::bs_icon("globe2", class = "text-info"),
-        span(HTML("<strong>DigiLab 2.0!</strong> Player profiles, meta, tournaments & stores have been completely rebuilt at <a href='https://digilab.cards' target='_blank' rel='noopener'>digilab.cards</a>"))
+        span(HTML("<strong>DigiLab has moved!</strong> All data views and submissions are now at <a href='https://digilab.cards' target='_blank' rel='noopener'>digilab.cards</a>"))
       ),
       div(class = "version-changelog-item",
         bsicons::bs_icon("arrow-up-right-circle", class = "text-primary"),
-        span("Starting May 1st, all data views move to the new site. This app becomes submission-only for results, decklists & match data.")
+        span(HTML("Submit results, decklists & match data at <a href='https://digilab.cards/submit' target='_blank' rel='noopener'>digilab.cards/submit</a>"))
       ),
       div(class = "version-changelog-item",
-        bsicons::bs_icon("bar-chart-fill", class = "text-success"),
-        span("Deeper analysis, faster pages, and shareable links for everything on the new site")
+        bsicons::bs_icon("x-circle", class = "text-danger"),
+        span("Data submission on this app has been turned off")
       ),
       div(class = "version-changelog-item",
-        bsicons::bs_icon("cloud-upload", class = "text-warning"),
-        span("All submission features stay right here — tournament results, decklist URLs, and match-by-match uploads")
+        bsicons::bs_icon("discord", class = "text-info"),
+        span(HTML("Admins can now log in with Discord auth at <a href='https://digilab.cards/admin' target='_blank' rel='noopener'>digilab.cards/admin</a>"))
       )
     ),
     div(class = "version-changelog-support mt-3 pt-3",

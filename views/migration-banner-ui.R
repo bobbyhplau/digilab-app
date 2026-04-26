@@ -10,9 +10,13 @@ migration_banner_ui <- function() {
         class = "migration-banner-text",
         bsicons::bs_icon("megaphone-fill", class = "migration-banner-icon"),
         span(
-          HTML("<strong>DigiLab 2.0 is here!</strong> We've rebuilt player profiles, meta analysis, tournaments & store pages from the ground up with way more depth. Starting May 1st, all data views move exclusively to "),
+          HTML("<strong>DigiLab has moved!</strong> All data views and submissions are now on "),
           tags$a(href = "https://digilab.cards", target = "_blank", rel = "noopener", "digilab.cards"),
-          HTML(". This app will become <strong>submission-only</strong> for uploading results, decklists & match data.")
+          HTML(". Submit results, decklists & match data at "),
+          tags$a(href = "https://digilab.cards/submit", target = "_blank", rel = "noopener", "digilab.cards/submit"),
+          HTML(". <strong>Data submission on this app has been turned off.</strong> Admins can now log in with Discord at "),
+          tags$a(href = "https://digilab.cards/admin", target = "_blank", rel = "noopener", "digilab.cards/admin"),
+          HTML(".")
         )
       ),
       tags$a(

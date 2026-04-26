@@ -443,10 +443,31 @@ if (nzchar(Sys.getenv("SENTRY_DSN", ""))) {
 # Public page UIs (dashboard, stores, players, meta, tournaments) are sourced
 # at render time inside each page's renderUI so format choices can be populated
 # from the database. See server/public-*-server.R files.
-source("views/submit-results-ui.R", local = TRUE)
 source("views/onboarding-modal-ui.R", local = TRUE)
 source("views/community-banner-ui.R", local = TRUE)
 source("views/migration-banner-ui.R", local = TRUE)
+
+# Placeholder UI for disabled submission/admin pages
+submissions_moved_ui <- function() {
+  div(
+    class = "d-flex flex-column align-items-center justify-content-center",
+    style = "min-height: 400px; text-align: center; padding: 2rem;",
+    bsicons::bs_icon("box-arrow-up-right", size = "3rem", class = "text-muted mb-3"),
+    h3("Submissions have moved"),
+    p(class = "text-muted mb-4",
+      "All data submission and admin tools are now on the new site."),
+    tags$a(
+      href = "https://digilab.cards/submit", target = "_blank", rel = "noopener",
+      class = "btn btn-primary btn-lg me-2 mb-2",
+      bsicons::bs_icon("cloud-upload", class = "me-1"), "Submit Results"
+    ),
+    tags$a(
+      href = "https://digilab.cards/admin", target = "_blank", rel = "noopener",
+      class = "btn btn-outline-primary btn-lg mb-2",
+      bsicons::bs_icon("person-gear", class = "me-1"), "Admin Dashboard"
+    )
+  )
+}
 
 # =============================================================================
 # UI
@@ -881,52 +902,20 @@ ui <- page_fillable(
         actionLink("nav_stores",
                    tagList(bsicons::bs_icon("geo-alt"), " Stores"),
                    class = "nav-link-sidebar"),
-        conditionalPanel(
-          condition = "!output.is_admin",
-          actionLink("nav_submit_results",
-                     tagList(bsicons::bs_icon("cloud-upload"), " Submit Results"),
-                     class = "nav-link-sidebar")
+        # Submissions & admin moved to digilab.cards
+        tags$a(
+          href = "https://digilab.cards/submit", target = "_blank", rel = "noopener",
+          class = "nav-link-sidebar",
+          tagList(bsicons::bs_icon("cloud-upload"), " Submit Results ", bsicons::bs_icon("box-arrow-up-right", class = "small"))
         ),
-
-        # Admin Section (conditionally shown, ordered by frequency of use)
         conditionalPanel(
           condition = "output.is_admin",
           tags$div(class = "nav-section-label", "Admin"),
-          actionLink("nav_admin_submit_results",
-                     tagList(bsicons::bs_icon("cloud-upload"), " Submit Results"),
-                     class = "nav-link-sidebar"),
-          actionLink("nav_admin_tournaments",
-                     tagList(bsicons::bs_icon("trophy"), " Edit Tournaments"),
-                     class = "nav-link-sidebar"),
-          actionLink("nav_admin_players",
-                     tagList(bsicons::bs_icon("people"), " Edit Players"),
-                     class = "nav-link-sidebar"),
-          actionLink("nav_admin_stores",
-                     tagList(bsicons::bs_icon("shop"), " Edit Stores"),
-                     class = "nav-link-sidebar")
-        ),
-
-        # Manage Admins (superadmin + regional admin)
-        conditionalPanel(
-          condition = "output.can_manage_admins",
-          actionLink("nav_admin_users",
-                     tagList(bsicons::bs_icon("person-gear"), " Manage Admins"),
-                     class = "nav-link-sidebar")
-        ),
-
-        # Super Admin Section (superadmin only)
-        conditionalPanel(
-          condition = "output.is_superadmin",
-          tags$div(class = "nav-section-label", "Super Admin"),
-          actionLink("nav_admin_decks",
-                     tagList(bsicons::bs_icon("collection"), " Edit Decks"),
-                     class = "nav-link-sidebar"),
-          actionLink("nav_admin_formats",
-                     tagList(bsicons::bs_icon("calendar3"), " Edit Formats"),
-                     class = "nav-link-sidebar"),
-          actionLink("nav_admin_scenes",
-                     tagList(bsicons::bs_icon("globe2"), " Manage Scenes"),
-                     class = "nav-link-sidebar")
+          tags$a(
+            href = "https://digilab.cards/admin", target = "_blank", rel = "noopener",
+            class = "nav-link-sidebar",
+            tagList(bsicons::bs_icon("person-gear"), " Admin Dashboard ", bsicons::bs_icon("box-arrow-up-right", class = "small"))
+          )
         )
       )
     ),
@@ -953,14 +942,14 @@ ui <- page_fillable(
         nav_panel_hidden(value = "players", uiOutput("players_page")),
         nav_panel_hidden(value = "meta", uiOutput("meta_page")),
         nav_panel_hidden(value = "tournaments", uiOutput("tournaments_page")),
-        nav_panel_hidden(value = "submit_results", submit_results_ui),
-        nav_panel_hidden(value = "admin_tournaments", uiOutput("admin_tournaments_ui")),
-        nav_panel_hidden(value = "admin_decks", uiOutput("admin_decks_ui")),
-        nav_panel_hidden(value = "admin_stores", uiOutput("admin_stores_ui")),
-        nav_panel_hidden(value = "admin_formats", uiOutput("admin_formats_ui")),
-        nav_panel_hidden(value = "admin_players", uiOutput("admin_players_ui")),
-        nav_panel_hidden(value = "admin_users", uiOutput("admin_users_ui")),
-        nav_panel_hidden(value = "admin_scenes", uiOutput("admin_scenes_ui"))
+        nav_panel_hidden(value = "submit_results", submissions_moved_ui()),
+        nav_panel_hidden(value = "admin_tournaments", submissions_moved_ui()),
+        nav_panel_hidden(value = "admin_decks", submissions_moved_ui()),
+        nav_panel_hidden(value = "admin_stores", submissions_moved_ui()),
+        nav_panel_hidden(value = "admin_formats", submissions_moved_ui()),
+        nav_panel_hidden(value = "admin_players", submissions_moved_ui()),
+        nav_panel_hidden(value = "admin_users", submissions_moved_ui()),
+        nav_panel_hidden(value = "admin_scenes", submissions_moved_ui())
       )
     )
   ),
@@ -1171,50 +1160,12 @@ server <- function(input, output, session) {
   source("server/public-tournaments-server.R", local = TRUE)
   source("server/public-players-server.R", local = TRUE)
   source("server/public-dashboard-server.R", local = TRUE)
-  source("server/submit-shared-server.R", local = TRUE)
-  source("server/submit-upload-server.R", local = TRUE)
-  source("server/submit-match-server.R", local = TRUE)
-  source("server/submit-decklist-server.R", local = TRUE)
-
-  # ---------------------------------------------------------------------------
-  # Lazy-load Admin Modules (only when user logs in as admin)
-  # ---------------------------------------------------------------------------
-  admin_modules_loaded <- reactiveVal(FALSE)
-
-  observeEvent(rv$is_admin, {
-    if (rv$is_admin && !admin_modules_loaded()) {
-      # Source admin UI views (defines admin_*_ui variables)
-      source("views/admin-tournaments-ui.R", local = TRUE)
-      source("views/admin-decks-ui.R", local = TRUE)
-      source("views/admin-stores-ui.R", local = TRUE)
-      source("views/admin-formats-ui.R", local = TRUE)
-      source("views/admin-players-ui.R", local = TRUE)
-      source("views/admin-users-ui.R", local = TRUE)
-      source("views/admin-scenes-ui.R", local = TRUE)
-
-      # Render admin UI into placeholders
-      output$admin_tournaments_ui <- renderUI(admin_tournaments_ui)
-      output$admin_decks_ui <- renderUI(admin_decks_ui)
-      output$admin_stores_ui <- renderUI(admin_stores_ui)
-      output$admin_formats_ui <- renderUI(admin_formats_ui)
-      output$admin_players_ui <- renderUI(admin_players_ui)
-      output$admin_users_ui <- renderUI(admin_users_ui)
-      output$admin_scenes_ui <- renderUI(admin_scenes_ui)
-
-      # Source admin server modules
-      source("server/submit-grid-server.R", local = TRUE)
-      source("server/admin-tournaments-server.R", local = TRUE)
-      source("server/admin-decks-server.R", local = TRUE)
-      source("server/admin-families-server.R", local = TRUE)
-      source("server/admin-stores-server.R", local = TRUE)
-      source("server/admin-formats-server.R", local = TRUE)
-      source("server/admin-players-server.R", local = TRUE)
-      source("server/admin-users-server.R", local = TRUE)
-      source("server/admin-scenes-server.R", local = TRUE)
-      source("server/admin-notifications-server.R", local = TRUE)
-      admin_modules_loaded(TRUE)
-    }
-  }, ignoreInit = TRUE)
+  # Submit and admin modules disabled — submissions moved to digilab.cards
+  # source("server/submit-shared-server.R", local = TRUE)
+  # source("server/submit-upload-server.R", local = TRUE)
+  # source("server/submit-match-server.R", local = TRUE)
+  # source("server/submit-decklist-server.R", local = TRUE)
+  # Admin modules (lazy-loaded) also disabled — see submissions_moved_ui()
 
   # ---------------------------------------------------------------------------
   # Rating Cache Queries (reactive)
