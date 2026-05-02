@@ -55,6 +55,118 @@ CLASSIFICATION_RULES = [
     # SPECIFIC DECK ARCHETYPES (order matters - more specific first)
     # ==========================================================================
 
+    # TS Family -------------------------------------------------
+
+    # Jupitermon
+    ("Jupitermon", ["Jupitermon", "Inori Misono", "Aegiochusmon", "Aegiomon"], 4),
+
+    # TS Tidal Zone
+    ("TS Tidal Zone", ["Neptunemon", "Venusmon", "Divermon", "Sharkmon", "Calmaramon"], 4),
+
+    # TS Central Town
+    ("TS Central Town", ["Merukimon", "Silphymon", "Bukamon"], 3),
+
+    # TS Trinity Burst
+    ("TS Trinity Burst", ["Dan Yuki & Kanan Yuki", "Trinity Burst"], 2),
+
+    # TS Toolbox (catch TS Toolbox decks that don't have the same OTK focus as TS Central Town)
+    ("TS Toolbox", ["Silphymon", "Homeros", "Garurumon"], 3),
+
+    # TS Titans
+    ("TS Titans", ["Titamon", "SkullBaluchimon"], 2),
+
+    # Olympos XII (catch-all for all random Olympos XII decks, mostly for Megazoo)
+    ("Olympos XII", ["Homeros", "Dan Yuki & Kanan Yuki", "Minervamon"], 3),
+
+    # -----------------------------------------------------------
+
+    # Red Hybrid Family -----------------------------------------
+
+    # Red Hybrid Toolbox
+    ("Red Hybrid Toolbox", ["Tommy, Takuya, & Zoe", "Aldamon", "EmperorGreymon", "Medusamon", "Volcanicdramon", "Metallicdramon", "Imperialdramon: Fighter Mode"], 4),
+
+    # Red Hybrid AncientGreymon
+    ("Red Hybrid (AncientGreymon)", ["Tommy, Takuya, & Zoe", "Aldamon", "AncientGreymon"], 3),
+
+    # Red Hybrid EmperorGreymon (catch some of these other Red Hybrid decks)
+    ("Red Hybrid (EmperorGreymon)", ["Tommy, Takuya, & Zoe", "Aldamon", "EmperorGreymon"], 3),
+
+    # -----------------------------------------------------------
+
+    # Millenniummon Family --------------------------------------
+
+    # Growl Millenniummon Loop
+    ("Growl Millenniummon Loop", ["Millenniummon", "Growlmon", "Attack of the Heavy Mobile Digimon"], 3),
+
+    # Millenniummon
+    ("Millenniummon", ["Millenniummon", "Kimeramon", "Machinedramon"], 3),
+    
+    # -----------------------------------------------------------
+
+    # ADVENTURE
+    ("ADVENTURE", ["Biyomon", "Tsunomon", "Palmon", "Birdramon", "Togemon"], 5),
+
+    # All Omnimon DNA Decks -------------------------------------
+
+    # GAS (Garuru Alter-S)
+    ("GAS (Garuru Alter-S)", ["MetalGarurumon", "Matt Ishida", "Omnimon Alter-S", "Mental Training"], 4),
+
+    # CS Omnimon
+    ("CS Omnimon", ["Tsumemon", "WarGreymon", "MetalGarurumon", "Omnimon"], 4),
+
+    # ADVENTURE Alter-S
+    ("ADVENTURE Alter-S", ["Palmon", "Biyomon", "MetalGreymon: Alterous Mode", "WereGarurumon: Sagittarius Mode", "Omnimon Alter-S"], 4),
+
+    # Alter-S Ladder
+    ("Alter-S Ladder", ["MetalGreymon: Alterous Mode", "WereGarurumon: Sagittarius Mode", "Omnimon Alter-S"], 3),
+
+    # ADVENTURE Omni
+    ("ADVENTURE Omni", ["Agumon", "Gabumon", "WarGreymon", "MetalGarurumon", "Omnimon", "Our Courage United"], 6),
+     
+    # DNA Omnimon
+    ("DNA Omnimon", ["Koromon", "WarGreymon", "MetalGarurumon", "Omnimon"], 4),
+
+    # -----------------------------------------------------------
+
+    # Light Hybrid Family ---------------------------------------
+
+    # Light Hybrid Toolbox
+    ("Light Hybrid Toolbox", ["J.P., Koji, & Koichi", "Beowolfmon", "Venusmon"], 3),
+
+    # Light Hybrid (catch-all for all decks of this style)
+    ("Light Hybrid", ["J.P., Koji, & Koichi", "Beowolfmon"], 2),
+
+    # -----------------------------------------------------------
+
+    # ShineGreymon Family ---------------------------------------
+
+    # Shinegreymon
+    ("Shinegreymon", ["Marcus Daimon & Agumon", "ShineGreymon", "ShineGreymon: Burst Mode"], 3),
+    
+    # Ruin Mode Turbo
+    ("Ruin Mode Turbo", ["Marcus Daimon & Agumon", "ShineGreymon", "ShineGreymon: Ruin Mode"], 3),
+    
+    # -----------------------------------------------------------
+
+    # Puppets
+    ("Puppets", ["Shoemon", "Cendrillmon", "ShoeShoemon"], 3),
+
+    # Xros Heart
+    ("Xros Heart", ["Shoutmon", "Taiki Kudo", "Kotone Amano", "OmniShoutmon", "Pickmons"], 5),
+
+    # Heavymetaldramon
+    ("Heavymetaldramon", ["HeavyMetaldramon", "Impmon", "Punkmon", "Loudmon"], 4),
+
+    # Gankoo Turtle
+    ("Gankoo Turtle", ["Gankoomon", "Gankoomon (X Antibody)", "SaviorHuckmon"], 3),
+    
+    # DM Machinedramon
+    ("DM Machinedramon", ["Machinedramon", "Vademon", "Vegiemon"], 3),
+    ("DM Machinedramon", ["Machinedramon", "ExTyrannomon", "Raremon"], 3),
+
+    # DM (Ver.2)
+    ("DM (Ver.2)", ["Vademon", "Volcanicdramon", "Metallicdramon", "Vegiemon", "Justimon: Blitz Arm"], 4),
+    
     # Bagra Army (Blastmon variant with Bagramon/DarkKnightmon)
     ("Bagra Army", ["Blastmon", "Bagramon", "DarkKnightmon"], 2),
     ("Bagra Army", ["Bagramon", "DarkKnightmon"], 2),
@@ -64,11 +176,6 @@ CLASSIFICATION_RULES = [
     ("Rocks", ["Sunarizamon", "Landramon", "Pyramidimon"], 3),
     ("Rocks", ["Blastmon", "Sunarizamon", "Magneticdramon"], 3),
     ("Rocks", ["Blastmon", "Sunarizamon", "Pyramidimon"], 3),
-
-    # Millenniummon (Jogress with Machinedramon + Kimeramon)
-    ("Millenniummon", ["Millenniummon", "Machinedramon", "Kimeramon"], 3),
-    ("Millenniummon", ["Millenniummon", "Kimeramon"], 2),
-    ("Millenniummon", ["Millenniummon", "Vademon", "Kimeramon"], 2),
 
     # Magnamon Armors (Veemon armor evolution)
     ("Magnamon Armors", ["Magnamon", "Veemon", "Flamedramon"], 3),
@@ -139,9 +246,6 @@ CLASSIFICATION_RULES = [
     # Fenriloogamon
     ("Fenriloogamon", ["Fenriloogamon", "Cerberusmon", "Kazuchimon"], 2),
     ("Fenriloogamon", ["Fenriloogamon: Takemikazuchi"], 1),
-
-    # Xros Heart (Shoutmon line)
-    ("Xros Heart", ["OmniShoutmon", "Shoutmon"], 2),
 
     # Creepymon
     ("Creepymon", ["Creepymon", "SkullSatamon"], 2),
@@ -309,9 +413,6 @@ CLASSIFICATION_RULES = [
     ("Agu Bond", ["Agumon - Bond of Courage", "Agumon"], 2),
     ("Agu Bond", ["Agumon - Bond of Courage", "Greymon"], 2),
 
-    # GAS (Garuru Alter-S)
-    ("GAS (Garuru Alter-S)", ["Alter-S", "CresGarurumon"], 1),
-
     # Invisimon (standalone)
     ("Invisimon", ["Invisimon"], 1),
 
@@ -331,14 +432,6 @@ CLASSIFICATION_RULES = [
 
     # Megidramon
     ("Megidramon", ["Megidramon", "WarGrowlmon", "Guilmon"], 3),
-
-    # Olympus XII
-    ("Olympus XII", ["Jupitermon", "Junomon", "Apollomon"], 2),
-    ("Olympus XII", ["Neptunemon", "Mercurymon"], 2),
-
-    # TS Titans (Ogre/Titamon deck)
-    ("TS Titans", ["Titamon", "Ogremon", "Goblimon"], 3),
-    ("TS Titans", ["Titamon", "SkullBaluchimon"], 2),
 
     # Deusmon
     ("Deusmon", ["Deusmon", "Cometmon", "Warudamon"], 2),
@@ -373,12 +466,7 @@ CLASSIFICATION_RULES = [
     ("Vortex", ["Zephagamon", "Vortexdramon"], 2),
     ("Vortex", ["Zephagamon", "Zephagamon ACE"], 2),
     ("Vortex", ["Zephagamon ACE", "MedievalGallantmon"], 2),
-
-    # Sistermon Puppets (Sistermon + Gankoomon)
-    ("Sistermon Puppets", ["Sistermon Blanc", "Sistermon Ciel", "Gankoomon"], 3),
-    ("Sistermon Puppets", ["Sistermon Blanc (Awakened)", "Sistermon Ciel (Awakened)", "Gankoomon"], 2),
-    ("Sistermon Puppets", ["Sistermon Blanc", "Gankoomon (X Antibody)"], 2),
-
+    
     # Argomon
     ("Argomon", ["Argomon", "Woodmon", "Mushroomon"], 2),
 
@@ -392,12 +480,6 @@ CLASSIFICATION_RULES = [
     ("Dinomon", ["Dinomon", "Agumon", "Ryutaro Williams"], 2),
     ("Dinomon", ["Dinomon", "Ryutaro Williams"], 2),
     ("Dinomon", ["Dinorexmon", "Dinomon", "Agumon"], 2),
-
-    # Red Hybrid (Takuya line) — split by mega
-    ("Red Hybrid EmperorGreymon", ["EmperorGreymon", "Aldamon", "BurningGreymon"], 2),
-    ("Red Hybrid EmperorGreymon", ["EmperorGreymon", "Agunimon", "Flamemon"], 2),
-    ("Red Hybrid AncientGreymon", ["AncientGreymon", "Aldamon", "BurningGreymon"], 2),
-    ("Red Hybrid AncientGreymon", ["AncientGreymon", "Agunimon", "Flamemon"], 2),
 
     # Ariemon
     ("Ariemon", ["Ariemon", "Huankunmon", "Sanzomon"], 2),
