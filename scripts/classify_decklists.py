@@ -260,7 +260,7 @@ CLASSIFICATION_RULES = [
     ("Gallantmon", ["Gallantmon", "Guilmon", "Growlmon"], 3),
 
     # Eaters — min=2 required: "Eater" substring matches "In-Between Theater"
-    ("Eaters", ["Eater", "EDEN's Javelin"], 2),
+    ("Eaters", ["Mother Eater", "Eater (Species Form)"], 2),
 
     # Imperialdramon variants
     ("Imperialdramon (UG)", ["Imperialdramon", "Paildramon", "ExVeemon"], 3),
@@ -325,10 +325,6 @@ CLASSIFICATION_RULES = [
     # Diaboromon
     ("Diaboromon", ["Diaboromon", "Infermon", "Keramon"], 2),
 
-    # Omnimon variants (CS with Nokia tamer, DNA without)
-    ("CS Omnimon", ["Omnimon", "WarGreymon", "MetalGarurumon", "Nokia"], 4),
-    ("DNA Omnimon", ["Omnimon", "WarGreymon", "MetalGarurumon"], 3),
-
     # Numemon
     ("Numemon", ["Numemon", "PlatinumNumemon", "Monzaemon"], 2),
 
@@ -337,9 +333,6 @@ CLASSIFICATION_RULES = [
 
     # Miragegaogamon
     ("Miragegaogamon", ["MirageGaogamon", "Gaogamon", "Gaomon"], 2),
-
-    # Shinegreymon
-    ("Shinegreymon", ["ShineGreymon", "RizeGreymon", "GeoGreymon"], 2),
 
     # Belphemon
     ("Belphemon", ["Belphemon", "Astamon"], 2),
@@ -414,7 +407,7 @@ CLASSIFICATION_RULES = [
     ("Agu Bond", ["Agumon - Bond of Courage", "Greymon"], 2),
 
     # Invisimon (standalone)
-    ("Invisimon", ["Invisimon"], 1),
+    ("Invisimon", ["Invisimon", "Espimon", "HoverEspimon", "Oblivimon"], 4),
 
     # Blackwargreymon (expanded)
     ("Blackwargreymon", ["BlackWarGreymon", "Agumon", "Greymon"], 2),
