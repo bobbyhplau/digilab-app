@@ -100,11 +100,8 @@ CLASSIFICATION_RULES = [
 
     # Millenniummon
     ("Millenniummon", ["Millenniummon", "Kimeramon", "Machinedramon"], 3),
-    
-    # -----------------------------------------------------------
 
-    # ADVENTURE
-    ("ADVENTURE", ["Biyomon", "Tsunomon", "Palmon", "Birdramon", "Togemon"], 5),
+    # -----------------------------------------------------------
 
     # All Omnimon DNA Decks -------------------------------------
 
@@ -112,7 +109,7 @@ CLASSIFICATION_RULES = [
     ("GAS (Garuru Alter-S)", ["MetalGarurumon", "Matt Ishida", "Omnimon Alter-S", "Mental Training"], 4),
 
     # CS Omnimon
-    ("CS Omnimon", ["Tsumemon", "WarGreymon", "MetalGarurumon", "Omnimon"], 4),
+    ("CS Omnimon", ["Tsumemon", "Nokia", "WarGreymon", "MetalGarurumon", "Omnimon"], 5),
 
     # ADVENTURE Alter-S
     ("ADVENTURE Alter-S", ["Palmon", "Biyomon", "MetalGreymon: Alterous Mode", "WereGarurumon: Sagittarius Mode", "Omnimon Alter-S"], 4),
@@ -122,9 +119,12 @@ CLASSIFICATION_RULES = [
 
     # ADVENTURE Omni
     ("ADVENTURE Omni", ["Agumon", "Gabumon", "WarGreymon", "MetalGarurumon", "Omnimon", "Our Courage United"], 6),
-     
+
     # DNA Omnimon
     ("DNA Omnimon", ["Koromon", "WarGreymon", "MetalGarurumon", "Omnimon"], 4),
+
+    # ADVENTURE (generic — placed after Omnimon variants since they share Adventure rookies)
+    ("ADVENTURE", ["Biyomon", "Tsunomon", "Palmon", "Birdramon", "Togemon"], 5),
 
     # -----------------------------------------------------------
 
@@ -142,10 +142,10 @@ CLASSIFICATION_RULES = [
 
     # Shinegreymon
     ("Shinegreymon", ["Marcus Daimon & Agumon", "ShineGreymon", "ShineGreymon: Burst Mode"], 3),
-    
+
     # Ruin Mode Turbo
     ("Ruin Mode Turbo", ["Marcus Daimon & Agumon", "ShineGreymon", "ShineGreymon: Ruin Mode"], 3),
-    
+
     # -----------------------------------------------------------
 
     # Puppets
@@ -159,14 +159,14 @@ CLASSIFICATION_RULES = [
 
     # Gankoo Turtle
     ("Gankoo Turtle", ["Gankoomon", "Gankoomon (X Antibody)", "SaviorHuckmon"], 3),
-    
+
     # DM Machinedramon
     ("DM Machinedramon", ["Machinedramon", "Vademon", "Vegiemon"], 3),
     ("DM Machinedramon", ["Machinedramon", "ExTyrannomon", "Raremon"], 3),
 
     # DM (Ver.2)
     ("DM (Ver.2)", ["Vademon", "Volcanicdramon", "Metallicdramon", "Vegiemon", "Justimon: Blitz Arm"], 4),
-    
+
     # Bagra Army (Blastmon variant with Bagramon/DarkKnightmon)
     ("Bagra Army", ["Blastmon", "Bagramon", "DarkKnightmon"], 2),
     ("Bagra Army", ["Bagramon", "DarkKnightmon"], 2),
@@ -459,7 +459,7 @@ CLASSIFICATION_RULES = [
     ("Vortex", ["Zephagamon", "Vortexdramon"], 2),
     ("Vortex", ["Zephagamon", "Zephagamon ACE"], 2),
     ("Vortex", ["Zephagamon ACE", "MedievalGallantmon"], 2),
-    
+
     # Argomon
     ("Argomon", ["Argomon", "Woodmon", "Mushroomon"], 2),
 
