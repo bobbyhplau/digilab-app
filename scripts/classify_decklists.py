@@ -490,9 +490,12 @@ CLASSIFICATION_RULES = [
     ("Nightmare Soldiers", ["Wizardmon (X Antibody)", "Wizardmon", "Candlemon"], 2),
 
     # Appmon (generic - should be last among Appmon rules)
-    ("Appmon", ["Dokamon", "Consulmon", "Beautymon"], 2),
-    ("Appmon", ["Dokamon", "Coachmon", "Coordemon"], 2),
-    ("Appmon", ["Flickmon", "Dokamon", "Oujamon"], 2),
+    ("Ouranosmon", ["Musimon", "Mediamon", "Entermon", "Fakemon", "Ouranosmon"], 5),
+    ("Poseidomon", ["Dokamon", "Dosukamon", "Oujamon", "Beautymon", "Poseidomon"], 5),
+    ("Gaiamon", ["Gatchmon", "DoGatchmon", "Globemon", "Charismon", "Gaiamon"], 5),
+    ("Hadesmon", ["Hackmon", "Raidramon", "Biomon", "Revivemon", "Hadesmon"], 5),
+    ("Deusmon", ["Mirrormon", "Mienumon", "Warudamon", "Cometmon", "Deusmon"], 5),
+    ("Rebootmon", ["Onmon", "Logimon", "Bootmon", "Shutmon", "Rebootmon"], 5),
 ]
 
 
