@@ -141,10 +141,10 @@ CLASSIFICATION_RULES = [
     # ShineGreymon Family ---------------------------------------
 
     # Shinegreymon
-    ("Shinegreymon", ["Marcus Daimon & Agumon", "ShineGreymon", "ShineGreymon: Burst Mode"], 3),
+    ("Shinegreymon", ["Marcus Damon & Agumon", "ShineGreymon", "ShineGreymon: Burst Mode"], 3),
 
     # Ruin Mode Turbo
-    ("Ruin Mode Turbo", ["Marcus Daimon & Agumon", "ShineGreymon", "ShineGreymon: Ruin Mode"], 3),
+    ("Ruin Mode Turbo", ["Marcus Damon & Agumon", "ShineGreymon", "ShineGreymon: Ruin Mode"], 3),
 
     # -----------------------------------------------------------
 
